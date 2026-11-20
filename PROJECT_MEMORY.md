@@ -143,6 +143,12 @@
     + Cơ chế trích xuất ký ức sâu tự động (Background Memory Extractor) lưu các quy tắc, sở thích của anh Trường vào SQLite bảng `memories` và luôn ghi nhớ xuyên suốt.
     + Đã kiểm thử tự động toàn bộ endpoint: 100% trả về Status 200 OK, kiểm tra cú pháp JS không lỗi (`node -c`).
 
+- **2026-11-21 (Đại Nâng Cấp Hệ Thống Lịch Sử Hội Thoại Chuẩn 100% Google Antigravity)**:
+  - Phân tách và khôi phục 100% toàn bộ 189 tin nhắn lịch sử từ trước đến giờ thành 10 phiên hội thoại thực tế có tiêu đề sắc bén, đầy đủ bối cảnh (Snake Game, Disk Analyzer, /plan, Luật Biên Phòng, Logo 3D, Thời tiết Cồn Cỏ, v.v.).
+  - Giao diện Sidebar chuẩn Antigravity: Phân mục rõ ràng gồm `📌 PINNED CONVERSATIONS` và `📁 PROJECTS & RECENT`, hiển thị nhãn thời gian tương đối (`7m`, `9h`, `1d`, `1mo`), nhãn thư mục dự án (`📁 haitruong`, `📁 3D MODEL`).
+  - Đầy đủ nút thao tác nhanh: Ghim/Bỏ ghim (`📌`/`📍`), Đổi tên (`✏️`), và Xóa vĩnh viễn (`🗑️`) khi người dùng chủ động bấm xác nhận.
+  - Tự động sinh tiêu đề thông minh (Auto Title Generation) từ nội dung câu hỏi đầu tiên khi tạo đoạn chat mới.
+
 ---
 
 ## 4. Danh Sách Tính Năng Hoàn Thành & Đang Hoạt Động Ổn Định

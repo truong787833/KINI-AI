@@ -107,8 +107,7 @@ def list_conversations() -> List[Dict[str, Any]]:
     FROM conversations c
     LEFT JOIN messages m ON c.id = m.conv_id
     GROUP BY c.id
-    HAVING msg_count > 0 OR c.id = 'default'
-    ORDER BY c.updated_at DESC
+    ORDER BY c.is_pinned DESC, c.updated_at DESC
     """)
     rows = cur.fetchall()
     conn.close()
@@ -122,12 +121,12 @@ def get_conversation_messages(conv_id: str) -> List[Dict[str, Any]]:
     conn.close()
     return [dict(r) for r in rows]
 
-def create_conversation(conv_id: str, title: str):
+def create_conversation(conv_id: str, title: str, category: str = "haitruong"):
     now = datetime.now().isoformat()
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("INSERT OR REPLACE INTO conversations (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-                (conv_id, title, now, now))
+    cur.execute("INSERT OR REPLACE INTO conversations (id, title, created_at, updated_at, is_pinned, category) VALUES (?, ?, ?, ?, 0, ?)",
+                (conv_id, title, now, now, category))
     conn.commit()
     conn.close()
 
@@ -138,6 +137,21 @@ def update_conversation_title(conv_id: str, title: str):
                 (title.strip(), datetime.now().isoformat(), conv_id))
     conn.commit()
     conn.close()
+
+def toggle_conversation_pin(conv_id: str) -> bool:
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT is_pinned FROM conversations WHERE id = ?", (conv_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return False
+    new_pinned = 0 if row["is_pinned"] else 1
+    cur.execute("UPDATE conversations SET is_pinned = ?, updated_at = ? WHERE id = ?", 
+                (new_pinned, datetime.now().isoformat(), conv_id))
+    conn.commit()
+    conn.close()
+    return bool(new_pinned)
 
 def add_message(conv_id: str, role: str, content: str, image_url: str = "") -> int:
     now = datetime.now().isoformat()

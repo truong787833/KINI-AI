@@ -73,6 +73,19 @@ def remove_conversation(conv_id: str):
     database.delete_conversation(conv_id)
     return {"success": True}
 
+@app.post("/api/conversations/{conv_id}/pin")
+def pin_conversation(conv_id: str):
+    is_pinned = database.toggle_conversation_pin(conv_id)
+    return {"success": True, "is_pinned": is_pinned}
+
+@app.post("/api/conversations/{conv_id}/rename")
+def rename_conversation(conv_id: str, data: dict):
+    title = data.get("title", "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Tiêu đề không được để trống")
+    database.update_conversation_title(conv_id, title)
+    return {"success": True, "title": title}
+
 def extract_tool_image_prompt(text: str) -> Optional[str]:
     """Trích xuất prompt vẽ ảnh nếu Gemini tự động sinh JSON tool call (dalle.text2im)"""
     try:
@@ -173,6 +186,17 @@ async def chat_with_kini(
 
     # Lưu tin nhắn người dùng vào cơ sở dữ liệu
     database.add_message(conv_id, "user", full_user_content, image_url=file_display_url)
+
+    # Tự động cập nhật tiêu đề thông minh cho cuộc trò chuyện mới
+    try:
+        past_msgs = database.get_conversation_messages(conv_id)
+        if len(past_msgs) <= 2:
+            clean_title = re.sub(r'^/(agent|plan)\s*', '', message.strip(), flags=re.IGNORECASE)
+            if clean_title:
+                short_title = clean_title[:38] + ("..." if len(clean_title) > 38 else "")
+                database.update_conversation_title(conv_id, short_title)
+    except Exception:
+        pass
 
     # 2. KIỂM TRA Ý ĐỊNH VẼ TRANH / TẠO ẢNH / THIẾT KẾ LOGO TRỰC TIẾP
     generated_img_url = ""
