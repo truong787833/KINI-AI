@@ -165,12 +165,16 @@ def ask_gemini(
             "parts": [{"text": sys_inst}]
         }
 
-    # Lựa chọn danh sách mô hình dựa trên model_mode (Tối ưu hóa tốc độ siêu nhanh < 1s)
+    # Lựa chọn danh sách mô hình dựa trên model_mode (Hỗ trợ toàn bộ thế hệ Gemini 4 và Flash)
     if model_mode == "pro":
         models_to_try = [
+            "gemini-4-hydrogen",
+            "gemini-4-neon",
+            "gemini-4-argon",
+            "gemini-4-carbon",
             "gemini-3.1-pro-preview",
             "gemini-pro-latest",
-            "gemini-3.1-flash-lite",    # Cực mạnh, phản hồi tức thì
+            "gemini-3.1-flash-lite",    # Cực mạnh, phản hồi tức thì < 1s
             "gemini-flash-lite-latest"
         ]
     else:

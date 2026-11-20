@@ -121,6 +121,8 @@
        - Hệ thống thông báo nổi Toast Notification Glassmorphism (`.kini-toast`) phản hồi tức thì khi Copy/Dán hoặc thao tác.
        - **Khắc phục tràn chữ khi cuộn (Ảnh 1)**: Thêm lớp phủ bóng mờ dưới đáy `prompt-bottom-shade`, tự động ẩn thanh gợi ý `quick-pills-bar` khi đang trò chuyện và tăng lề đệm cuộn `chat-viewport` lên 160px để tin nhắn không bị chồng lấn dưới thanh nhập lệnh.
        - **Khắc phục và khôi phục Lịch Sử Hội Thoại Vĩnh Viễn**: Tự động đồng bộ các đoạn chat vào bảng `conversations`, tự động đặt tiêu đề theo nội dung câu hỏi đầu tiên, lưu `kini_last_conv_id` vào `localStorage`. Khi người dùng F5 hoặc tắt mở lại web, toàn bộ lịch sử và đoạn chat đang dở dang được khôi phục 100% nguyên vẹn.
+       - **Tích hợp KINI AI Autonomous Agent (Chuẩn Antigravity)**: Bổ sung module `backend/agent_engine.py` với các công cụ cục bộ: `write_file`, `read_file`, `run_command`, `list_files` trong thư mục `H:\KINI_AI\workspace\`. KINI AI tự động nhận diện nhiệm vụ làm game/viết script, tự lập kế hoạch, tự viết code vào file, tự chạy lệnh kiểm thử và bàn giao sản phẩm hoàn chỉnh cho người dùng.
+       - **Bổ sung hỗ trợ toàn bộ thế hệ Gemini 4 (Neon, Argon, Carbon, Hydrogen)**: Sẵn sàng kết nối các mô hình thế hệ mới trong danh sách Pro mode của `backend/gemini_client.py`.
 
 ---
 

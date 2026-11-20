@@ -19,6 +19,7 @@ from . import file_parser
 from . import tts_service
 from . import doc_exporter
 from . import search_engine
+from . import agent_engine
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -212,7 +213,34 @@ async def chat_with_kini(
                 "is_image_generated": False
             }
 
-    # 3. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
+    # 3. KIỂM TRA Ý ĐỊNH AGENT TỰ HÀNH CHUẨN ANTIGRAVITY (Tự động tạo dự án, viết code file vào đĩa)
+    is_agent_cmd = (
+        message.strip().startswith("/agent") or 
+        any(k in message.lower() for k in ["tạo game", "làm game", "viết code game", "tạo dự án", "lập trình dự án", "agent hãy", "tự động làm"])
+    )
+    if is_agent_cmd:
+        clean_task = message.replace("/agent", "").strip()
+        agent_res = agent_engine.run_agent_task(clean_task, api_key=api_key)
+        if agent_res.get("success"):
+            assistant_reply = agent_res.get("reply", "")
+            actions = agent_res.get("actions", [])
+            if actions:
+                summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi vào máy tính:**"]
+                for a in actions:
+                    if a["tool"] == "write_file":
+                        summary_lines.append(f"- 📝 Đã tạo file: `H:\\KINI_AI\\workspace\\{a.get('path')}`")
+                    elif a["tool"] == "run_command":
+                        summary_lines.append(f"- ⚡ Đã chạy lệnh: `{a.get('command')}` (Mã: {a.get('returncode')})")
+                assistant_reply += "\n" + "\n".join(summary_lines)
+            database.add_message(conv_id, "assistant", assistant_reply)
+            return {
+                "success": True,
+                "reply": assistant_reply,
+                "is_agent": True,
+                "actions": actions
+            }
+
+    # 4. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
     # Tra cứu Internet trực tuyến nếu câu hỏi liên quan đến luật pháp, thời sự, năm 2025-2026, thông tin mới
     live_search_text = ""
     if search_engine.needs_live_search(message):
@@ -416,6 +444,40 @@ def serve_image(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="Không tìm thấy tệp")
+
+# ============================================================
+# 5.1. KINI AI AGENT TỰ HÀNH (AUTONOMOUS AGENT CHUẨN ANTIGRAVITY)
+# ============================================================
+@app.post("/api/agent/run")
+async def run_agent_endpoint(data: dict):
+    task = data.get("task", "").strip()
+    conv_id = data.get("conv_id", "default")
+    api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))
+    if not task:
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp nội dung nhiệm vụ.")
+    
+    database.add_message(conv_id, "user", f"🤖 [Yêu cầu Agent]: {task}")
+    agent_res = agent_engine.run_agent_task(task, api_key=api_key)
+    assistant_reply = agent_res.get("reply", "")
+    actions = agent_res.get("actions", [])
+    if actions:
+        summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi vào máy tính:**"]
+        for a in actions:
+            if a["tool"] == "write_file":
+                summary_lines.append(f"- 📝 Đã tạo file: `H:\\KINI_AI\\workspace\\{a.get('path')}`")
+            elif a["tool"] == "run_command":
+                summary_lines.append(f"- ⚡ Đã chạy lệnh: `{a.get('command')}` (Mã: {a.get('returncode')})")
+        assistant_reply += "\n" + "\n".join(summary_lines)
+    database.add_message(conv_id, "assistant", assistant_reply)
+    return {
+        "success": True,
+        "reply": assistant_reply,
+        "actions": actions
+    }
+
+@app.get("/api/agent/workspace")
+def get_workspace_files():
+    return agent_engine.tool_list_files()
 
 # ============================================================
 # 6. CÀI ĐẶT

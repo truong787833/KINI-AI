@@ -97,6 +97,9 @@ function initNavigationAndModals() {
             if (action === "draw") {
                 input.value = "Vẽ cho tôi logo KINI AI 3D phát sáng neon công nghệ tương lai, 8k";
                 input.focus();
+            } else if (action === "agent") {
+                input.value = "Tạo cho anh một con game 2D bằng Python Pygame, tự động lưu vào workspace";
+                input.focus();
             } else if (action === "document") {
                 document.getElementById("menu-attach-file")?.click();
             } else if (action === "memory") {
