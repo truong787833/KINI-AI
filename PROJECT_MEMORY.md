@@ -57,7 +57,11 @@
     + Frontend Web App chuẩn Mobile PWA (`static/index.html`, `static/style.css`, `static/app.js`, `static/manifest.json`, icon app).
     + Script chạy tự động `run.py` và `start.bat`.
     + Đã kiểm thử thành công tạo ảnh mẫu bằng AI Image Engine với tốc độ ~7 giây/ảnh.
-    + Đã khởi tạo Git repository và lưu mốc an toàn đầu tiên (`ea25e22`).
+- **2026-11-20 (Khắc phục kết nối Gemini API)**:
+  - **Hiện tượng**: Người dùng nhập API Key nhưng khi chat báo lỗi `❌ Không thể kết nối với dịch vụ Gemini...`.
+  - **Nguyên nhân**: Phía Google Gemini API đã ngưng hỗ trợ định danh model cũ (`gemini-2.0-flash` và `gemini-1.5-flash` trả về lỗi 404 từ máy chủ Google v1beta).
+  - **Xử lý**: Cập nhật `backend/gemini_client.py` chuyển sang danh sách model Gemini Flash thế hệ mới nhất (`gemini-3.1-flash-lite`, `gemini-flash-lite-latest`, `gemini-3-flash-preview`), lưu cố định API Key vào SQLite database và cải tiến cơ chế báo lỗi chi tiết.
+  - **Kiểm thử**: Đã gọi thử nghiệm HTTP endpoint `/api/chat` thành công 100%, phản hồi thông minh trong vòng 2 giây ("Chào anh Trường! Em là KINI AI...").
 
 ---
 

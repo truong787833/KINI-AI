@@ -64,13 +64,21 @@ def ask_gemini(
             "parts": [{"text": sys_inst}]
         }
 
-    # Thử lần lượt các model phổ biến nhất của Gemini
-    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    # Thử lần lượt các model phổ biến và mới nhất của Gemini
+    models_to_try = [
+        "gemini-3.1-flash-lite",
+        "gemini-flash-lite-latest", 
+        "gemini-3-flash-preview", 
+        "gemini-3.5-flash-lite", 
+        "gemini-flash-latest",
+        "gemini-2.5-flash"
+    ]
     
+    last_error = ""
     for model_name in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
         try:
-            res = requests.post(url, json=payload, timeout=30)
+            res = requests.post(url, json=payload, timeout=25)
             if res.status_code == 200:
                 data = res.json()
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -79,16 +87,18 @@ def ask_gemini(
                     "reply": text,
                     "model_used": model_name
                 }
-            elif res.status_code == 400:
-                # Lỗi API key hoặc tham số
-                err_data = res.json()
-                logger.warning(f"Lỗi {model_name}: {err_data}")
+            else:
+                err_json = res.json() if res.headers.get("content-type", "").startswith("application/json") else {}
+                err_msg = err_json.get("error", {}).get("message", res.text[:200])
+                last_error = f"HTTP {res.status_code}: {err_msg}"
+                logger.warning(f"Lỗi {model_name}: {last_error}")
                 continue
         except Exception as e:
+            last_error = str(e)
             logger.warning(f"Thất bại khi gọi {model_name}: {e}")
             continue
 
     return {
         "success": False,
-        "reply": "❌ Không thể kết nối với dịch vụ Gemini. Vui lòng kiểm tra lại tính hợp lệ của Gemini API Key hoặc kết nối mạng của bạn."
+        "reply": f"❌ Không thể kết nối với dịch vụ Gemini ({last_error}). Vui lòng kiểm tra lại tính hợp lệ của Gemini API Key hoặc kết nối mạng của bạn."
     }
