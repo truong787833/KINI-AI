@@ -36,7 +36,9 @@ def get_precision_rules() -> str:
    - Nghị quyết của Hội đồng nhân dân (NQ-HĐND): Mỗi tỉnh/thành phố có một Nghị quyết riêng (ví dụ: Nghị quyết 16/2025/NQ-HĐND tỉnh An Giang có hiệu lực từ 01/01/2026, Nghị quyết 16/2024/NQ-HĐND tỉnh Bình Định...). Phải phân biệt rõ ràng tỉnh/thành phố cụ thể, không phỏng đoán mơ hồ.
 3. CHẤT LƯỢNG CAO NHẤT, ĐÀO SÂU BẢN CHẤT:
    - Mọi câu trả lời chuyên môn, kế hoạch, văn bản phải được viết hoàn chỉnh từ đầu đến cuối, chặt chẽ, đầy đủ căn cứ, không dùng 'v.v.', 'bạn tự điền tiếp'.
-   - Nếu có dữ liệu tra cứu trực tuyến đính kèm bên dưới, phải sử dụng làm căn cứ chính xác cao nhất."""
+   - Nếu có dữ liệu tra cứu trực tuyến đính kèm bên dưới, phải sử dụng làm căn cứ chính xác cao nhất.
+4. GIAO TIẾP TỰ NHIÊN - TUYỆT ĐỐI KHÔNG XUẤT LỆNH MÁY HOẶC JSON TOOL:
+   - Tuyệt đối không xuất mã JSON gọi công cụ như 'action': 'dalle.text2im', 'action_input', v.v. Hãy luôn trò chuyện lịch thiệp, tự nhiên bằng tiếng Việt với anh Trường."""
 
 def is_image_request(text: str) -> bool:
     """Kiểm tra xem người dùng có đang yêu cầu vẽ tranh / tạo ảnh / làm logo không"""
@@ -115,10 +117,12 @@ def ask_gemini(
     api_key: Optional[str] = None, 
     system_instruction: Optional[str] = None,
     image_base64: Optional[str] = None,
-    image_mime: str = "image/jpeg"
+    image_mime: str = "image/jpeg",
+    model_mode: str = "flash"
 ) -> Dict[str, Any]:
     """
     Gửi câu hỏi / hội thoại tới Google Gemini API với nhiệt độ thấp (0.15) để đảm bảo độ chuẩn xác tối đa.
+    Hỗ trợ chế độ Flash siêu tốc hoặc Pro Deep suy luận chuyên sâu.
     """
     key = api_key or os.environ.get("GEMINI_API_KEY", "")
     if not key:
@@ -161,13 +165,23 @@ def ask_gemini(
             "parts": [{"text": sys_inst}]
         }
 
-    models_to_try = [
-        "gemini-3.1-flash-lite",
-        "gemini-flash-lite-latest", 
-        "gemini-3-flash-preview", 
-        "gemini-3.5-flash-lite", 
-        "gemini-flash-latest"
-    ]
+    # Lựa chọn danh sách mô hình dựa trên model_mode
+    if model_mode == "pro":
+        models_to_try = [
+            "gemini-3.1-pro-preview",
+            "gemini-2.5-pro",
+            "gemini-pro-latest",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-latest"
+        ]
+    else:
+        models_to_try = [
+            "gemini-3.1-flash-lite",
+            "gemini-flash-lite-latest", 
+            "gemini-3-flash-preview", 
+            "gemini-3.5-flash-lite", 
+            "gemini-flash-latest"
+        ]
     
     last_error = ""
     for model_name in models_to_try:

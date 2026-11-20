@@ -70,6 +70,28 @@ def remove_conversation(conv_id: str):
     database.delete_conversation(conv_id)
     return {"success": True}
 
+def extract_tool_image_prompt(text: str) -> Optional[str]:
+    """Trích xuất prompt vẽ ảnh nếu Gemini tự động sinh JSON tool call (dalle.text2im)"""
+    try:
+        m = re.search(r'\{[\s\S]*"action"\s*:\s*"dalle\.text2im"[\s\S]*\}', text)
+        if m:
+            data = json.loads(m.group(0))
+            inp = data.get("action_input", "")
+            if isinstance(inp, str):
+                try:
+                    inp_json = json.loads(inp)
+                    return inp_json.get("prompt", inp)
+                except:
+                    return inp
+            elif isinstance(inp, dict):
+                return inp.get("prompt", "")
+    except Exception:
+        pass
+    m_p = re.search(r'"prompt"\s*:\s*"([^"]+)"', text)
+    if m_p:
+        return m_p.group(1)
+    return None
+
 @app.post("/api/chat")
 async def chat_with_kini(
     conv_id: str = Form("default"),
@@ -169,6 +191,15 @@ async def chat_with_kini(
                 "image_url": generated_img_url,
                 "is_image_generated": True
             }
+        else:
+            fail_reply = f"⚠️ Dạ thưa anh Trường, hệ thống vẽ ảnh đang bận hoặc quá tải tạm thời: {img_result.get('error', 'Không phản hồi')}. Anh vui lòng bấm gửi lại giúp em nhé!"
+            database.add_message(conv_id, "assistant", fail_reply)
+            return {
+                "success": True,
+                "reply": fail_reply,
+                "image_url": "",
+                "is_image_generated": False
+            }
 
     # 3. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
     # Tra cứu Internet trực tuyến nếu câu hỏi liên quan đến luật pháp, thời sự, năm 2025-2026, thông tin mới
@@ -196,15 +227,45 @@ async def chat_with_kini(
         "content": current_content_with_grounding
     })
 
-    # Gọi Google Gemini với độ chính xác cao
+    # Gọi Google Gemini với độ chính xác cao và đúng chế độ Flash / Pro
     res = gemini_client.ask_gemini(
         messages=formatted_history,
         api_key=api_key,
         image_base64=image_base64,
-        image_mime=image_mime
+        image_mime=image_mime,
+        model_mode=model_mode
     )
 
     assistant_reply = res.get("reply", "Xin lỗi, đã xảy ra lỗi trong quá trình xử lý.")
+
+    # KIỂM TRA NẾU GEMINI TỰ ĐỘNG PHÁT RA LỆNH GỌI CÔNG CỤ VẼ ẢNH (dalle.text2im)
+    if "dalle.text2im" in assistant_reply or ('"action":' in assistant_reply and '"prompt"' in assistant_reply):
+        tool_prompt = extract_tool_image_prompt(assistant_reply) or gemini_client.clean_image_prompt(message)
+        img_result = image_generator.generate_ai_image(tool_prompt, style="realistic", api_key=api_key)
+        if img_result.get("success"):
+            generated_img_url = img_result["image_url"]
+            database.add_gallery_item(
+                prompt=img_result["prompt"],
+                style=img_result.get("style", "realistic"),
+                image_url=generated_img_url,
+                image_path=img_result["file_path"],
+                width=img_result.get("width", 1024),
+                height=img_result.get("height", 1024)
+            )
+            assistant_reply = (
+                f"🎨 **Tác phẩm do KINI AI tạo ra cho anh Trường:**\n\n"
+                f"*Mô tả gốc:* \"{message}\"\n\n"
+                f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', tool_prompt)}`\n\n"
+                f"Anh có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu em chỉnh sửa thêm chi tiết nhé!"
+            )
+            database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url)
+            return {
+                "success": True,
+                "reply": assistant_reply,
+                "image_url": generated_img_url,
+                "is_image_generated": True
+            }
+
     database.add_message(conv_id, "assistant", assistant_reply)
 
     # Tự động trích xuất ký ức ngầm trong background để KINI luôn ghi nhớ về anh Trường

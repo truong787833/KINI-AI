@@ -88,7 +88,10 @@
   - **Phản hồi của người dùng**:
     1. Cùng 1 câu lệnh, tại sao KINI AI lại tạo ảnh xấu hơn Google Gemini?
     2. Ứng dụng chưa có kiểu Copy, Dán (Ctrl + V) hoặc kéo thả văn bản, ảnh, tệp, thư mục vào.
+    3. Khi chọn mô hình Gemini Pro Deep và yêu cầu vẽ ảnh, AI xuất ra đoạn mã JSON `{"action": "dalle.text2im"}` thay vì hiển thị bức ảnh.
   - **Giải pháp kỹ thuật đã triển khai**:
+    + **Xử lý triệt để lỗi JSON Tool Call (`dalle.text2im`)**: Tích hợp hàm `extract_tool_image_prompt` tự động bắt và chặn mọi trường hợp Gemini Pro tự sinh JSON tool call, đồng thời chuyển hóa ngay lập tức thành lệnh render ảnh thực tế. Cấm Gemini xuất mã máy qua System Prompt.
+    + **Đồng bộ chế độ Model Pro / Flash (`gemini_client.ask_gemini`)**: Khi người dùng chọn "Gemini Pro Deep", hệ thống kết nối trực tiếp đến các mô hình Pro chuyên sâu (`gemini-3.1-pro-preview`, `gemini-2.5-pro`).
     + **Cơ chế Copy & Dán (Ctrl + V)**: Lắng nghe sự kiện `paste` trên toàn ứng dụng. Tự động nhận diện ảnh chụp màn hình (Snipping Tool, PrtScn), ảnh sao chép từ web, hoặc tệp sao chép từ File Explorer, tự động chuyển thành File đính kèm vào ô chat.
     + **Cơ chế Kéo & Thả (Drag & Drop)**: Hiệu ứng màn mờ Glassmorphism `drag-drop-overlay` khi kéo tệp. Quét đệ quy `webkitGetAsEntry` cho phép thả cả thư mục tài liệu/mã nguồn vào để AI học hỏi và xử lý.
     + **Tải lên thư mục**: Bổ sung nút "Tải lên cả thư mục" trong menu `+`.
