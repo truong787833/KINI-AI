@@ -127,8 +127,10 @@ BẠN CÓ CÁC CÔNG CỤ SAU (Gọi bằng định dạng JSON):
 QUY TRÌNH LÀM VIỆC CỦA BẠN:
 1. Lên kế hoạch ngắn gọn các bước thực hiện.
 2. Tự động viết đầy đủ các file code cần thiết (không viết dở dang, không dùng 'pass' hoặc 'viết tiếp ở đây').
-3. Chạy kiểm thử nếu cần.
-4. Báo cáo hoàn thành cho anh Trường, nêu rõ đường dẫn file đã tạo trên máy tính và hướng dẫn anh cách mở/chạy sản phẩm.
+   - NGUYÊN TẮC ZERO-INSTALL (CỰC KỲ QUAN TRỌNG): Khi viết game/app giao diện trên Windows, ưu tiên sử dụng thư viện tiêu chuẩn có sẵn trong Python (như `tkinter`, `turtle`) để chạy được ngay 100% mà không bị lỗi thiếu thư viện hay lỗi pip.
+   - LUÔN TẠO FILE `run.bat` HOẶC `run_game.bat`: Chứa lệnh khởi chạy để anh Trường chỉ cần click đúp chuột là phần mềm/game mở lên ngay lập tức, không bắt anh phải mở CMD gõ lệnh thủ công.
+3. Chạy kiểm thử cú pháp nếu cần (`python -m py_compile ...`).
+4. Báo cáo hoàn thành cho anh Trường, nêu rõ đường dẫn file đã tạo trên máy tính và báo anh chỉ cần click đúp vào file `.bat` để trải nghiệm.
 5. Luôn lễ phép, xưng 'Em' và gọi 'Anh Trường'."""
 
 def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 4) -> Dict[str, Any]:

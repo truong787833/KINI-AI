@@ -597,6 +597,21 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
     const renderedHtml = formatMarkdown(content);
     const displayModel = modelUsed || "gemini-3.1-flash-lite";
 
+    // Nhận diện nếu có sản phẩm do KINI Agent tạo ra trong workspace
+    let agentActionsHtml = "";
+    const matchPath = content.match(/workspace[\\/]([a-zA-Z0-9_\-\.]+)/i);
+    if (matchPath && matchPath[1]) {
+        const subFolder = matchPath[1];
+        agentActionsHtml = `
+            <button class="btn-msg-action btn-agent-open" onclick="openAgentFolder('${subFolder}')" style="border-color: rgba(0, 242, 254, 0.4); color: #00f2fe; background: rgba(0, 242, 254, 0.08);" title="Mở thư mục dự án trên máy tính">
+                <span class="action-icon">📂</span> Mở Thư Mục
+            </button>
+            <button class="btn-msg-action btn-agent-launch" onclick="launchAgentApp('${subFolder}')" style="border-color: rgba(157, 78, 221, 0.4); color: #c77dff; background: rgba(157, 78, 221, 0.08);" title="Bật Game / Ứng dụng ngay lập tức">
+                <span class="action-icon">🎮</span> Bật Game Ngay
+            </button>
+        `;
+    }
+
     row.innerHTML = `
         <div class="message-avatar">K</div>
         <div class="message-body">
@@ -606,6 +621,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
             </div>
             <div class="msg-actions">
                 <span class="msg-model-badge" title="Mô hình thực tế từ Google API">⚡ ${escapeHtml(displayModel)}</span>
+                ${agentActionsHtml}
                 <button class="btn-msg-action btn-speak" title="Đọc bằng giọng nói tiếng Việt">
                     <span class="action-icon">🔊</span> Nghe đọc
                 </button>
@@ -1248,3 +1264,45 @@ async function refreshUsageStats() {
         console.warn("Lỗi đọc Quota usage:", e);
     }
 }
+
+// ============================================================
+// ĐIỀU KHIỂN AGENT TỰ HÀNH TƯƠNG TÁC MÁY TÍNH CỦA ANH TRƯỜNG
+// ============================================================
+window.openAgentFolder = async function(folder) {
+    try {
+        const res = await fetch("/api/agent/open", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({path: folder})
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast("📂 Đã mở thư mục dự án trên máy tính của anh!");
+        } else {
+            showToast("⚠️ " + (data.error || "Không tìm thấy thư mục"));
+        }
+    } catch(e) {
+        showToast("❌ Lỗi: " + e.message);
+    }
+};
+
+window.launchAgentApp = async function(folder) {
+    try {
+        const pathsToTry = [`${folder}/run_game.bat`, `${folder}/run.bat`, `${folder}/main.py`];
+        for (const p of pathsToTry) {
+            const res = await fetch("/api/agent/open", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({path: p})
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast("🎮 Đang khởi chạy trò chơi trên màn hình của anh...");
+                return;
+            }
+        }
+        showToast("⚠️ Không tìm thấy file chạy trong thư mục");
+    } catch(e) {
+        showToast("❌ Lỗi: " + e.message);
+    }
+};

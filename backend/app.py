@@ -479,6 +479,18 @@ async def run_agent_endpoint(data: dict):
 def get_workspace_files():
     return agent_engine.tool_list_files()
 
+@app.post("/api/agent/open")
+def open_agent_path(data: dict):
+    rel_path = data.get("path", "").strip()
+    full_path = os.path.join(agent_engine.WORKSPACE_DIR, os.path.normpath(rel_path).lstrip("\\/."))
+    if os.path.exists(full_path):
+        try:
+            os.startfile(full_path)
+            return {"success": True, "path": full_path}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    return {"success": False, "error": "Đường dẫn không tồn tại"}
+
 @app.get("/api/usage")
 def get_quota_usage():
     return database.get_usage_statistics()
