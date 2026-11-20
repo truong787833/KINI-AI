@@ -3,6 +3,7 @@ import requests
 import json
 import logging
 import re
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("GeminiClient")
@@ -11,8 +12,31 @@ logger = logging.getLogger("GeminiClient")
 DEFAULT_SYSTEM_PROMPT = """Bạn là KINI AI - Siêu Trợ lý Trí Tuệ Nhân Tạo cá nhân tối thượng, thông minh, trung thành và đắc lực của anh Hải Trường.
 - Bạn luôn giữ thái độ tôn trọng, lễ phép, xưng hô 'Em' (hoặc 'KINI') và gọi người dùng là 'Anh Trường'.
 - Phong cách giao tiếp: Gãy gọn, sắc bén, chuyên sâu, đúng trọng tâm, sẵn sàng hỗ trợ từ công việc, lập kế hoạch, soạn thảo văn bản, phân tích dữ liệu, tóm tắt tài liệu đến sáng tạo nghệ thuật.
-- Khi được hỏi về bản thân: Bạn tự hào giới thiệu mình là KINI AI, được phát triển và vận hành bởi Hải Trường.
-- Khả năng xử lý: Bạn có khả năng phân tích mọi loại tài liệu (PDF, Word, Excel, Code), phân tích hình ảnh, tra cứu thông tin và đề xuất giải pháp tối ưu nhất."""
+- Khi được hỏi về bản thân: Bạn tự hào giới thiệu mình là KINI AI, được phát triển và vận hành bởi Hải Trường."""
+
+def get_current_time_context() -> str:
+    """Cung cấp thời gian hệ thống thực tế chuẩn xác từng giây từng ngày"""
+    now = datetime.now()
+    days_vn = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
+    day_name = days_vn[int(now.strftime("%w"))]
+    return f"""=== THỜI GIAN HỆ THỐNG THỰC TẾ (CẬP NHẬT TỪNG NGÀY) ===
+- Thời gian hiện tại: {day_name}, ngày {now.strftime('%d/%m/%Y')}, lúc {now.strftime('%H:%M:%S')}.
+- NĂM HIỆN TẠI LÀ NĂM {now.year}. BẠN LÀ SIÊU TRÍ TUỆ NHÂN TẠO ĐƯỢC CẬP NHẬT TRỰC TUYẾN MỚI NHẤT HÀNG NGÀY NĂM {now.year}.
+- TUYỆT ĐỐI KHÔNG BAO GIỜ NÓI 'HIỆN NAY LÀ NĂM 2024' HOẶC BẤT KỲ NĂM CŨ NÀO."""
+
+def get_precision_rules() -> str:
+    """Bộ quy chuẩn vàng đảm bảo câu trả lời luôn chính xác, đúng, chuẩn 100%, không trả lời cho có"""
+    return """=== QUY TẮC BẮT BUỘC: ĐỘ CHÍNH XÁC TUYỆT ĐỐI - KHÔNG BAO GIỜ TRẢ LỜI 'CHO CÓ' ===
+1. NGUYÊN TẮC BẢO TOÀN NGUYÊN VĂN PHÁP LUẬT:
+   - Khi người dùng hỏi về Luật, Nghị định, Thông tư, Nghị quyết, Quyết định, văn bản quy phạm pháp luật hoặc quy chế quân đội/biên phòng:
+     BẮT BUỘC PHẢI NÊU NGUYÊN VĂN TỪNG TỪ, TỪNG CHỮ của Điều, Khoản, Điểm được hỏi (như lưu trữ chính thức trên Thư Viện Pháp Luật).
+   - TUYỆT ĐỐI KHÔNG ĐƯỢC TỰ Ý TÓM TẮT, RÚT GỌN, VIẾT CHO CÓ, HOẶC THAY THẾ TỪ NGỮ GỐC KHI CHƯA ĐƯỢC YÊU CẦU.
+   - Nêu rõ: Số hiệu văn bản, cơ quan ban hành, ngày ban hành và ngày có hiệu lực.
+2. NGHỊ QUYẾT HĐND / VĂN BẢN ĐỊA PHƯƠNG:
+   - Nghị quyết của Hội đồng nhân dân (NQ-HĐND): Mỗi tỉnh/thành phố có một Nghị quyết riêng (ví dụ: Nghị quyết 16/2025/NQ-HĐND tỉnh An Giang có hiệu lực từ 01/01/2026, Nghị quyết 16/2024/NQ-HĐND tỉnh Bình Định...). Phải phân biệt rõ ràng tỉnh/thành phố cụ thể, không phỏng đoán mơ hồ.
+3. CHẤT LƯỢNG CAO NHẤT, ĐÀO SÂU BẢN CHẤT:
+   - Mọi câu trả lời chuyên môn, kế hoạch, văn bản phải được viết hoàn chỉnh từ đầu đến cuối, chặt chẽ, đầy đủ căn cứ, không dùng 'v.v.', 'bạn tự điền tiếp'.
+   - Nếu có dữ liệu tra cứu trực tuyến đính kèm bên dưới, phải sử dụng làm căn cứ chính xác cao nhất."""
 
 def is_image_request(text: str) -> bool:
     """Kiểm tra xem người dùng có đang yêu cầu vẽ tranh / tạo ảnh / làm logo không"""
@@ -37,10 +61,17 @@ def clean_image_prompt(text: str) -> str:
     return t if len(t) > 3 else text.strip()
 
 def build_system_instruction_with_memories(base_prompt: Optional[str] = None) -> str:
-    """Ghép nối System Prompt với toàn bộ các ký ức dài hạn của KINI về anh Trường"""
+    """Ghép nối System Prompt với thời gian thực, quy tắc chính xác và ký ức dài hạn"""
     from . import database
     sys_inst = base_prompt or database.get_setting("custom_persona", DEFAULT_SYSTEM_PROMPT)
     
+    # 1. Gắn thời gian thực tế
+    sys_inst += f"\n\n{get_current_time_context()}"
+
+    # 2. Gắn quy chuẩn độ chính xác tuyệt đối
+    sys_inst += f"\n\n{get_precision_rules()}"
+
+    # 3. Gắn ký ức dài hạn về anh Trường
     try:
         memories = database.get_all_memories(limit=30)
         if memories:
@@ -54,11 +85,9 @@ def build_system_instruction_with_memories(base_prompt: Optional[str] = None) ->
 def extract_and_save_memory_async(user_text: str, api_key: str = ""):
     """Tự động phân tích xem người dùng có chia sẻ thông tin cá nhân/thói quen để lưu vào bộ nhớ không"""
     from . import database
-    # Bỏ qua các câu quá ngắn
     if len(user_text.strip()) < 10:
         return
 
-    # Kiểm tra nhanh các từ khóa chỉ thông tin cá nhân
     hints = ["tôi tên", "anh tên", "tôi thích", "anh thích", "tôi làm", "anh làm", "nghề của", "dự án", "hãy nhớ", "nhớ rằng", "quy tắc", "vợ tôi", "con tôi", "nhà tôi"]
     if not any(h in user_text.lower() for h in hints):
         return
@@ -89,13 +118,13 @@ def ask_gemini(
     image_mime: str = "image/jpeg"
 ) -> Dict[str, Any]:
     """
-    Gửi câu hỏi / hội thoại tới Google Gemini API (Flash thế hệ mới nhất).
+    Gửi câu hỏi / hội thoại tới Google Gemini API với nhiệt độ thấp (0.15) để đảm bảo độ chuẩn xác tối đa.
     """
     key = api_key or os.environ.get("GEMINI_API_KEY", "")
     if not key:
         return {
             "success": False,
-            "reply": "⚠️ Bạn chưa cấu hình **Google Gemini API Key**! Vui lòng vào mục **⚙️ Cài Đặt** để nhập API Key của bạn (hoàn toàn miễn phí từ Google AI Studio)."
+            "reply": "⚠️ Bạn chưa cấu hình **Google Gemini API Key**! Vui lòng vào mục **⚙️ Cài Đặt** để nhập API Key của bạn."
         }
 
     contents = []
@@ -115,23 +144,23 @@ def ask_gemini(
             }
         })
 
+    # Cấu hình nhiệt độ thấp (0.15) để loại bỏ ảo giác, đảm bảo tính chuẩn xác và trung thực tuyệt đối
     payload = {
         "contents": contents,
         "generationConfig": {
-            "temperature": 0.7,
+            "temperature": 0.15,
             "topP": 0.95,
-            "maxOutputTokens": 4096
+            "maxOutputTokens": 8192
         }
     }
 
-    # Gắn System Instruction kèm bộ nhớ
+    # Gắn System Instruction kèm thời gian thực, quy tắc chính xác và bộ nhớ
     sys_inst = system_instruction or build_system_instruction_with_memories()
     if sys_inst:
         payload["systemInstruction"] = {
             "parts": [{"text": sys_inst}]
         }
 
-    # Danh sách các model mới nhất của Google
     models_to_try = [
         "gemini-3.1-flash-lite",
         "gemini-flash-lite-latest", 
@@ -144,7 +173,7 @@ def ask_gemini(
     for model_name in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
         try:
-            res = requests.post(url, json=payload, timeout=25)
+            res = requests.post(url, json=payload, timeout=30)
             if res.status_code == 200:
                 data = res.json()
                 text = data["candidates"][0]["content"]["parts"][0]["text"]

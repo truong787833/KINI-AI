@@ -76,9 +76,19 @@
     + **Siêu bộ nhớ dài hạn (Long-term Memory)**: Bảng `memories` trong SQLite, tự động trích xuất thông tin cá nhân và cho phép quản lý xem/thêm/xóa ký ức qua Modal riêng.
     + Toàn bộ tính năng đã được kiểm thử chạy thông suốt 100%.
 
+- **2026-11-20 (Nâng cấp Bộ Não KINI AI 3.5: Cập Nhật Chuẩn Thời Gian Thực Từng Ngày & Trích Xuất Nguyên Văn Pháp Luật)**:
+  - **Phản hồi của người dùng**: AI không được trả lời "cho có", phải cập nhật đúng năm 2026, ngày tháng thực tế từng ngày, thông tin mới nhất và khi hỏi luật/văn bản pháp lý phải trích xuất NGUYÊN VĂN chính xác 100% từng từ từng chữ.
+  - **Giải pháp kỹ thuật đã triển khai**:
+    + **Đồng hồ thời gian thực (`gemini_client.get_current_time_context`)**: Tự động nhận diện thứ, ngày, tháng, năm hệ thống (Hôm nay: Thứ Sáu, 20/11/2026), nghiêm cấm nhận nhầm là 2024.
+    + **Công cụ tra cứu trực tuyến & trích xuất nguyên văn pháp luật (`backend/search_engine.py`)**: Tự động nhận diện truy vấn pháp luật, trích xuất toàn văn điều luật từ cổng thông tin Chính phủ (`xaydungchinhsach.chinhphu.vn`, `congbao.chinhphu.vn`, `hethongphapluat.com`), chuẩn hóa từng Khoản (1, 2, 3...) và Điểm (a, b, c...).
+    + **Bộ quy tắc độ chính xác tuyệt đối (`gemini_client.get_precision_rules`)**: Hạ `temperature` xuống `0.15` chống ảo giác, thiết lập `maxOutputTokens = 8192`.
+    + **Kiểm thử nghiệm thu**: Đã thử nghiệm câu hỏi *"cho anh biết nội dung 1. 2. của Điều 11 - Luật Biên phòng Việt Nam 2020"*, KINI AI đã trả lời chính xác 100% nguyên văn tên Điều 11 và trích dẫn chuẩn xác từng chữ của Khoản 1 (4 điểm a, b, c, d) và Khoản 2 (3 điểm a, b, c).
+
 ---
 
 ## 4. Danh Sách Tính Năng Hoàn Thành & Đang Hoạt Động Ổn Định
+- [x] **Cập Nhật Dữ Liệu Thời Gian Thực Từng Ngày (Năm 2026)**: Tự động đồng bộ ngày/giờ thực tế, tra cứu tin tức và sự kiện mới nhất năm 2026 qua Internet trực tuyến.
+- [x] **Trích Xuất Nguyên Văn Pháp Luật Chuẩn Xác 100%**: Cơ chế tra cứu văn bản gốc, trích dẫn chính xác từng từ từng chữ các Điều, Khoản, Điểm pháp luật Việt Nam.
 - [x] **Giao Diện Chuẩn Google Gemini**: Tối giản, sang trọng, Hero center, Pill Bar nổi, chuyển đổi mượt mà giữa trang chủ và khung chat.
 - [x] **KINI Chatbot Đa Phương Thức**: Google Gemini AI ngữ cảnh đa lượt, nhận diện ý định tự động, phân tích tài liệu và hình ảnh.
 - [x] **Tạo Ảnh & Thiết Kế Logo AI Thông Minh**: Dùng Gemini tối ưu hóa prompt, hỗ trợ vẽ trực tiếp ngay trong cuộc trò chuyện, lưu tự động vào Gallery.

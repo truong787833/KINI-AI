@@ -16,6 +16,7 @@ from . import image_generator
 from . import file_parser
 from . import tts_service
 from . import doc_exporter
+from . import search_engine
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -157,15 +158,32 @@ async def chat_with_kini(
             }
 
     # 3. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
+    # Tra cứu Internet trực tuyến nếu câu hỏi liên quan đến luật pháp, thời sự, năm 2025-2026, thông tin mới
+    live_search_text = ""
+    if search_engine.needs_live_search(message):
+        try:
+            grounded_data = search_engine.get_grounded_context(message)
+            if grounded_data:
+                live_search_text = f"\n\n{grounded_data}"
+        except Exception as e:
+            pass
+
     past_msgs = database.get_conversation_messages(conv_id)[-12:]
     formatted_history = []
-    for m in past_msgs:
+    # Lấy các tin nhắn trước
+    for m in past_msgs[:-1]:
         formatted_history.append({
             "role": m["role"],
             "content": m["content"]
         })
+    # Gắn tin nhắn hiện tại kèm kết quả tra cứu trực tuyến mới nhất
+    current_content_with_grounding = full_user_content + live_search_text
+    formatted_history.append({
+        "role": "user",
+        "content": current_content_with_grounding
+    })
 
-    # Gọi Google Gemini
+    # Gọi Google Gemini với độ chính xác cao
     res = gemini_client.ask_gemini(
         messages=formatted_history,
         api_key=api_key,
