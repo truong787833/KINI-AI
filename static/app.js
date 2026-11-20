@@ -1,4 +1,4 @@
-// KINI AI 3.0 - Gemini Luxury Architecture Controller
+// KINI AI 3.5 - Gemini Luxury Architecture Controller (Real-time Grounding & Legal Precision)
 let currentConvId = "default";
 let selectedFile = null;
 let currentAudioPlayer = null;
