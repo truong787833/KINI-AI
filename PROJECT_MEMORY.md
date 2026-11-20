@@ -84,14 +84,28 @@
     + **Bộ quy tắc độ chính xác tuyệt đối (`gemini_client.get_precision_rules`)**: Hạ `temperature` xuống `0.15` chống ảo giác, thiết lập `maxOutputTokens = 8192`.
     + **Kiểm thử nghiệm thu**: Đã thử nghiệm câu hỏi *"cho anh biết nội dung 1. 2. của Điều 11 - Luật Biên phòng Việt Nam 2020"*, KINI AI đã trả lời chính xác 100% nguyên văn tên Điều 11 và trích dẫn chuẩn xác từng chữ của Khoản 1 (4 điểm a, b, c, d) và Khoản 2 (3 điểm a, b, c).
 
+- **2026-11-21 (Bổ sung Copy/Dán Clipboard, Kéo Thả Drag & Drop Tệp/Thư Mục & Nâng Cấp Engine Tạo Ảnh FLUX.1)**:
+  - **Phản hồi của người dùng**:
+    1. Cùng 1 câu lệnh, tại sao KINI AI lại tạo ảnh xấu hơn Google Gemini?
+    2. Ứng dụng chưa có kiểu Copy, Dán (Ctrl + V) hoặc kéo thả văn bản, ảnh, tệp, thư mục vào.
+  - **Giải pháp kỹ thuật đã triển khai**:
+    + **Cơ chế Copy & Dán (Ctrl + V)**: Lắng nghe sự kiện `paste` trên toàn ứng dụng. Tự động nhận diện ảnh chụp màn hình (Snipping Tool, PrtScn), ảnh sao chép từ web, hoặc tệp sao chép từ File Explorer, tự động chuyển thành File đính kèm vào ô chat.
+    + **Cơ chế Kéo & Thả (Drag & Drop)**: Hiệu ứng màn mờ Glassmorphism `drag-drop-overlay` khi kéo tệp. Quét đệ quy `webkitGetAsEntry` cho phép thả cả thư mục tài liệu/mã nguồn vào để AI học hỏi và xử lý.
+    + **Tải lên thư mục**: Bổ sung nút "Tải lên cả thư mục" trong menu `+`.
+    + **Nâng cấp Engine Tạo Ảnh (`backend/image_generator.py`)**: Ưu tiên mô hình FLUX.1 thế hệ mới và Sana 4K, loại bỏ hoàn toàn fallback `turbo` (nguyên nhân gây mờ nhòe chữ), tối ưu hóa prompt chuyên sâu cho chữ nổi 3D (Typography 3D), loại bỏ hoàn toàn watermark.
+    + **Xử lý đa tệp Backend (`backend/app.py`)**: Hỗ trợ nhận danh sách `files: List[UploadFile]` để trích xuất nội dung hàng loạt tệp tài liệu, code và hình ảnh cùng lúc.
+
 ---
 
 ## 4. Danh Sách Tính Năng Hoàn Thành & Đang Hoạt Động Ổn Định
+- [x] **Copy & Dán Trực Tiếp (Ctrl + V)**: Dán văn bản, ảnh chụp màn hình, ảnh sao chép, tệp tin từ Clipboard vào thẳng ô chat.
+- [x] **Kéo & Thả Tệp & Thư Mục (Drag & Drop)**: Kéo thả bất kỳ file hoặc folder nào vào màn hình, tự động giải nén và phân tích.
+- [x] **Tải Lên Cả Thư Mục (Folder Upload)**: Tải lên toàn bộ thư mục code hoặc tài liệu chỉ với 1 click.
+- [x] **Engine Tạo Ảnh AI Nâng Cao (FLUX.1 & SANA)**: Tối ưu hóa prompt chữ 3D (Typography) và chi tiết ánh sáng, không có watermark.
 - [x] **Cập Nhật Dữ Liệu Thời Gian Thực Từng Ngày (Năm 2026)**: Tự động đồng bộ ngày/giờ thực tế, tra cứu tin tức và sự kiện mới nhất năm 2026 qua Internet trực tuyến.
 - [x] **Trích Xuất Nguyên Văn Pháp Luật Chuẩn Xác 100%**: Cơ chế tra cứu văn bản gốc, trích dẫn chính xác từng từ từng chữ các Điều, Khoản, Điểm pháp luật Việt Nam.
 - [x] **Giao Diện Chuẩn Google Gemini**: Tối giản, sang trọng, Hero center, Pill Bar nổi, chuyển đổi mượt mà giữa trang chủ và khung chat.
 - [x] **KINI Chatbot Đa Phương Thức**: Google Gemini AI ngữ cảnh đa lượt, nhận diện ý định tự động, phân tích tài liệu và hình ảnh.
-- [x] **Tạo Ảnh & Thiết Kế Logo AI Thông Minh**: Dùng Gemini tối ưu hóa prompt, hỗ trợ vẽ trực tiếp ngay trong cuộc trò chuyện, lưu tự động vào Gallery.
 - [x] **Giọng Đọc AI Tiếng Việt (Text-to-Speech)**: Đọc thành tiếng từng câu trả lời bằng giọng nữ Hoài My hoặc nam Nam Minh, tạo file âm thanh MP3.
 - [x] **Thu Âm Giọng Nói (Speech-to-Text)**: Bấm micro nói tiếng Việt để nhập lệnh nhanh chóng.
 - [x] **Đọc Hiểu Mọi Loại File & Tài Liệu**: PDF, Word (.docx), Excel (.xlsx), CSV, TXT, Code, Hình ảnh.

@@ -1,6 +1,7 @@
 // KINI AI 3.5 - Gemini Luxury Architecture Controller (Real-time Grounding & Legal Precision)
 let currentConvId = "default";
 let selectedFile = null;
+let selectedFiles = [];
 let currentAudioPlayer = null;
 let speechRecognizer = null;
 let isRecording = false;
@@ -12,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function initApp() {
     initNavigationAndModals();
     initChatCore();
+    initClipboardAndDragDrop();
     initSpeechToText();
     initMemories();
     initSettings();
@@ -124,6 +126,7 @@ function initNavigationAndModals() {
     const attachBtn = document.getElementById("btn-open-attach-menu");
     const attachMenu = document.getElementById("attach-popup-menu");
     const fileInput = document.getElementById("global-file-input");
+    const folderInput = document.getElementById("global-folder-input");
 
     if (attachBtn && attachMenu && fileInput) {
         attachBtn.addEventListener("click", (e) => {
@@ -143,9 +146,20 @@ function initNavigationAndModals() {
             attachMenu.classList.remove("show");
         });
 
+        document.getElementById("menu-attach-folder")?.addEventListener("click", () => {
+            folderInput?.click();
+            attachMenu.classList.remove("show");
+        });
+
         fileInput.addEventListener("change", (e) => {
-            if (e.target.files && e.target.files[0]) {
-                handleFileSelected(e.target.files[0]);
+            if (e.target.files && e.target.files.length > 0) {
+                handleFilesSelected(Array.from(e.target.files));
+            }
+        });
+
+        folderInput?.addEventListener("change", (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                handleFilesSelected(Array.from(e.target.files));
             }
         });
 
@@ -157,7 +171,9 @@ function initNavigationAndModals() {
     // Gỡ tệp đính kèm
     document.getElementById("btn-remove-attach")?.addEventListener("click", () => {
         selectedFile = null;
+        selectedFiles = [];
         fileInput.value = "";
+        if (folderInput) folderInput.value = "";
         document.getElementById("attachment-preview-bar").style.display = "none";
     });
 
@@ -179,27 +195,156 @@ function closeModal(id) {
     if (m) m.style.display = "none";
 }
 
-function handleFileSelected(file) {
-    selectedFile = file;
+function handleFilesSelected(files) {
+    if (!files || files.length === 0) return;
+    selectedFiles = files;
+    selectedFile = files[0];
+
     const bar = document.getElementById("attachment-preview-bar");
     const nameSpan = document.getElementById("attach-name");
     const iconSpan = document.getElementById("attach-icon");
 
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
-        iconSpan.textContent = "🖼️";
-    } else if (["pdf"].includes(ext)) {
-        iconSpan.textContent = "📕";
-    } else if (["docx", "doc"].includes(ext)) {
-        iconSpan.textContent = "📘";
-    } else if (["xlsx", "xls", "csv"].includes(ext)) {
-        iconSpan.textContent = "📊";
+    if (files.length === 1) {
+        const file = files[0];
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
+            iconSpan.textContent = "🖼️";
+        } else if (["pdf"].includes(ext)) {
+            iconSpan.textContent = "📕";
+        } else if (["docx", "doc"].includes(ext)) {
+            iconSpan.textContent = "📘";
+        } else if (["xlsx", "xls", "csv"].includes(ext)) {
+            iconSpan.textContent = "📊";
+        } else {
+            iconSpan.textContent = "📄";
+        }
+        nameSpan.textContent = file.name;
     } else {
-        iconSpan.textContent = "📄";
+        iconSpan.textContent = "📁";
+        nameSpan.textContent = `${files.length} tệp đã chọn (${files[0].name}, ...)`;
     }
-
-    nameSpan.textContent = file.name;
     bar.style.display = "flex";
+}
+
+function handleFileSelected(file) {
+    if (file) handleFilesSelected([file]);
+}
+
+// ============================================================
+// HỆ THỐNG COPY, DÁN (CTRL + V) VÀ KÉO THẢ TỆP/THƯ MỤC (DRAG & DROP)
+// ============================================================
+function initClipboardAndDragDrop() {
+    // 1. DÁN TỪ CLIPBOARD (Ctrl + V)
+    window.addEventListener("paste", (e) => {
+        const clipboard = e.clipboardData;
+        if (!clipboard) return;
+
+        // A. Nếu trong Clipboard có file (ví dụ: Ctrl + C một file rồi Ctrl + V vào web)
+        if (clipboard.files && clipboard.files.length > 0) {
+            e.preventDefault();
+            const files = Array.from(clipboard.files);
+            handleFilesSelected(files);
+            showToast(`📋 Đã dán ${files.length} tệp từ Clipboard!`);
+            return;
+        }
+
+        // B. Nếu chụp màn hình (Snipping Tool, PrtScn) hoặc copy ảnh từ trình duyệt / Word
+        if (clipboard.items) {
+            for (let i = 0; i < clipboard.items.length; i++) {
+                const item = clipboard.items[i];
+                if (item.type.indexOf("image") !== -1) {
+                    const blob = item.getAsFile();
+                    if (blob) {
+                        e.preventDefault();
+                        const ext = blob.type.split("/")[1] || "png";
+                        const imageFile = new File([blob], `dan_anh_${Date.now()}.${ext}`, { type: blob.type });
+                        handleFilesSelected([imageFile]);
+                        showToast("📋 Đã dán hình ảnh từ Clipboard vào KINI AI!");
+                        return;
+                    }
+                }
+            }
+        }
+    });
+
+    // 2. KÉO THẢ TỆP & THƯ MỤC (DRAG & DROP)
+    const overlay = document.getElementById("drag-drop-overlay");
+    let dragCounter = 0;
+
+    window.addEventListener("dragenter", (e) => {
+        e.preventDefault();
+        dragCounter++;
+        if (overlay) overlay.classList.add("active");
+    });
+
+    window.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (overlay) overlay.classList.add("active");
+    });
+
+    window.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter <= 0) {
+            dragCounter = 0;
+            if (overlay) overlay.classList.remove("active");
+        }
+    });
+
+    window.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        dragCounter = 0;
+        if (overlay) overlay.classList.remove("active");
+
+        const dt = e.dataTransfer;
+        if (!dt) return;
+
+        let droppedFiles = [];
+        if (dt.items && dt.items.length > 0) {
+            for (let i = 0; i < dt.items.length; i++) {
+                const item = dt.items[i];
+                if (item.webkitGetAsEntry) {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry) {
+                        const subFiles = await scanFilesFromEntry(entry);
+                        droppedFiles.push(...subFiles);
+                        continue;
+                    }
+                }
+                const file = item.getAsFile ? item.getAsFile() : null;
+                if (file) droppedFiles.push(file);
+            }
+        } else if (dt.files && dt.files.length > 0) {
+            droppedFiles = Array.from(dt.files);
+        }
+
+        if (droppedFiles.length > 0) {
+            handleFilesSelected(droppedFiles);
+            showToast(`📂 Đã nhận ${droppedFiles.length} tệp kéo thả vào KINI AI!`);
+        }
+    });
+}
+
+// Đọc đệ quy tất cả các file nếu người dùng thả một thư mục vào
+async function scanFilesFromEntry(entry) {
+    if (entry.isFile) {
+        return new Promise((resolve) => {
+            entry.file((file) => resolve([file]), () => resolve([]));
+        });
+    } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        return new Promise((resolve) => {
+            reader.readEntries(async (entries) => {
+                let results = [];
+                for (const child of entries) {
+                    const subFiles = await scanFilesFromEntry(child);
+                    results.push(...subFiles);
+                }
+                resolve(results);
+            }, () => resolve([]));
+        });
+    }
+    return [];
 }
 
 // ============================================================
@@ -244,7 +389,7 @@ async function sendMessage() {
     const userInput = document.getElementById("main-user-input");
     const message = userInput.value.trim();
 
-    if (!message && !selectedFile) return;
+    if (!message && (!selectedFiles || selectedFiles.length === 0)) return;
 
     // Chuyển từ giao diện Hero sang giao diện Chat
     document.getElementById("hero-section").style.display = "none";
@@ -252,16 +397,19 @@ async function sendMessage() {
     viewport.style.display = "block";
 
     // 1. Hiển thị tin nhắn người dùng ngay lập tức
-    appendUserMessage(message, selectedFile);
+    const filesToSend = [...selectedFiles];
+    appendUserMessage(message, filesToSend);
 
     // Reset input
     userInput.value = "";
     userInput.style.height = "auto";
 
-    const fileToSend = selectedFile;
     selectedFile = null;
+    selectedFiles = [];
     document.getElementById("attachment-preview-bar").style.display = "none";
     document.getElementById("global-file-input").value = "";
+    const folderInput = document.getElementById("global-folder-input");
+    if (folderInput) folderInput.value = "";
 
     // 2. Hiển thị loading indicator cho KINI
     const loadingId = appendLoadingMessage();
@@ -272,8 +420,12 @@ async function sendMessage() {
         formData.append("message", message);
         formData.append("model_mode", document.querySelector(".model-option.active")?.dataset.model || "flash");
         
-        if (fileToSend) {
-            formData.append("file", fileToSend);
+        if (filesToSend.length === 1) {
+            formData.append("file", filesToSend[0]);
+        } else if (filesToSend.length > 1) {
+            for (const f of filesToSend) {
+                formData.append("files", f);
+            }
         }
 
         const res = await fetch("/api/chat", {
@@ -298,19 +450,22 @@ async function sendMessage() {
     }
 }
 
-function appendUserMessage(text, file) {
+function appendUserMessage(text, files) {
     const container = document.getElementById("chat-messages");
     const row = document.createElement("div");
     row.className = "message-row user";
 
     let fileHtml = "";
-    if (file) {
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
-            const previewUrl = URL.createObjectURL(file);
-            fileHtml = `<img src="${previewUrl}" class="msg-inline-image" style="max-height:220px;" alt="upload">`;
-        } else {
-            fileHtml = `<div style="font-size:0.82rem; opacity:0.85; margin-bottom:4px;">📎 Đính kèm tệp: <b>${file.name}</b></div>`;
+    if (files) {
+        const fileList = Array.isArray(files) ? files : [files];
+        for (const file of fileList) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
+                const previewUrl = URL.createObjectURL(file);
+                fileHtml += `<img src="${previewUrl}" class="msg-inline-image" style="max-height:220px; border-radius:12px; margin-bottom:6px;" alt="upload">`;
+            } else {
+                fileHtml += `<div style="font-size:0.85rem; opacity:0.9; margin-bottom:4px;">📎 Đính kèm tệp: <b>${escapeHtml(file.name)}</b></div>`;
+            }
         }
     }
 
@@ -325,6 +480,22 @@ function appendUserMessage(text, file) {
 
     container.appendChild(row);
     scrollToBottom();
+}
+
+function showToast(message) {
+    let toast = document.getElementById("kini-toast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "kini-toast";
+        toast.className = "kini-toast";
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2800);
 }
 
 function appendLoadingMessage() {

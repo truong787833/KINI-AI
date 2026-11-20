@@ -75,7 +75,8 @@ async def chat_with_kini(
     conv_id: str = Form("default"),
     message: str = Form(""),
     model_mode: str = Form("flash"),
-    file: Optional[UploadFile] = File(None)
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None)
 ):
     api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))
     
@@ -85,21 +86,32 @@ async def chat_with_kini(
     image_mime = "image/jpeg"
     extracted_doc_text = ""
 
-    # 1. Xử lý tệp đính kèm (Hình ảnh hoặc Tài liệu PDF/Word/Excel/TXT)
-    if file and file.filename:
-        file_display_name = file.filename
-        content_bytes = await file.read()
-        ext = os.path.splitext(file.filename)[1].lower()
+    # 1. Xử lý tệp đính kèm (Đơn lẻ, Hàng loạt hoặc Thư mục tải lên)
+    upload_list = []
+    if files:
+        upload_list.extend(files)
+    if file and file.filename and file not in upload_list:
+        upload_list.append(file)
+
+    for item in upload_list:
+        if not item or not item.filename:
+            continue
+        file_display_name = item.filename
+        content_bytes = await item.read()
+        ext = os.path.splitext(item.filename)[1].lower()
         
         # Nếu là file ảnh
         if ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
-            image_base64 = base64.b64encode(content_bytes).decode("utf-8")
-            image_mime = file.content_type or "image/jpeg"
+            if not image_base64:
+                image_base64 = base64.b64encode(content_bytes).decode("utf-8")
+                image_mime = item.content_type or "image/jpeg"
             save_name = f"upload_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"
             save_path = os.path.join(IMAGES_DIR, save_name)
             with open(save_path, "wb") as f:
                 f.write(content_bytes)
-            file_display_url = f"/api/images/{save_name}"
+            if not file_display_url:
+                file_display_url = f"/api/images/{save_name}"
+            extracted_doc_text += f"\n[Hình ảnh đính kèm: '{item.filename}']"
             
         # Nếu là tài liệu (PDF, Word, Excel, CSV, Text, Code)
         else:
@@ -107,14 +119,15 @@ async def chat_with_kini(
             temp_path = os.path.join(IMAGES_DIR, temp_name)
             with open(temp_path, "wb") as f:
                 f.write(content_bytes)
-            file_display_url = f"/api/images/{temp_name}"
+            if not file_display_url:
+                file_display_url = f"/api/images/{temp_name}"
             
             # Trích xuất văn bản từ tài liệu
-            parsed = file_parser.parse_uploaded_file(temp_path, file.filename)
+            parsed = file_parser.parse_uploaded_file(temp_path, item.filename)
             if parsed.get("success"):
-                extracted_doc_text = f"\n\n[DỮ LIỆU TỆP ĐÍNH KÈM '{file.filename}']:\n{parsed['text']}\n"
+                extracted_doc_text += f"\n\n[DỮ LIỆU TỆP '{item.filename}']:\n{parsed['text']}\n"
             else:
-                extracted_doc_text = f"\n\n[Thông báo về tệp '{file.filename}']: Không thể trích xuất toàn bộ: {parsed.get('error')}\n"
+                extracted_doc_text += f"\n\n[Thông báo về tệp '{item.filename}']: Không thể trích xuất toàn bộ: {parsed.get('error')}\n"
 
     # Ghép văn bản câu hỏi của người dùng kèm dữ liệu tệp nếu có
     full_user_content = message.strip()

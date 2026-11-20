@@ -126,8 +126,12 @@
                             <button class="popup-item" id="menu-attach-image">
                                 <span>🖼️</span> Tải lên hình ảnh phân tích (Vision)
                             </button>
+                            <button class="popup-item" id="menu-attach-folder">
+                                <span>📁</span> Tải lên cả thư mục tài liệu / code
+                            </button>
                         </div>
-                        <input type="file" id="global-file-input" style="display: none;" accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md,.py,.js,.html,.css,.json,.jpg,.jpeg,.png,.webp">
+                        <input type="file" id="global-file-input" style="display: none;" multiple accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md,.py,.js,.html,.css,.json,.jpg,.jpeg,.png,.webp">
+                        <input type="file" id="global-folder-input" style="display: none;" webkitdirectory directory multiple>
                     </div>
 
                     <!-- Ô Nhập Tin Nhắn Tự Dãn Dòng -->
@@ -295,6 +299,17 @@
                     <button class="btn btn-outline" id="lightbox-btn-copy">📋 Sao Chép Mô Tả</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         OVERLAY KÉO THẢ TỆP & THƯ MỤC (DRAG & DROP)
+         ============================================================ -->
+    <div class="drag-drop-overlay" id="drag-drop-overlay" style="display: none;">
+        <div class="drag-drop-box">
+            <div class="drag-icon">📂</div>
+            <h3>Thả tệp, hình ảnh hoặc thư mục vào đây</h3>
+            <p>KINI AI sẽ tự động đọc hiểu, phân tích hoặc xử lý theo yêu cầu của anh Trường</p>
         </div>
     </div>
 

@@ -31,11 +31,14 @@ def optimize_prompt_with_gemini(prompt: str, style: str = "realistic", api_key: 
         from . import gemini_client
         sys_prompt = (
             "You are a world-class AI Image Prompt Engineer. "
-            "Convert the user's Vietnamese request into a concise, vivid, ultra-detailed English prompt for AI image generation (Stable Diffusion / FLUX). "
-            "Guidelines:\n"
-            "- If the user asks for a LOGO or TEXT: emphasize clean 3D typography, isolated letters, isometric render, bold font, specular highlights, dark background, NO extra humans or random faces.\n"
-            "- Describe the subject, composition, textures, colors, lighting, render engine (Octane, Unreal Engine 5, 8k).\n"
-            "- Output ONLY the English prompt in one single paragraph. Do not include quotes, markdown, or explanation."
+            "Convert the user's Vietnamese request into a concise, vivid, ultra-detailed English prompt for AI image generation (FLUX.1 / Stable Diffusion). "
+            "CRITICAL GUIDELINES:\n"
+            "- If the user asks for a LOGO, NAME, BRAND or TYPOGRAPHY (e.g. 'KINI AI', 'Logo KINI'): "
+            "You MUST specify: 'A magnificent 3D typography centerpiece spelling the exact text \"<NAME>\", massive bold metallic chrome block letters, "
+            "vibrant glowing neon cyan and magenta edge lighting, intricate circuit board grooves etched onto the metal, dark moody background, "
+            "volumetric smoke, cinematic lighting, 8k resolution, octane 3D render, raytracing, sharp focus, NO humans, NO people, NO faces, centered composition'.\n"
+            "- If the user asks for portrait/landscape: describe subject, textures, lighting, cinematic depth of field.\n"
+            "- Output ONLY the English prompt in one single paragraph. Do not include markdown or explanations."
         )
         res = gemini_client.ask_gemini(
             messages=[{"role": "user", "content": f"Hãy viết prompt tạo ảnh cho: '{prompt}' theo phong cách {style}"}],
@@ -73,8 +76,8 @@ def generate_ai_image(
     filename = f"kini_{int(time.time())}_{uuid.uuid4().hex[:8]}.jpg"
     file_path = os.path.join(IMAGES_DIR, filename)
 
-    # 2. Thử lần lượt các Engine tạo ảnh chất lượng cao
-    models_to_try = ["flux-realism", "any-dark", "sana", "turbo"]
+    # 2. Thử lần lượt các Engine tạo ảnh chất lượng cao (FLUX.1 và SANA độ phân giải cao)
+    models_to_try = ["flux", "sana"]
     seed = random.randint(100000, 9999999)
     encoded_prompt = urllib.parse.quote(english_prompt)
 
