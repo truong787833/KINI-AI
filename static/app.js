@@ -612,9 +612,20 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
     // Nhận diện nếu có sản phẩm do KINI Agent tạo ra trong workspace
     let agentActionsHtml = "";
     const matchPath = content.match(/workspace[\\/]([a-zA-Z0-9_\-\.]+)/i);
+    const matchHtml = content.match(/workspace[\\/]([a-zA-Z0-9_\-\.\/]+\.html)/i);
+
+    if (matchHtml && matchHtml[1]) {
+        const htmlRelPath = matchHtml[1].replace(/\\/g, "/");
+        agentActionsHtml += `
+            <button class="btn-msg-action btn-agent-preview" onclick="openAgentWebPreview('${htmlRelPath}')" style="border-color: rgba(0, 242, 254, 0.4); color: #00f2fe; background: rgba(0, 242, 254, 0.08);" title="Chơi Game / Mở Live Web App ngay trên trình duyệt">
+                <span class="action-icon">🌐</span> Chơi Trên Trình Duyệt
+            </button>
+        `;
+    }
+
     if (matchPath && matchPath[1]) {
         const subFolder = matchPath[1];
-        agentActionsHtml = `
+        agentActionsHtml += `
             <button class="btn-msg-action btn-agent-open" onclick="openAgentFolder('${subFolder}')" style="border-color: rgba(0, 242, 254, 0.4); color: #00f2fe; background: rgba(0, 242, 254, 0.08);" title="Mở thư mục dự án trên máy tính">
                 <span class="action-icon">📂</span> Mở Thư Mục
             </button>
@@ -1328,6 +1339,15 @@ window.launchAgentApp = async function(folder) {
     }
 };
 
+window.openAgentWebPreview = function(relPath) {
+    switchViewMode("ide");
+    openIdeFile(relPath);
+    setTimeout(() => {
+        switchIdeEditorTab("preview");
+        showToast("🌐 Đang chạy Live Web App / Game trên trình duyệt...");
+    }, 200);
+};
+
 // ============================================================
 // KINI ANTIGRAVITY STUDIO IDE (GENUINE SPLIT-WORKSPACE CONTROLLER)
 // ============================================================
@@ -1336,10 +1356,13 @@ let ideActiveFilePath = "";
 let ideRawTreeNodes = [];
 let ideIsMaximized = false;
 
-function initAntigravityIDE() {
-    // 1. Khởi tạo CodeMirror nếu chưa có
+function ensureIdeEditorReady() {
     const wrapper = document.getElementById("ide-codemirror-wrapper");
-    if (wrapper && typeof CodeMirror !== "undefined" && !ideCodeMirror) {
+    if (!wrapper) return;
+    
+    // Nếu CodeMirror đã tải thành công từ CDN
+    if (typeof CodeMirror !== "undefined" && !ideCodeMirror) {
+        wrapper.innerHTML = ""; // Làm sạch container trước khi mount
         ideCodeMirror = CodeMirror(wrapper, {
             lineNumbers: true,
             theme: "material-darker",
@@ -1352,22 +1375,63 @@ function initAntigravityIDE() {
             value: "// Chọn một file từ Workspace Explorer bên trái để xem & sửa mã nguồn..."
         });
 
-        // Lắng nghe sự kiện Ctrl + S trong CodeMirror
+        // Lắng nghe sự kiện phím tắt trong CodeMirror
         ideCodeMirror.setOption("extraKeys", {
-            "Ctrl-S": function(cm) {
-                saveIdeCurrentFile();
-            },
-            "Cmd-S": function(cm) {
-                saveIdeCurrentFile();
-            }
+            "Ctrl-S": function() { saveIdeCurrentFile(); },
+            "Cmd-S": function() { saveIdeCurrentFile(); },
+            "Ctrl-F": function() { ideSearchPrompt(); }
         });
 
         ideCodeMirror.on("change", () => {
             const dirtyDot = document.getElementById("ide-tab-dirty");
             if (dirtyDot && ideActiveFilePath) dirtyDot.style.display = "inline";
         });
-    }
 
+        ideCodeMirror.setSize("100%", "100%");
+    } else if (typeof CodeMirror === "undefined" && !document.getElementById("ide-fallback-textarea")) {
+        // Fallback an toàn: Textarea tiêu chuẩn với font Consolas nếu mạng chặn CDN
+        wrapper.innerHTML = "";
+        const ta = document.createElement("textarea");
+        ta.id = "ide-fallback-textarea";
+        ta.className = "ide-fallback-editor";
+        ta.placeholder = "// Chọn một file từ Workspace Explorer để soạn thảo...";
+        ta.addEventListener("input", () => {
+            const dirtyDot = document.getElementById("ide-tab-dirty");
+            if (dirtyDot && ideActiveFilePath) dirtyDot.style.display = "inline";
+        });
+        ta.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                e.preventDefault();
+                saveIdeCurrentFile();
+            }
+        });
+        wrapper.appendChild(ta);
+    }
+}
+
+function getIdeCode() {
+    if (ideCodeMirror) return ideCodeMirror.getValue();
+    const ta = document.getElementById("ide-fallback-textarea");
+    return ta ? ta.value : "";
+}
+
+function setIdeCode(content, cmMode = "python") {
+    ensureIdeEditorReady();
+    if (ideCodeMirror) {
+        ideCodeMirror.setOption("mode", cmMode);
+        ideCodeMirror.setValue(content);
+        ideCodeMirror.clearHistory();
+        ideCodeMirror.setSize("100%", "100%");
+        setTimeout(() => ideCodeMirror.refresh(), 20);
+        setTimeout(() => ideCodeMirror.refresh(), 100);
+        setTimeout(() => ideCodeMirror.refresh(), 300);
+    }
+    const ta = document.getElementById("ide-fallback-textarea");
+    if (ta) ta.value = content;
+}
+
+function initAntigravityIDE() {
+    ensureIdeEditorReady();
     setupIdeEventListeners();
 }
 
@@ -1390,11 +1454,12 @@ function switchViewMode(mode) {
         document.getElementById("sidebar-overlay")?.classList.remove("open");
 
         loadIdeFileTree();
+        ensureIdeEditorReady();
         
         // Refresh CodeMirror layout đảm bảo hiển thị 100% không bị màn hình đen
-        setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 50);
-        setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 200);
-        setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 400);
+        setTimeout(() => { if (ideCodeMirror) { ideCodeMirror.setSize("100%", "100%"); ideCodeMirror.refresh(); } }, 50);
+        setTimeout(() => { if (ideCodeMirror) { ideCodeMirror.setSize("100%", "100%"); ideCodeMirror.refresh(); } }, 200);
+        setTimeout(() => { if (ideCodeMirror) { ideCodeMirror.setSize("100%", "100%"); ideCodeMirror.refresh(); } }, 500);
 
         appendTerminalLog("KINI-IDE: Chuyển sang chế độ Antigravity Studio (Code + Chat song song).", "prompt");
     } else {
@@ -1468,12 +1533,26 @@ function renderHierarchicalTree(nodes) {
             <span class="tree-folder-chevron">▼</span>
             <span>📁</span>
             <span class="tree-item-name">${escapeHtml(folderName)}</span>
+            <div class="tree-row-actions">
+                <button class="tree-act-btn btn-rename-folder" title="Đổi tên thư mục">✏️</button>
+                <button class="tree-act-btn delete btn-delete-folder" title="Xóa thư mục">🗑️</button>
+            </div>
         `;
 
         const childrenBox = document.createElement("div");
         childrenBox.className = "tree-folder-children";
 
-        folderRow.addEventListener("click", () => {
+        folderRow.addEventListener("click", (e) => {
+            if (e.target.classList.contains("btn-rename-folder")) {
+                e.stopPropagation();
+                renameIdePath(folderName);
+                return;
+            }
+            if (e.target.classList.contains("btn-delete-folder")) {
+                e.stopPropagation();
+                deleteIdePath(folderName);
+                return;
+            }
             folderRow.classList.toggle("collapsed");
         });
 
@@ -1489,10 +1568,23 @@ function renderHierarchicalTree(nodes) {
             fileRow.innerHTML = `
                 <span>${icon}</span>
                 <span class="tree-item-name">${escapeHtml(shortName)}</span>
+                <div class="tree-row-actions">
+                    <button class="tree-act-btn btn-rename-file" title="Đổi tên file">✏️</button>
+                    <button class="tree-act-btn delete btn-delete-file" title="Xóa file">🗑️</button>
+                </div>
             `;
 
             fileRow.addEventListener("click", (e) => {
-                e.stopPropagation();
+                if (e.target.classList.contains("btn-rename-file")) {
+                    e.stopPropagation();
+                    renameIdePath(fileNode.path);
+                    return;
+                }
+                if (e.target.classList.contains("btn-delete-file")) {
+                    e.stopPropagation();
+                    deleteIdePath(fileNode.path);
+                    return;
+                }
                 document.querySelectorAll(".tree-file-row").forEach(el => el.classList.remove("active"));
                 fileRow.classList.add("active");
                 openIdeFile(fileNode.path);
@@ -1516,9 +1608,23 @@ function renderHierarchicalTree(nodes) {
         fileRow.innerHTML = `
             <span>${icon}</span>
             <span class="tree-item-name">${escapeHtml(fileNode.path)}</span>
+            <div class="tree-row-actions">
+                <button class="tree-act-btn btn-rename-file" title="Đổi tên file">✏️</button>
+                <button class="tree-act-btn delete btn-delete-file" title="Xóa file">🗑️</button>
+            </div>
         `;
 
-        fileRow.addEventListener("click", () => {
+        fileRow.addEventListener("click", (e) => {
+            if (e.target.classList.contains("btn-rename-file")) {
+                e.stopPropagation();
+                renameIdePath(fileNode.path);
+                return;
+            }
+            if (e.target.classList.contains("btn-delete-file")) {
+                e.stopPropagation();
+                deleteIdePath(fileNode.path);
+                return;
+            }
             document.querySelectorAll(".tree-file-row").forEach(el => el.classList.remove("active"));
             fileRow.classList.add("active");
             openIdeFile(fileNode.path);
@@ -1534,7 +1640,10 @@ function getFileIcon(ext) {
     if (ext === ".html") return "🌐";
     if (ext === ".css") return "🎨";
     if (ext === ".js" || ext === ".json") return "📜";
-    if (ext === ".txt" || ext === ".md") return "📝";
+    if (ext === ".txt") return "📝";
+    if (ext === ".md") return "📑";
+    if (ext === ".csv" || ext === ".xlsx" || ext === ".xls") return "📊";
+    if ([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"].includes(ext)) return "🖼️";
     return "📄";
 }
 
@@ -1543,13 +1652,40 @@ async function openIdeFile(relPath) {
     const tabName = document.getElementById("ide-tab-name");
     const tabIcon = document.getElementById("ide-tab-icon");
     const dirtyDot = document.getElementById("ide-tab-dirty");
-    const previewBtn = document.getElementById("ide-mode-preview");
+
+    const btnCode = document.getElementById("ide-mode-code");
+    const btnPrev = document.getElementById("ide-mode-preview");
+    const btnMd = document.getElementById("ide-mode-md");
+    const btnImg = document.getElementById("ide-mode-img");
+    const btnData = document.getElementById("ide-mode-data");
 
     if (tabName) tabName.textContent = relPath;
     if (dirtyDot) dirtyDot.style.display = "none";
 
     const ext = relPath.substring(relPath.lastIndexOf(".")).toLowerCase();
     if (tabIcon) tabIcon.textContent = getFileIcon(ext);
+
+    // Ẩn tất cả nút chế độ đặc biệt ban đầu
+    if (btnPrev) btnPrev.style.display = "none";
+    if (btnMd) btnMd.style.display = "none";
+    if (btnImg) btnImg.style.display = "none";
+    if (btnData) btnData.style.display = "none";
+
+    // 1. Nếu là file ẢNH (.png, .jpg, .webp, .svg, .gif)
+    if ([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"].includes(ext)) {
+        if (btnImg) btnImg.style.display = "inline-block";
+        const imgDisplay = document.getElementById("ide-image-display");
+        const imgDownload = document.getElementById("btn-download-ide-image");
+        const previewUrl = `/api/agent/preview/${encodeURIComponent(relPath)}?t=${Date.now()}`;
+        if (imgDisplay) imgDisplay.src = previewUrl;
+        if (imgDownload) {
+            imgDownload.href = previewUrl;
+            imgDownload.download = relPath.split("/").pop();
+        }
+        switchIdeEditorTab("img");
+        appendTerminalLog(`[WORKSPACE]: Mở xem ảnh '${relPath}'.`, "prompt");
+        return;
+    }
 
     // Xác định CodeMirror Mode chuẩn
     let cmMode = "python";
@@ -1558,47 +1694,88 @@ async function openIdeFile(relPath) {
     else if (ext === ".css") cmMode = "css";
     else if (ext === ".md") cmMode = "markdown";
 
-    if (ideCodeMirror) {
-        ideCodeMirror.setOption("mode", cmMode);
-        ideCodeMirror.setValue("// Đang tải dữ liệu...");
-    }
+    setIdeCode("// Đang tải dữ liệu...", cmMode);
 
     try {
         const res = await fetch(`/api/agent/file?path=${encodeURIComponent(relPath)}`);
         const data = await res.json();
         if (data.success) {
-            if (ideCodeMirror) {
-                ideCodeMirror.setValue(data.content);
-                ideCodeMirror.clearHistory();
-                setTimeout(() => ideCodeMirror.refresh(), 50);
-            }
+            setIdeCode(data.content, cmMode);
 
-            // Kích hoạt nút Web Preview nếu là file HTML
+            // 2. Nếu là HTML Web App / Game Canvas
             if (ext === ".html") {
-                if (previewBtn) previewBtn.style.display = "inline-block";
+                if (btnPrev) btnPrev.style.display = "inline-block";
                 const frame = document.getElementById("ide-preview-frame");
                 if (frame) frame.src = `/api/agent/preview/${encodeURIComponent(relPath)}?t=${Date.now()}`;
-            } else {
-                if (previewBtn) previewBtn.style.display = "none";
+                switchIdeEditorTab("code");
+            } 
+            // 3. Nếu là Báo cáo Markdown (.md)
+            else if (ext === ".md") {
+                if (btnMd) btnMd.style.display = "inline-block";
+                const mdBody = document.getElementById("ide-markdown-body");
+                if (mdBody) {
+                    mdBody.innerHTML = typeof marked !== "undefined" ? marked.parse(data.content) : `<pre>${escapeHtml(data.content)}</pre>`;
+                }
+                switchIdeEditorTab("code");
+            }
+            // 4. Nếu là File dữ liệu CSV
+            else if (ext === ".csv") {
+                if (btnData) btnData.style.display = "inline-block";
+                renderCsvToTable(data.content);
+                switchIdeEditorTab("data");
+            }
+            // 5. File code thông thường
+            else {
                 switchIdeEditorTab("code");
             }
             appendTerminalLog(`[WORKSPACE]: Mở file '${relPath}' (${data.content.length} ký tự).`, "prompt");
         } else {
-            if (ideCodeMirror) ideCodeMirror.setValue(`// Không thể đọc file: ${data.error}`);
+            setIdeCode(`// Không thể đọc file: ${data.error}`);
             appendTerminalLog(`[LỖI]: Không thể mở '${relPath}': ${data.error}`, "error");
         }
     } catch(e) {
-        if (ideCodeMirror) ideCodeMirror.setValue(`// Lỗi kết nối: ${e.message}`);
+        setIdeCode(`// Lỗi kết nối: ${e.message}`);
         appendTerminalLog(`[LỖI]: ${e.message}`, "error");
     }
 }
 
+function renderCsvToTable(csvText) {
+    const container = document.getElementById("ide-data-table-container");
+    if (!container) return;
+    const lines = csvText.trim().split("\n");
+    if (lines.length === 0) {
+        container.innerHTML = `<div style="color: var(--text-muted); padding: 12px;">Tệp dữ liệu trống</div>`;
+        return;
+    }
+
+    let html = `<table class="ide-data-table"><thead><tr>`;
+    const headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ""));
+    headers.forEach(h => {
+        html += `<th>${escapeHtml(h)}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+
+    for (let i = 1; i < Math.min(lines.length, 500); i++) {
+        const row = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ""));
+        html += `<tr>`;
+        row.forEach(cell => {
+            html += `<td>${escapeHtml(cell)}</td>`;
+        });
+        html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    if (lines.length > 500) {
+        html += `<div style="padding: 8px; color: #94a3b8; font-size: 0.8rem;">(Đang hiển thị 500 dòng đầu tiên của ${lines.length} dòng)</div>`;
+    }
+    container.innerHTML = html;
+}
+
 async function saveIdeCurrentFile() {
-    if (!ideActiveFilePath || !ideCodeMirror) {
+    if (!ideActiveFilePath) {
         showToast("⚠️ Chưa chọn file để lưu");
         return;
     }
-    const content = ideCodeMirror.getValue();
+    const content = getIdeCode();
 
     try {
         const res = await fetch("/api/agent/file", {
@@ -1631,21 +1808,172 @@ async function saveIdeCurrentFile() {
 function switchIdeEditorTab(mode) {
     const btnCode = document.getElementById("ide-mode-code");
     const btnPrev = document.getElementById("ide-mode-preview");
+    const btnMd = document.getElementById("ide-mode-md");
+    const btnImg = document.getElementById("ide-mode-img");
+    const btnData = document.getElementById("ide-mode-data");
+
     const codeWrapper = document.getElementById("ide-codemirror-wrapper");
     const prevWrapper = document.getElementById("ide-preview-wrapper");
+    const mdWrapper = document.getElementById("ide-markdown-wrapper");
+    const imgWrapper = document.getElementById("ide-image-wrapper");
+    const dataWrapper = document.getElementById("ide-data-wrapper");
+
+    // Ẩn tất cả wrappers
+    if (codeWrapper) codeWrapper.style.display = "none";
+    if (prevWrapper) prevWrapper.style.display = "none";
+    if (mdWrapper) mdWrapper.style.display = "none";
+    if (imgWrapper) imgWrapper.style.display = "none";
+    if (dataWrapper) dataWrapper.style.display = "none";
+
+    [btnCode, btnPrev, btnMd, btnImg, btnData].forEach(b => b?.classList.remove("active"));
 
     if (mode === "preview") {
-        btnCode?.classList.remove("active");
         btnPrev?.classList.add("active");
-        if (codeWrapper) codeWrapper.style.display = "none";
         if (prevWrapper) prevWrapper.style.display = "flex";
+    } else if (mode === "md") {
+        btnMd?.classList.add("active");
+        if (mdWrapper) mdWrapper.style.display = "block";
+    } else if (mode === "img") {
+        btnImg?.classList.add("active");
+        if (imgWrapper) imgWrapper.style.display = "flex";
+    } else if (mode === "data") {
+        btnData?.classList.add("active");
+        if (dataWrapper) dataWrapper.style.display = "block";
     } else {
-        btnPrev?.classList.remove("active");
+        // Mặc định: code mode
         btnCode?.classList.add("active");
-        if (prevWrapper) prevWrapper.style.display = "none";
         if (codeWrapper) {
-            codeWrapper.style.display = "block";
-            if (ideCodeMirror) ideCodeMirror.refresh();
+            codeWrapper.style.display = "flex";
+            if (ideCodeMirror) {
+                ideCodeMirror.setSize("100%", "100%");
+                ideCodeMirror.refresh();
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// CÁC THAO TÁC QUẢN LÝ TỆP & THƯ MỤC TRỰC TIẾP TRÊN WEB
+// ------------------------------------------------------------
+async function createIdeNewFile() {
+    const fileName = prompt("📄 Nhập tên/đường dẫn file mới trong workspace (ví dụ: my_script.py hoặc app/index.html):");
+    if (!fileName || !fileName.trim()) return;
+    try {
+        const res = await fetch("/api/agent/create_file", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({path: fileName.trim(), content: ""})
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`✅ Đã tạo file: ${fileName.trim()}`);
+            await loadIdeFileTree();
+            openIdeFile(fileName.trim());
+        } else {
+            showToast(`❌ Không thể tạo file: ${data.error}`);
+        }
+    } catch(e) {
+        showToast(`❌ Lỗi: ${e.message}`);
+    }
+}
+
+async function createIdeNewFolder() {
+    const folderName = prompt("📁 Nhập tên thư mục mới trong workspace (ví dụ: my_project hoặc games/flappy_bird):");
+    if (!folderName || !folderName.trim()) return;
+    try {
+        const res = await fetch("/api/agent/create_folder", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({path: folderName.trim()})
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`✅ Đã tạo thư mục: ${folderName.trim()}`);
+            await loadIdeFileTree();
+        } else {
+            showToast(`❌ Không thể tạo thư mục: ${data.error}`);
+        }
+    } catch(e) {
+        showToast(`❌ Lỗi: ${e.message}`);
+    }
+}
+
+async function deleteIdePath(relPath) {
+    if (!confirm(`⚠️ Anh Trường có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?`)) return;
+    try {
+        const res = await fetch("/api/agent/delete", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({path: relPath})
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`🗑️ Đã xóa: ${relPath}`);
+            if (ideActiveFilePath === relPath) {
+                ideActiveFilePath = "";
+                setIdeCode("// Chọn một file khác từ Workspace Explorer...");
+            }
+            await loadIdeFileTree();
+        } else {
+            showToast(`❌ Không thể xóa: ${data.error}`);
+        }
+    } catch(e) {
+        showToast(`❌ Lỗi: ${e.message}`);
+    }
+}
+
+async function renameIdePath(oldPath) {
+    const newPath = prompt(`✏️ Đổi tên cho [${oldPath}]:`, oldPath);
+    if (!newPath || newPath.trim() === oldPath) return;
+    try {
+        const res = await fetch("/api/agent/rename", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({old_path: oldPath, new_path: newPath.trim()})
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`✏️ Đã đổi tên thành: ${newPath.trim()}`);
+            if (ideActiveFilePath === oldPath) {
+                ideActiveFilePath = newPath.trim();
+            }
+            await loadIdeFileTree();
+            openIdeFile(newPath.trim());
+        } else {
+            showToast(`❌ Không thể đổi tên: ${data.error}`);
+        }
+    } catch(e) {
+        showToast(`❌ Lỗi: ${e.message}`);
+    }
+}
+
+function ideSearchPrompt() {
+    const kw = prompt("🔍 Nhập từ khóa cần tìm trong file:");
+    if (!kw) return;
+    if (ideCodeMirror) {
+        const text = ideCodeMirror.getValue();
+        const idx = text.toLowerCase().indexOf(kw.toLowerCase());
+        if (idx !== -1) {
+            const posFrom = ideCodeMirror.posFromIndex(idx);
+            const posTo = ideCodeMirror.posFromIndex(idx + kw.length);
+            ideCodeMirror.setCursor(posFrom);
+            ideCodeMirror.setSelection(posFrom, posTo);
+            ideCodeMirror.focus();
+            showToast(`🔎 Đã tìm thấy: "${kw}"`);
+        } else {
+            showToast(`⚠️ Không tìm thấy "${kw}" trong file.`);
+        }
+    } else {
+        const ta = document.getElementById("ide-fallback-textarea");
+        if (ta) {
+            const idx = ta.value.toLowerCase().indexOf(kw.toLowerCase());
+            if (idx !== -1) {
+                ta.focus();
+                ta.setSelectionRange(idx, idx + kw.length);
+                showToast(`🔎 Đã tìm thấy: "${kw}"`);
+            } else {
+                showToast(`⚠️ Không tìm thấy "${kw}"`);
+            }
         }
     }
 }
@@ -1713,9 +2041,33 @@ function setupIdeEventListeners() {
         if (ideCodeMirror) ideCodeMirror.refresh();
     });
 
-    // Mode Code vs Preview
+    // Mode Switches
     document.getElementById("ide-mode-code")?.addEventListener("click", () => switchIdeEditorTab("code"));
     document.getElementById("ide-mode-preview")?.addEventListener("click", () => switchIdeEditorTab("preview"));
+    document.getElementById("ide-mode-md")?.addEventListener("click", () => switchIdeEditorTab("md"));
+    document.getElementById("ide-mode-img")?.addEventListener("click", () => switchIdeEditorTab("img"));
+    document.getElementById("ide-mode-data")?.addEventListener("click", () => switchIdeEditorTab("data"));
+
+    // Nút tạo File mới & Thư mục mới trên Header Explorer
+    document.getElementById("btn-ide-new-file")?.addEventListener("click", createIdeNewFile);
+    document.getElementById("btn-ide-new-folder")?.addEventListener("click", createIdeNewFolder);
+
+    // Nút Copy toàn bộ mã nguồn
+    document.getElementById("btn-ide-copy-code")?.addEventListener("click", () => {
+        const code = getIdeCode();
+        if (!code) {
+            showToast("⚠️ Không có mã nguồn để sao chép");
+            return;
+        }
+        navigator.clipboard.writeText(code).then(() => {
+            showToast("📋 Đã sao chép toàn bộ mã nguồn vào Clipboard!");
+        }).catch(() => {
+            showToast("⚠️ Không thể sao chép");
+        });
+    });
+
+    // Nút Tìm kiếm trong mã nguồn
+    document.getElementById("btn-ide-search-code")?.addEventListener("click", ideSearchPrompt);
 
     // Terminal clear & toggle
     document.getElementById("btn-terminal-clear")?.addEventListener("click", () => {

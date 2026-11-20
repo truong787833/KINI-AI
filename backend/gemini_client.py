@@ -108,7 +108,11 @@ def extract_and_save_memory_async(user_text: str, api_key: str = ""):
     if len(user_text.strip()) < 10:
         return
 
-    hints = ["tôi tên", "anh tên", "tôi thích", "anh thích", "tôi làm", "anh làm", "nghề của", "dự án", "hãy nhớ", "nhớ rằng", "quy tắc", "vợ tôi", "con tôi", "nhà tôi"]
+    hints = [
+        "tôi tên", "anh tên", "tôi thích", "anh thích", "tôi làm", "anh làm", "nghề của", 
+        "dự án", "hãy nhớ", "nhớ rằng", "nhớ nhé", "quy tắc", "nguyên tắc", "từ nay", 
+        "lưu ý", "luôn luôn", "không được", "anh dùng", "máy của anh", "vợ tôi", "con tôi", "nhà tôi"
+    ]
     if not any(h in user_text.lower() for h in hints):
         return
 

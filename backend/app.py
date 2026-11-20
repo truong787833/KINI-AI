@@ -522,6 +522,46 @@ def save_workspace_file_content(data: dict):
         return res
     raise HTTPException(status_code=500, detail=res.get("error", "Không thể ghi file"))
 
+@app.post("/api/agent/create_file")
+def create_workspace_file(data: dict):
+    path = data.get("path", "").strip()
+    content = data.get("content", "")
+    if not path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn file mới")
+    res = agent_engine.tool_write_file(path, content)
+    return res
+
+@app.post("/api/agent/create_folder")
+def create_workspace_folder(data: dict):
+    path = data.get("path", "").strip()
+    if not path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn thư mục mới")
+    res = agent_engine.tool_create_folder(path)
+    return res
+
+@app.post("/api/agent/delete")
+def delete_workspace_item(data: dict):
+    path = data.get("path", "").strip()
+    if not path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn cần xóa")
+    res = agent_engine.tool_delete_path(path)
+    return res
+
+@app.post("/api/agent/rename")
+def rename_workspace_item(data: dict):
+    old_path = data.get("old_path", "").strip()
+    new_path = data.get("new_path", "").strip()
+    if not old_path or not new_path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn cũ hoặc mới")
+    res = agent_engine.tool_rename_path(old_path, new_path)
+    return res
+
+@app.post("/api/agent/search")
+def search_workspace_files(data: dict):
+    keyword = data.get("keyword", "").strip()
+    res = agent_engine.tool_search_in_files(keyword)
+    return res
+
 @app.get("/api/agent/preview/{filepath:path}")
 def serve_agent_preview(filepath: str):
     full_path = os.path.join(agent_engine.WORKSPACE_DIR, os.path.normpath(filepath).lstrip("\\/."))

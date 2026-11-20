@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261121_0300">
+    <link rel="stylesheet" href="/static/style.css?v=20261121_0315">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -122,6 +122,8 @@
                         <div class="ide-tree-header">
                             <span class="ide-header-title">WORKSPACE EXPLORER</span>
                             <div class="ide-header-btns">
+                                <button class="ide-mini-btn" id="btn-ide-new-file" title="Tạo tệp mới">+📄</button>
+                                <button class="ide-mini-btn" id="btn-ide-new-folder" title="Tạo thư mục mới">+📁</button>
                                 <button class="ide-mini-btn" id="btn-ide-refresh" title="Làm mới cây thư mục">🔄</button>
                                 <button class="ide-mini-btn" id="btn-ide-open-explorer" title="Mở thư mục trên máy tính Windows">📂</button>
                                 <button class="ide-mini-btn" id="btn-collapse-tree" title="Thu gọn/Mở rộng cây thư mục">◀</button>
@@ -150,7 +152,12 @@
                                 <div class="ide-mode-switch">
                                     <button class="ide-mode-btn active" id="ide-mode-code">📝 Mã nguồn</button>
                                     <button class="ide-mode-btn" id="ide-mode-preview" style="display: none;">🌐 Web Preview</button>
+                                    <button class="ide-mode-btn" id="ide-mode-md" style="display: none;">📑 Xem Báo Cáo</button>
+                                    <button class="ide-mode-btn" id="ide-mode-img" style="display: none;">🖼️ Xem Ảnh</button>
+                                    <button class="ide-mode-btn" id="ide-mode-data" style="display: none;">📊 Dữ Liệu Bảng</button>
                                 </div>
+                                <button class="ide-action-btn" id="btn-ide-copy-code" title="Sao chép toàn bộ mã nguồn">📋 Copy</button>
+                                <button class="ide-action-btn" id="btn-ide-search-code" title="Tìm kiếm trong mã nguồn">🔍 Tìm</button>
                                 <button class="ide-action-btn" id="btn-ide-run-file" title="Chạy file trên máy">▶️ Chạy file</button>
                                 <button class="ide-action-btn primary" id="btn-ide-save-file" title="Lưu thay đổi (Ctrl+S)">💾 Lưu (Ctrl+S)</button>
                                 <button class="ide-action-btn" id="btn-toggle-chat" title="Ẩn/Hiện khung chat bên phải">💬 Ẩn Chat</button>
@@ -164,6 +171,24 @@
                         <!-- Vùng Web Preview Iframe -->
                         <div class="ide-preview-wrapper" id="ide-preview-wrapper" style="display: none;">
                             <iframe id="ide-preview-frame" class="ide-preview-iframe" src="about:blank"></iframe>
+                        </div>
+
+                        <!-- Vùng Markdown Viewer -->
+                        <div class="ide-markdown-wrapper" id="ide-markdown-wrapper" style="display: none;">
+                            <div class="ide-markdown-body" id="ide-markdown-body"></div>
+                        </div>
+
+                        <!-- Vùng Image Viewer -->
+                        <div class="ide-image-wrapper" id="ide-image-wrapper" style="display: none;">
+                            <img id="ide-image-display" src="" alt="Workspace Image Preview">
+                            <div class="ide-image-toolbar">
+                                <a id="btn-download-ide-image" href="#" download class="ide-action-btn primary">⬇️ Tải ảnh về</a>
+                            </div>
+                        </div>
+
+                        <!-- Vùng CSV/Excel Tabular Data Viewer -->
+                        <div class="ide-data-wrapper" id="ide-data-wrapper" style="display: none;">
+                            <div class="ide-data-table-container" id="ide-data-table-container"></div>
                         </div>
 
                         <!-- Thanh kéo giãn Terminal (Vertical Resizer) -->
@@ -498,6 +523,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20261121_0300"></script>
+    <script src="/static/app.js?v=20261121_0315"></script>
 </body>
 </html>

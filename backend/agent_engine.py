@@ -2,6 +2,7 @@ import os
 import subprocess
 import json
 import re
+import shutil
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -104,6 +105,77 @@ def tool_run_command(command: str) -> Dict[str, Any]:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+def tool_create_folder(rel_path: str) -> Dict[str, Any]:
+    """Tạo thư mục mới trong workspace"""
+    try:
+        clean_path = os.path.normpath(rel_path).lstrip("\\/.")
+        full_path = os.path.join(WORKSPACE_DIR, clean_path)
+        os.makedirs(full_path, exist_ok=True)
+        return {"success": True, "path": clean_path}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def tool_delete_path(rel_path: str) -> Dict[str, Any]:
+    """Xóa file hoặc thư mục trong workspace an toàn"""
+    try:
+        clean_path = os.path.normpath(rel_path).lstrip("\\/.")
+        if not clean_path or clean_path in [".", "/", "\\"]:
+            return {"success": False, "error": "Không được phép xóa thư mục gốc"}
+        full_path = os.path.join(WORKSPACE_DIR, clean_path)
+        if not os.path.exists(full_path):
+            return {"success": False, "error": "Không tìm thấy tệp hoặc thư mục"}
+        if os.path.isdir(full_path):
+            shutil.rmtree(full_path)
+        else:
+            os.remove(full_path)
+        return {"success": True, "path": clean_path}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def tool_rename_path(old_path: str, new_path: str) -> Dict[str, Any]:
+    """Đổi tên file hoặc thư mục trong workspace"""
+    try:
+        clean_old = os.path.normpath(old_path).lstrip("\\/.")
+        clean_new = os.path.normpath(new_path).lstrip("\\/.")
+        full_old = os.path.join(WORKSPACE_DIR, clean_old)
+        full_new = os.path.join(WORKSPACE_DIR, clean_new)
+        if not os.path.exists(full_old):
+            return {"success": False, "error": "Không tìm thấy đường dẫn gốc"}
+        os.makedirs(os.path.dirname(full_new), exist_ok=True)
+        os.rename(full_old, full_new)
+        return {"success": True, "old_path": clean_old, "new_path": clean_new}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def tool_search_in_files(keyword: str) -> Dict[str, Any]:
+    """Tìm kiếm từ khóa trong toàn bộ các file mã nguồn/văn bản của workspace"""
+    try:
+        keyword = keyword.strip()
+        if not keyword:
+            return {"success": False, "error": "Từ khóa tìm kiếm trống"}
+        results = []
+        for root, _, files in os.walk(WORKSPACE_DIR):
+            for file in files:
+                if file.endswith((".py", ".js", ".html", ".css", ".json", ".txt", ".md", ".bat", ".csv")):
+                    full_p = os.path.join(root, file)
+                    rel_p = os.path.relpath(full_p, WORKSPACE_DIR).replace("\\", "/")
+                    try:
+                        with open(full_p, "r", encoding="utf-8", errors="ignore") as f:
+                            for idx, line in enumerate(f, 1):
+                                if keyword.lower() in line.lower():
+                                    results.append({
+                                        "file": rel_p,
+                                        "line": idx,
+                                        "content": line.strip()[:200]
+                                    })
+                                    if len(results) >= 50:
+                                        break
+                    except Exception:
+                        pass
+        return {"success": True, "keyword": keyword, "matches": results, "total": len(results)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # ============================================================
 # SYSTEM PROMPT VÀ AGENT RUNNER LOOP CHUẨN ANTIGRAVITY
 # ============================================================
@@ -141,6 +213,38 @@ BẠN CÓ CÁC CÔNG CỤ SAU (Gọi bằng định dạng JSON):
 {
   "tool": "run_command",
   "command": "python -m py_compile ten_du_an/main.py"
+}
+```
+
+5. Tìm kiếm đoạn code / từ khóa trong toàn bộ workspace:
+```json
+{
+  "tool": "search_in_files",
+  "keyword": "tên_hàm_hoặc_biến"
+}
+```
+
+6. Tạo thư mục dự án mới:
+```json
+{
+  "tool": "create_folder",
+  "path": "ten_du_an/assets"
+}
+```
+
+7. Xóa hoặc đổi tên file nếu cần dọn dẹp:
+```json
+{
+  "tool": "delete_file",
+  "path": "ten_file_tam.txt"
+}
+```
+hoặc
+```json
+{
+  "tool": "rename_file",
+  "old_path": "ten_cu.py",
+  "new_path": "ten_moi.py"
 }
 ```
 
@@ -212,9 +316,14 @@ def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 6) -> D
                     cmd = tool_data.get("command", "")
                     r = tool_run_command(cmd)
                     actions_taken.append({"tool": "run_command", "command": cmd, "returncode": r.get("returncode")})
-                    tool_results_text += f"\n[Kết quả run_command '{cmd}']: ExitCode={r.get('returncode')}\nSTDOUT:\n{r.get('stdout', '')[:500]}\nSTDERR:\n{r.get('stderr', '')[:500]}"
+                    stderr = r.get('stderr', '')
+                    stdout = r.get('stdout', '')
+                    tool_results_text += f"\n[Kết quả run_command '{cmd}']: ExitCode={r.get('returncode')}\nSTDOUT:\n{stdout[:500]}\nSTDERR:\n{stderr[:500]}"
                     if r.get("returncode") != 0:
-                        tool_results_text += f"\n⚠️ [CẢNH BÁO LỖI - KÍCH HOẠT VÒNG LẶP TỰ SỬA LỖI SELF-HEALING]: Lệnh '{cmd}' gặp lỗi! KINI Agent hãy phân tích STDERR, dùng 'read_file' xem lại mã nguồn, dùng 'write_file' sửa lỗi triệt để và dùng 'run_command' kiểm thử lại ngay!"
+                        # Trích xuất dòng traceback trọng yếu để Agent định vị ngay dòng lỗi
+                        tb_lines = [line for line in stderr.splitlines() if "File " in line or "Error" in line or "Exception" in line or "line " in line]
+                        tb_hint = "\n".join(tb_lines[-4:]) if tb_lines else stderr[:300]
+                        tool_results_text += f"\n⚠️ [AUTONOMOUS DEBUGGER - KÍCH HOẠT TỰ SỬA LỖI ĐA BƯỚC]: Lệnh '{cmd}' trả về mã lỗi {r.get('returncode')}!\nTrích xuất lỗi chính:\n{tb_hint}\nYêu cầu KINI Agent: Tự phân tích traceback trên, dùng 'read_file' kiểm tra file gặp sự cố, dùng 'write_file' chỉnh sửa chính xác và dùng 'run_command' kiểm thử lại ngay!"
                     executed_any = True
                     
                 elif tool_name == "read_file":
@@ -229,6 +338,36 @@ def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 6) -> D
                     r = tool_list_files(p)
                     actions_taken.append({"tool": "list_files", "path": p, "count": len(r.get("items", []))})
                     tool_results_text += f"\n[Kết quả list_files]: {', '.join(r.get('items', [])[:10])}"
+                    executed_any = True
+
+                elif tool_name == "search_in_files":
+                    kw = tool_data.get("keyword", "")
+                    r = tool_search_in_files(kw)
+                    actions_taken.append({"tool": "search_in_files", "keyword": kw, "total": r.get("total", 0)})
+                    matches_summary = [f"{m['file']}:{m['line']} -> {m['content']}" for m in r.get("matches", [])[:5]]
+                    tool_results_text += f"\n[Kết quả search_in_files '{kw}']: Tìm thấy {r.get('total', 0)} kết quả. Mẫu:\n" + "\n".join(matches_summary)
+                    executed_any = True
+
+                elif tool_name == "create_folder":
+                    p = tool_data.get("path", "")
+                    r = tool_create_folder(p)
+                    actions_taken.append({"tool": "create_folder", "path": p, "success": r.get("success")})
+                    tool_results_text += f"\n[Kết quả create_folder '{p}']: {'Thành công' if r.get('success') else r.get('error')}"
+                    executed_any = True
+
+                elif tool_name == "delete_file":
+                    p = tool_data.get("path", "")
+                    r = tool_delete_path(p)
+                    actions_taken.append({"tool": "delete_file", "path": p, "success": r.get("success")})
+                    tool_results_text += f"\n[Kết quả delete_file '{p}']: {'Thành công' if r.get('success') else r.get('error')}"
+                    executed_any = True
+
+                elif tool_name == "rename_file":
+                    old_p = tool_data.get("old_path", "")
+                    new_p = tool_data.get("new_path", "")
+                    r = tool_rename_path(old_p, new_p)
+                    actions_taken.append({"tool": "rename_file", "old": old_p, "new": new_p, "success": r.get("success")})
+                    tool_results_text += f"\n[Kết quả rename_file]: {old_p} -> {new_p} ({'Thành công' if r.get('success') else r.get('error')})"
                     executed_any = True
             except Exception as e:
                 logger.warning(f"Lỗi phân tích cú pháp tool: {e}")
