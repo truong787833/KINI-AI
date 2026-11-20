@@ -1049,6 +1049,7 @@ async function loadConversations(autoRestore = false) {
         convs.forEach(c => {
             const item = document.createElement("div");
             item.className = `conv-item ${c.id === currentConvId ? 'active' : ''}`;
+            item.dataset.id = c.id;
             item.innerHTML = `
                 <span class="conv-title" title="${escapeAttr(c.title)}">${escapeHtml(c.title)}</span>
                 <button class="conv-delete-btn" title="Xóa đoạn chat">✕</button>
@@ -1066,8 +1067,8 @@ async function loadConversations(autoRestore = false) {
 
         // Tự động khôi phục phiên trò chuyện gần nhất khi mở trang hoặc F5
         if (autoRestore) {
-            const savedConvId = localStorage.getItem("kini_last_conv_id");
-            if (savedConvId && convs.some(c => c.id === savedConvId)) {
+            const savedConvId = localStorage.getItem("kini_last_conv_id") || "default";
+            if (convs.some(c => c.id === savedConvId)) {
                 switchConversation(savedConvId);
             } else if (convs.length > 0) {
                 switchConversation(convs[0].id);
@@ -1076,6 +1077,7 @@ async function loadConversations(autoRestore = false) {
             }
         }
     } catch (e) {
+        console.warn("Lỗi tải danh sách hội thoại:", e);
         if (autoRestore) checkInitialHero();
     }
 }
@@ -1084,19 +1086,17 @@ async function switchConversation(convId) {
     currentConvId = convId;
     localStorage.setItem("kini_last_conv_id", convId);
     
-    // Cập nhật trạng thái active trên danh sách sidebar
+    // Cập nhật trạng thái active trên danh sách sidebar mà không gây race-condition
     document.querySelectorAll(".conv-item").forEach(it => {
-        it.classList.remove("active");
+        if (it.dataset.id === convId) {
+            it.classList.add("active");
+        } else {
+            it.classList.remove("active");
+        }
     });
-    // Tìm item ứng với convId
-    const items = document.querySelectorAll(".conv-item");
-    items.forEach(it => {
-        // có thể cập nhật qua loadConversations() nhẹ
-    });
-    loadConversations(false);
 
     const messagesContainer = document.getElementById("chat-messages");
-    messagesContainer.innerHTML = "";
+    if (messagesContainer) messagesContainer.innerHTML = "";
 
     try {
         const res = await fetch(`/api/conversations/${convId}/messages`);
@@ -1106,20 +1106,29 @@ async function switchConversation(convId) {
         if (msgs.length === 0) {
             checkInitialHero();
         } else {
-            document.getElementById("hero-section").style.display = "none";
+            const hero = document.getElementById("hero-section");
             const quickPills = document.getElementById("quick-pills-bar");
+            const viewport = document.getElementById("chat-viewport");
+            
+            if (hero) hero.style.display = "none";
             if (quickPills) quickPills.style.display = "none";
-            document.getElementById("chat-viewport").style.display = "block";
+            if (viewport) viewport.style.display = "block";
+
             msgs.forEach(m => {
-                if (m.role === "user") {
-                    appendUserMessage(m.content, null);
-                } else {
-                    appendAssistantMessage(m.content, m.image_url);
+                try {
+                    if (m.role === "user") {
+                        appendUserMessage(m.content, m.image_url);
+                    } else {
+                        appendAssistantMessage(m.content, m.image_url);
+                    }
+                } catch(err) {
+                    console.warn("Lỗi render tin nhắn:", err);
                 }
             });
             scrollToBottom();
         }
     } catch (e) {
+        console.warn("Lỗi tải tin nhắn hội thoại:", e);
         checkInitialHero();
     }
 }
@@ -1367,25 +1376,33 @@ function switchViewMode(mode) {
     const btnChat = document.getElementById("btn-mode-chat");
     const btnIde = document.getElementById("btn-mode-ide");
     const studioPane = document.getElementById("antigravity-studio-pane");
+    const resizerChat = document.getElementById("resizer-chat");
 
     if (mode === "ide") {
         appContainer.classList.add("mode-ide");
         btnChat?.classList.remove("active");
         btnIde?.classList.add("active");
         if (studioPane) studioPane.style.display = "flex";
+        if (resizerChat) resizerChat.style.display = "block";
         
+        // Tự động đóng menu trượt lịch sử để không chiếm không gian IDE
+        document.getElementById("sidebar")?.classList.remove("open");
+        document.getElementById("sidebar-overlay")?.classList.remove("open");
+
         loadIdeFileTree();
         
-        // Refresh CodeMirror layout sau khi pane hiển thị
-        setTimeout(() => {
-            if (ideCodeMirror) ideCodeMirror.refresh();
-        }, 150);
+        // Refresh CodeMirror layout đảm bảo hiển thị 100% không bị màn hình đen
+        setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 50);
+        setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 200);
+        setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 400);
+
         appendTerminalLog("KINI-IDE: Chuyển sang chế độ Antigravity Studio (Code + Chat song song).", "prompt");
     } else {
         appContainer.classList.remove("mode-ide");
         btnIde?.classList.remove("active");
         btnChat?.classList.add("active");
         if (studioPane) studioPane.style.display = "none";
+        if (resizerChat) resizerChat.style.display = "none";
     }
 }
 
@@ -1709,5 +1726,96 @@ function setupIdeEventListeners() {
     document.getElementById("btn-terminal-toggle")?.addEventListener("click", () => {
         const drawer = document.getElementById("ide-terminal-drawer");
         drawer?.classList.toggle("collapsed");
+        setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 150);
+    });
+
+    // 1. Thu gọn / Mở rộng Cây thư mục (Explorer)
+    document.getElementById("btn-collapse-tree")?.addEventListener("click", () => {
+        const sidebar = document.getElementById("ide-file-tree-sidebar");
+        const btn = document.getElementById("btn-collapse-tree");
+        if (sidebar) {
+            sidebar.classList.toggle("collapsed");
+            btn.textContent = sidebar.classList.contains("collapsed") ? "▶" : "◀";
+            setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 150);
+        }
+    });
+
+    // 2. Ẩn / Hiện Khung Chat bên phải
+    document.getElementById("btn-toggle-chat")?.addEventListener("click", () => {
+        const chatPane = document.getElementById("chat-main-pane");
+        const resizerChat = document.getElementById("resizer-chat");
+        const btn = document.getElementById("btn-toggle-chat");
+        if (chatPane) {
+            chatPane.classList.toggle("collapsed");
+            const isHidden = chatPane.classList.contains("collapsed");
+            btn.textContent = isHidden ? "💬 Hiện Chat" : "💬 Ẩn Chat";
+            if (resizerChat) resizerChat.style.display = isHidden ? "none" : "block";
+            setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 150);
+        }
+    });
+
+    // 3. Kéo giãn thanh Explorer (resizer-tree)
+    initSplitterDrag("resizer-tree", (deltaX) => {
+        const sidebar = document.getElementById("ide-file-tree-sidebar");
+        if (sidebar && !sidebar.classList.contains("collapsed")) {
+            const currentW = sidebar.getBoundingClientRect().width;
+            const newW = Math.min(500, Math.max(160, currentW + deltaX));
+            sidebar.style.width = newW + "px";
+            if (ideCodeMirror) ideCodeMirror.refresh();
+        }
+    });
+
+    // 4. Kéo giãn thanh Terminal (resizer-terminal)
+    initSplitterDrag("resizer-terminal", null, (deltaY) => {
+        const drawer = document.getElementById("ide-terminal-drawer");
+        if (drawer && !drawer.classList.contains("collapsed")) {
+            const currentH = drawer.getBoundingClientRect().height;
+            const newH = Math.min(450, Math.max(40, currentH - deltaY));
+            drawer.style.height = newH + "px";
+            if (ideCodeMirror) ideCodeMirror.refresh();
+        }
+    });
+
+    // 5. Kéo giãn thanh Chat (resizer-chat)
+    initSplitterDrag("resizer-chat", (deltaX) => {
+        const chatPane = document.getElementById("chat-main-pane");
+        if (chatPane && !chatPane.classList.contains("collapsed")) {
+            const currentW = chatPane.getBoundingClientRect().width;
+            const newW = Math.min(650, Math.max(300, currentW - deltaX));
+            chatPane.style.width = newW + "px";
+            if (ideCodeMirror) ideCodeMirror.refresh();
+        }
+    });
+}
+
+// Hàm khởi tạo kéo giãn Resizer chuột
+function initSplitterDrag(resizerId, onDragX, onDragY) {
+    const handle = document.getElementById(resizerId);
+    if (!handle) return;
+
+    let startX = 0, startY = 0;
+    function onMouseMove(e) {
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        startX = e.clientX;
+        startY = e.clientY;
+        if (onDragX) onDragX(deltaX);
+        if (onDragY) onDragY(deltaY);
+    }
+    function onMouseUp() {
+        handle.classList.remove("dragging");
+        document.body.style.cursor = "default";
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        if (ideCodeMirror) ideCodeMirror.refresh();
+    }
+    handle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        startX = e.clientX;
+        startY = e.clientY;
+        handle.classList.add("dragging");
+        document.body.style.cursor = handle.classList.contains("vertical") ? "row-resize" : "col-resize";
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
     });
 }

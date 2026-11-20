@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20261121_0300">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -118,12 +118,13 @@
                 <!-- ANTIGRAVITY STUDIO WORKSPACE PANE (HIỂN THỊ TRONG CHẾ ĐỘ IDE) -->
                 <div class="antigravity-studio-pane" id="antigravity-studio-pane" style="display: none;">
                     <!-- Cột 1: Cây Thư Mục Cấp Bậc (Hierarchical File Tree) -->
-                    <aside class="ide-file-tree-sidebar">
+                    <aside class="ide-file-tree-sidebar" id="ide-file-tree-sidebar">
                         <div class="ide-tree-header">
                             <span class="ide-header-title">WORKSPACE EXPLORER</span>
                             <div class="ide-header-btns">
                                 <button class="ide-mini-btn" id="btn-ide-refresh" title="Làm mới cây thư mục">🔄</button>
                                 <button class="ide-mini-btn" id="btn-ide-open-explorer" title="Mở thư mục trên máy tính Windows">📂</button>
+                                <button class="ide-mini-btn" id="btn-collapse-tree" title="Thu gọn/Mở rộng cây thư mục">◀</button>
                             </div>
                         </div>
                         <div class="ide-search-box">
@@ -134,8 +135,11 @@
                         </div>
                     </aside>
 
+                    <!-- Thanh kéo giãn Explorer (Horizontal Resizer) -->
+                    <div class="ide-splitter-handle horizontal" id="resizer-tree" title="Kéo để chỉnh độ rộng Explorer"></div>
+
                     <!-- Cột 2: Trình Soạn Thảo Antigravity Code Editor (CodeMirror) -->
-                    <section class="ide-editor-section">
+                    <section class="ide-editor-section" id="ide-editor-section">
                         <div class="ide-editor-tabs">
                             <div class="ide-active-tab">
                                 <span class="tab-icon" id="ide-tab-icon">🐍</span>
@@ -149,6 +153,7 @@
                                 </div>
                                 <button class="ide-action-btn" id="btn-ide-run-file" title="Chạy file trên máy">▶️ Chạy file</button>
                                 <button class="ide-action-btn primary" id="btn-ide-save-file" title="Lưu thay đổi (Ctrl+S)">💾 Lưu (Ctrl+S)</button>
+                                <button class="ide-action-btn" id="btn-toggle-chat" title="Ẩn/Hiện khung chat bên phải">💬 Ẩn Chat</button>
                                 <button class="ide-action-btn" id="btn-ide-maximize" title="Thu phóng khung soạn thảo">⤢</button>
                             </div>
                         </div>
@@ -161,6 +166,9 @@
                             <iframe id="ide-preview-frame" class="ide-preview-iframe" src="about:blank"></iframe>
                         </div>
 
+                        <!-- Thanh kéo giãn Terminal (Vertical Resizer) -->
+                        <div class="ide-splitter-handle vertical" id="resizer-terminal" title="Kéo để chỉnh chiều cao Terminal"></div>
+
                         <!-- Khung Nhật Ký Terminal ở Dưới (Antigravity Terminal Drawer) -->
                         <div class="ide-terminal-drawer" id="ide-terminal-drawer">
                             <div class="terminal-drawer-header">
@@ -170,7 +178,7 @@
                                 </div>
                                 <div class="terminal-actions">
                                     <button class="terminal-clear-btn" id="btn-terminal-clear">Xóa log</button>
-                                    <button class="terminal-clear-btn" id="btn-terminal-toggle">▼</button>
+                                    <button class="terminal-clear-btn" id="btn-terminal-toggle" title="Thu gọn / Mở rộng Terminal">▼</button>
                                 </div>
                             </div>
                             <div class="terminal-drawer-body" id="ide-terminal-logs">
@@ -179,6 +187,9 @@
                         </div>
                     </section>
                 </div>
+
+                <!-- Thanh kéo giãn giữa Studio và Chat (Horizontal Resizer) -->
+                <div class="ide-splitter-handle horizontal" id="resizer-chat" style="display: none;" title="Kéo để chỉnh độ rộng khung Chat"></div>
 
                 <!-- Cột 3: Khung Chat Chính (Full trong Chat Mode, 440px bên phải trong IDE Mode) -->
                 <div class="chat-main-pane" id="chat-main-pane">
@@ -487,6 +498,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20261121_0300"></script>
 </body>
 </html>

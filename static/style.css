@@ -2138,3 +2138,79 @@ body::before {
 .term-line.error {
     color: #f87171;
 }
+
+/* ============================================================
+   SPLITTER RESIZERS & COLLAPSIBLE PANES (KÉO GIÃN & ẨN HIỆN)
+   ============================================================ */
+.ide-splitter-handle {
+    background: rgba(255, 255, 255, 0.04);
+    z-index: 20;
+    user-select: none;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ide-splitter-handle.horizontal {
+    width: 6px;
+    cursor: col-resize;
+    height: 100%;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ide-splitter-handle.horizontal:hover,
+.ide-splitter-handle.horizontal.dragging {
+    background: #00f2fe;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+}
+
+.ide-splitter-handle.vertical {
+    height: 6px;
+    cursor: row-resize;
+    width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ide-splitter-handle.vertical:hover,
+.ide-splitter-handle.vertical.dragging {
+    background: #00f2fe;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+}
+
+.app-container.mode-ide #resizer-chat {
+    display: block !important;
+}
+
+/* Trạng thái Ẩn / Thu gọn các cột */
+.ide-file-tree-sidebar.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    border-right: none !important;
+    display: none !important;
+}
+
+.chat-main-pane.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    border-left: none !important;
+    display: none !important;
+}
+
+.ide-codemirror-wrapper {
+    flex: 1;
+    height: calc(100% - 38px - 130px);
+    overflow: hidden;
+    position: relative;
+    background: #090a10;
+    display: flex;
+    flex-direction: column;
+}
+
+.ide-codemirror-wrapper .CodeMirror {
+    flex: 1;
+    height: 100% !important;
+}
