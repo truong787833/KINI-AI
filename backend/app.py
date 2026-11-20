@@ -479,6 +479,10 @@ async def run_agent_endpoint(data: dict):
 def get_workspace_files():
     return agent_engine.tool_list_files()
 
+@app.get("/api/usage")
+def get_quota_usage():
+    return database.get_usage_statistics()
+
 # ============================================================
 # 6. CÀI ĐẶT
 # ============================================================

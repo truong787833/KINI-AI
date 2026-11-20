@@ -1472,3 +1472,185 @@ body::before {
     border-color: var(--primary);
     transform: translateY(-1px);
 }
+
+/* ============================================================
+   USAGE & QUOTA FLYOUT CARD (CHUẨN ANTIGRAVITY)
+   ============================================================ */
+.dropdown-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 6px 0;
+}
+
+.btn-view-usage {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-view-usage:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.usage-btn-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.usage-btn-arrow {
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text-muted);
+}
+
+/* Flyout Card Container */
+.usage-flyout-card {
+    position: absolute;
+    bottom: 0;
+    right: 105%;
+    width: 320px;
+    background: rgba(18, 20, 32, 0.98);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(138, 92, 246, 0.15);
+    z-index: 50;
+    animation: fadeIn 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    .usage-flyout-card {
+        right: 0;
+        bottom: 110%;
+        width: 290px;
+    }
+}
+
+.usage-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.usage-card-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.2px;
+}
+
+.usage-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: pulseGlow 2s infinite;
+}
+
+.usage-section-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.usage-item-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 5px;
+}
+
+.usage-metric-name {
+    color: var(--text-secondary);
+}
+
+.usage-metric-val {
+    font-weight: 700;
+    color: var(--success);
+}
+
+.usage-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.usage-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 10px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.usage-reset-time {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.token-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+}
+
+.token-stat-box {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    border-radius: 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.token-stat-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.token-stat-number {
+    font-size: 0.92rem;
+    color: #fff;
+    font-weight: 700;
+}
+
+.token-stat-sub {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.unlimited-badge {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    color: #34d399;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}

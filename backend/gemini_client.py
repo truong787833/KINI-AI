@@ -196,10 +196,23 @@ def ask_gemini(
             if res.status_code == 200:
                 data = res.json()
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
+                
+                # Ghi nhận Quota & Token thực tế từ Google
+                try:
+                    from . import database
+                    usage = data.get("usageMetadata", {})
+                    p_tok = usage.get("promptTokenCount", 0)
+                    c_tok = usage.get("candidatesTokenCount", 0)
+                    t_tok = usage.get("totalTokenCount", 0)
+                    database.record_api_usage(model_name, p_tok, c_tok, t_tok)
+                except Exception:
+                    pass
+
                 return {
                     "success": True,
                     "reply": text,
-                    "model_used": model_name
+                    "model_used": model_name,
+                    "usage": data.get("usageMetadata", {})
                 }
             else:
                 err_json = res.json() if res.headers.get("content-type", "").startswith("application/json") else {}

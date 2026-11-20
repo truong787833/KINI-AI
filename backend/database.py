@@ -1,7 +1,7 @@
 import sqlite3
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "kini_ai.db")
@@ -67,6 +67,19 @@ def init_db():
         fact TEXT NOT NULL,
         category TEXT DEFAULT 'general',
         created_at TEXT NOT NULL
+    )
+    """)
+
+    # Bảng giám sát Quota & Token chi tiết theo thời gian thực (Chuẩn Antigravity)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS api_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        timestamp REAL NOT NULL,
+        model_name TEXT NOT NULL,
+        prompt_tokens INTEGER DEFAULT 0,
+        candidates_tokens INTEGER DEFAULT 0,
+        total_tokens INTEGER DEFAULT 0
     )
     """)
 
@@ -247,3 +260,88 @@ def clear_memories():
     cur.execute("DELETE FROM memories")
     conn.commit()
     conn.close()
+
+
+# ============================================================
+# QUẢN LÝ & GIÁM SÁT HẠN MỨC QUOTA VÀ TOKEN (CHUẨN ANTIGRAVITY)
+# ============================================================
+def record_api_usage(model_name: str, prompt_tokens: int, candidates_tokens: int, total_tokens: int):
+    """Ghi nhận chi tiết từng lượt gọi và lượng token chính xác từng đơn vị"""
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    ts = now.timestamp()
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+    INSERT INTO api_usage (date, timestamp, model_name, prompt_tokens, candidates_tokens, total_tokens)
+    VALUES (?, ?, ?, ?, ?, ?)
+    """, (today_str, ts, model_name, prompt_tokens, candidates_tokens, total_tokens))
+    conn.commit()
+    conn.close()
+
+def get_usage_statistics() -> Dict[str, Any]:
+    """Tính toán chính xác % hạn mức quota và lượng token đã sử dụng"""
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    one_minute_ago = now.timestamp() - 60
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    # 1. Thống kê hôm nay
+    cur.execute("""
+    SELECT count(*), 
+           coalesce(sum(prompt_tokens), 0), 
+           coalesce(sum(candidates_tokens), 0), 
+           coalesce(sum(total_tokens), 0)
+    FROM api_usage
+    WHERE date = ?
+    """, (today_str,))
+    today_stats = cur.fetchone()
+    requests_today = today_stats[0]
+    prompt_tokens_today = today_stats[1]
+    candidates_tokens_today = today_stats[2]
+    total_tokens_today = today_stats[3]
+    
+    # 2. Số lượt gửi trong 1 phút gần nhất (RPM)
+    cur.execute("""
+    SELECT count(*) FROM api_usage WHERE timestamp >= ?
+    """, (one_minute_ago,))
+    requests_last_minute = cur.fetchone()[0]
+    
+    conn.close()
+    
+    # Định mức chuẩn Google Gemini Free Tier
+    DAILY_REQUEST_LIMIT = 1500 # 1.500 lượt / ngày
+    RPM_LIMIT = 15             # 15 lượt / phút
+    
+    # Phần trăm còn lại
+    daily_requests_left = max(0, DAILY_REQUEST_LIMIT - requests_today)
+    daily_requests_percent = round((daily_requests_left / DAILY_REQUEST_LIMIT) * 100, 1)
+    
+    rpm_left = max(0, RPM_LIMIT - requests_last_minute)
+    rpm_percent = round((rpm_left / RPM_LIMIT) * 100, 1)
+    
+    # Thời gian reset tự động (đến 00:00 đêm)
+    tomorrow = datetime(now.year, now.month, now.day) + timedelta(days=1)
+    seconds_until_reset = int((tomorrow - now).total_seconds())
+    hours_until_reset = seconds_until_reset // 3600
+    minutes_until_reset = (seconds_until_reset % 3600) // 60
+    
+    return {
+        "requests_today": requests_today,
+        "daily_limit": DAILY_REQUEST_LIMIT,
+        "daily_left": daily_requests_left,
+        "daily_percent": daily_requests_percent,
+        
+        "rpm_current": requests_last_minute,
+        "rpm_limit": RPM_LIMIT,
+        "rpm_left": rpm_left,
+        "rpm_percent": rpm_percent,
+        
+        "prompt_tokens_today": prompt_tokens_today,
+        "candidates_tokens_today": candidates_tokens_today,
+        "total_tokens_today": total_tokens_today,
+        
+        "resets_in": f"{hours_until_reset}h {minutes_until_reset}m"
+    }

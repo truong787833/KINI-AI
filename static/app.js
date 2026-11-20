@@ -134,6 +134,31 @@ function initNavigationAndModals() {
 
         document.addEventListener("click", () => {
             modelDropdown.classList.remove("show");
+            if (document.getElementById("usage-flyout-card")) {
+                document.getElementById("usage-flyout-card").style.display = "none";
+            }
+        });
+    }
+
+    // Usage Quota Flyout Panel (Chuẩn Antigravity)
+    const btnUsage = document.getElementById("btn-open-usage-panel");
+    const usageCard = document.getElementById("usage-flyout-card");
+
+    if (btnUsage && usageCard) {
+        btnUsage.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (usageCard.style.display === "none") {
+                await refreshUsageStats();
+                usageCard.style.display = "block";
+            } else {
+                usageCard.style.display = "none";
+            }
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!usageCard.contains(e.target) && e.target !== btnUsage) {
+                usageCard.style.display = "none";
+            }
         });
     }
 
@@ -462,6 +487,8 @@ async function sendMessage() {
             updateMemoryCountBadge();
             // Cập nhật danh sách hội thoại bên sidebar ngay khi có tin nhắn mới
             loadConversations(false);
+            // Cập nhật lại số liệu Quota & Token thực tế
+            refreshUsageStats();
         } else {
             appendAssistantMessage("⚠️ Không nhận được phản hồi từ KINI AI. Vui lòng thử lại.");
         }
@@ -1181,4 +1208,41 @@ function copyCodeBlock(btn, code) {
         btn.textContent = "✓ Đã sao chép";
         setTimeout(() => btn.textContent = "📋 Sao chép", 2000);
     });
+}
+
+
+// ============================================================
+// HẠN MỨC QUOTA & TOKEN THEO DÕI THỜI GIAN THỰC (CHUẨN ANTIGRAVITY)
+// ============================================================
+async function refreshUsageStats() {
+    try {
+        const res = await fetch("/api/usage");
+        const data = await res.json();
+        
+        // Hạn mức ngày
+        const dailyPercent = document.getElementById("usage-daily-percent");
+        const dailyBar = document.getElementById("usage-daily-bar");
+        const dailyReset = document.getElementById("usage-daily-reset");
+        if (dailyPercent) dailyPercent.textContent = `${data.daily_percent}% còn lại`;
+        if (dailyBar) dailyBar.style.width = `${Math.min(100, Math.max(0, data.daily_percent))}%`;
+        if (dailyReset) dailyReset.textContent = `Làm mới sau: ${data.resets_in} · ${data.daily_left.toLocaleString()} / ${data.daily_limit.toLocaleString()} lượt`;
+
+        // RPM Tốc độ phút
+        const rpmPercent = document.getElementById("usage-rpm-percent");
+        const rpmBar = document.getElementById("usage-rpm-bar");
+        const rpmDetail = document.getElementById("usage-rpm-detail");
+        if (rpmPercent) rpmPercent.textContent = `${data.rpm_percent}% còn lại`;
+        if (rpmBar) rpmBar.style.width = `${Math.min(100, Math.max(0, data.rpm_percent))}%`;
+        if (rpmDetail) rpmDetail.textContent = `${data.rpm_current} / ${data.rpm_limit} lượt gọi trong phút này`;
+
+        // Tokens
+        const totalTokens = document.getElementById("usage-total-tokens");
+        const promptTokens = document.getElementById("usage-prompt-tokens");
+        const candidateTokens = document.getElementById("usage-candidate-tokens");
+        if (totalTokens) totalTokens.textContent = data.total_tokens_today.toLocaleString();
+        if (promptTokens) promptTokens.textContent = data.prompt_tokens_today.toLocaleString();
+        if (candidateTokens) candidateTokens.textContent = data.candidates_tokens_today.toLocaleString();
+    } catch (e) {
+        console.warn("Lỗi đọc Quota usage:", e);
+    }
 }

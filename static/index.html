@@ -166,6 +166,73 @@
                                 <strong>🧠 Gemini 4 Hydrogen Pro</strong>
                                 <small>Suy luận siêu sâu · Mạnh nhất 2026 · Phân tích chuyên gia</small>
                             </div>
+                            <div class="dropdown-divider"></div>
+                            <button class="btn-view-usage" id="btn-open-usage-panel">
+                                <span class="usage-btn-left">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    <span>Hạn Mức Quota & Token (Usage)</span>
+                                </span>
+                                <span class="usage-btn-arrow">›</span>
+                            </button>
+                        </div>
+
+                        <!-- Thẻ Hạn Mức Quota & Token Chuẩn Antigravity (Flyout Card) -->
+                        <div class="usage-flyout-card" id="usage-flyout-card" style="display: none;">
+                            <div class="usage-card-header">
+                                <span class="usage-card-title">Hạn Mức Quota & Token</span>
+                                <span class="usage-live-dot" title="Giám sát thời gian thực"></span>
+                            </div>
+                            
+                            <div class="usage-section">
+                                <div class="usage-section-title">Mô hình Google Gemini (Free Tier)</div>
+                                
+                                <div class="usage-item">
+                                    <div class="usage-item-top">
+                                        <span class="usage-metric-name">Hạn mức ngày</span>
+                                        <span class="usage-metric-val" id="usage-daily-percent">100% còn lại</span>
+                                    </div>
+                                    <div class="usage-progress-bar">
+                                        <div class="usage-progress-fill" id="usage-daily-bar" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="usage-reset-time" id="usage-daily-reset">Làm mới sau: 22h · 1.500 / 1.500 lượt</div>
+                                </div>
+
+                                <div class="usage-item" style="margin-top: 10px;">
+                                    <div class="usage-item-top">
+                                        <span class="usage-metric-name">Tốc độ gọi (RPM)</span>
+                                        <span class="usage-metric-val" id="usage-rpm-percent">100% còn lại</span>
+                                    </div>
+                                    <div class="usage-progress-bar">
+                                        <div class="usage-progress-fill" id="usage-rpm-bar" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="usage-reset-time" id="usage-rpm-detail">0 / 15 lượt gọi trong phút này</div>
+                                </div>
+                            </div>
+
+                            <div class="usage-section" style="margin-top: 12px;">
+                                <div class="usage-section-title">Lượng Token Đã Xử Lý Hôm Nay</div>
+                                <div class="token-stats-grid">
+                                    <div class="token-stat-box">
+                                        <span class="token-stat-label">Tổng Token</span>
+                                        <strong class="token-stat-number" id="usage-total-tokens">0</strong>
+                                    </div>
+                                    <div class="token-stat-box">
+                                        <span class="token-stat-label">Câu hỏi (Prompt)</span>
+                                        <span class="token-stat-sub" id="usage-prompt-tokens">0</span>
+                                    </div>
+                                    <div class="token-stat-box">
+                                        <span class="token-stat-label">Trả lời (Output)</span>
+                                        <span class="token-stat-sub" id="usage-candidate-tokens">0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="usage-section" style="margin-top: 10px;">
+                                <div class="usage-section-title">Tạo Ảnh FLUX & Giọng Đọc AI</div>
+                                <div class="unlimited-badge">
+                                    <span>🟢</span> Không giới hạn hạn mức (Unlimited)
+                                </div>
+                            </div>
                         </div>
                     </div>
 
