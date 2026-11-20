@@ -123,6 +123,7 @@
        - **Khắc phục và khôi phục Lịch Sử Hội Thoại Vĩnh Viễn**: Tự động đồng bộ các đoạn chat vào bảng `conversations`, tự động đặt tiêu đề theo nội dung câu hỏi đầu tiên, lưu `kini_last_conv_id` vào `localStorage`. Khi người dùng F5 hoặc tắt mở lại web, toàn bộ lịch sử và đoạn chat đang dở dang được khôi phục 100% nguyên vẹn.
        - **Tích hợp KINI AI Autonomous Agent (Chuẩn Antigravity)**: Bổ sung module `backend/agent_engine.py` với các công cụ cục bộ: `write_file`, `read_file`, `run_command`, `list_files` trong thư mục `H:\KINI_AI\workspace\`. KINI AI tự động nhận diện nhiệm vụ làm game/viết script, tự lập kế hoạch, tự viết code vào file, tự chạy lệnh kiểm thử và bàn giao sản phẩm hoàn chỉnh cho người dùng.
        - **Bổ sung hỗ trợ toàn bộ thế hệ Gemini 4 (Neon, Argon, Carbon, Hydrogen)**: Sẵn sàng kết nối các mô hình thế hệ mới trong danh sách Pro mode của `backend/gemini_client.py`.
+    7. **KINI AI - ULTIMATE COMMANDER**: Tác giả Phùng Hải Trường. Tư duy chiến lược: Bản chất -> Giải pháp -> Thực thi. Pháp lý nguyên văn 100%, phong cách gãy gọn sắc bén, tự tối ưu hóa.
 
 ---
 
@@ -143,6 +144,7 @@
 - [x] **Bộ Sưu Tập Tác Phẩm (Gallery) & Lightbox**: Xem phóng to và tải ảnh HD 1 chạm.
 - [x] **Bộ Đôi Nút Tải Ảnh HD & Phóng To Trực Tiếp Trong Chat**: Tải ảnh ngay bên dưới khung tranh đã vẽ mà không cần mở gallery.
 - [x] **Render Markdown & Tô Màu Mã Nguồn (Syntax Highlighting)**: Tích hợp marked.js + highlight.js, render bảng, danh sách, trích dẫn, khối code có nút copy.
+- [x] **Giám Sát Quota & Token Thời Gian Thực & Minh Bạch Model**: Bảng đo lường %, token, resets_in chuẩn xác từng đơn vị; nhãn Model badge hiển thị chính xác model thực tế từ Google dưới mỗi tin nhắn, không mập mờ.
 - [x] **Hệ Thống Phím Tắt Toàn Cục (Keyboard Shortcuts)**: Ctrl+N (chat mới), Ctrl+/ (cài đặt), Ctrl+Shift+M (bộ nhớ), Escape (đóng popup).
 - [x] **Chặn Triệt Để Rò Rỉ Mã Máy JSON Tool Call**: Bắt và render ảnh trực tiếp, không bao giờ xuất hiện chuỗi máy móc trong giao diện.
 - [x] **Cài Đặt & API Key**: Lưu trữ an toàn trong SQLite cục bộ.

@@ -1654,3 +1654,17 @@ body::before {
     align-items: center;
     gap: 6px;
 }
+
+/* Model Tag below Bubble */
+.msg-model-badge {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Consolas', monospace;
+    opacity: 0.85;
+}

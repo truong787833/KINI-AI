@@ -127,7 +127,7 @@ function initNavigationAndModals() {
                 document.querySelectorAll(".model-option").forEach(o => o.classList.remove("active"));
                 opt.classList.add("active");
                 const m = opt.dataset.model;
-                modelLabel.textContent = m === "flash" ? "⚡ Gemini 3.8 Flash" : "🧠 Gemini 4 Pro";
+                modelLabel.textContent = m === "flash" ? "⚡ Gemini Flash Lite" : "🧠 Gemini Pro";
                 modelDropdown.classList.remove("show");
             });
         });
@@ -482,7 +482,7 @@ async function sendMessage() {
         removeLoadingMessage(loadingId);
 
         if (data.reply) {
-            appendAssistantMessage(data.reply, data.image_url, data.is_image_generated);
+            appendAssistantMessage(data.reply, data.image_url, data.is_image_generated, data.model_used);
             // Cập nhật số lượng ký ức
             updateMemoryCountBadge();
             // Cập nhật danh sách hội thoại bên sidebar ngay khi có tin nhắn mới
@@ -572,7 +572,7 @@ function removeLoadingMessage(id) {
     if (el) el.remove();
 }
 
-function appendAssistantMessage(content, imageUrl = "", isImageGen = false) {
+function appendAssistantMessage(content, imageUrl = "", isImageGen = false, modelUsed = "") {
     const container = document.getElementById("chat-messages");
     const row = document.createElement("div");
     row.className = "message-row assistant";
@@ -595,6 +595,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false) {
     }
 
     const renderedHtml = formatMarkdown(content);
+    const displayModel = modelUsed || "gemini-3.1-flash-lite";
 
     row.innerHTML = `
         <div class="message-avatar">K</div>
@@ -604,6 +605,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false) {
                 ${imgBlock}
             </div>
             <div class="msg-actions">
+                <span class="msg-model-badge" title="Mô hình thực tế từ Google API">⚡ ${escapeHtml(displayModel)}</span>
                 <button class="btn-msg-action btn-speak" title="Đọc bằng giọng nói tiếng Việt">
                     <span class="action-icon">🔊</span> Nghe đọc
                 </button>
