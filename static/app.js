@@ -75,6 +75,18 @@ function initNavigationAndModals() {
         loadSettings();
     });
 
+    // Studio Workspace Modal Triggers
+    document.getElementById("btn-open-studio-modal")?.addEventListener("click", () => {
+        openModal("modal-studio");
+        initStudioWorkspace();
+    });
+
+    document.getElementById("btn-sidebar-studio-btn")?.addEventListener("click", () => {
+        closeSidebar();
+        openModal("modal-studio");
+        initStudioWorkspace();
+    });
+
     // Close Modal buttons
     document.querySelectorAll("[data-close]").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -97,8 +109,11 @@ function initNavigationAndModals() {
             if (action === "draw") {
                 input.value = "Vẽ cho tôi logo KINI AI 3D phát sáng neon công nghệ tương lai, 8k";
                 input.focus();
+            } else if (action === "plan") {
+                input.value = "/plan Thiết kế kiến trúc hệ thống và lập kế hoạch toàn diện cho dự án ";
+                input.focus();
             } else if (action === "agent") {
-                input.value = "Tạo cho anh một con game 2D bằng Python Pygame, tự động lưu vào workspace";
+                input.value = "/agent Hãy tự thiết kế và lập trình hoàn chỉnh một game mini trong workspace";
                 input.focus();
             } else if (action === "document") {
                 document.getElementById("menu-attach-file")?.click();
@@ -1306,3 +1321,223 @@ window.launchAgentApp = async function(folder) {
         showToast("❌ Lỗi: " + e.message);
     }
 };
+
+// ============================================================
+// KINI STUDIO WORKSPACE (ANTIGRAVITY IDE CORE CONTROLLER)
+// ============================================================
+let studioCurrentFilePath = "";
+let studioTreeNodes = [];
+
+function initStudioWorkspace() {
+    loadStudioFiles();
+    setupStudioEventListeners();
+}
+
+async function loadStudioFiles() {
+    const container = document.getElementById("studio-file-tree");
+    if (!container) return;
+    container.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.85rem;">⏳ Đang đọc cây thư mục...</div>`;
+
+    try {
+        const res = await fetch("/api/agent/workspace");
+        const data = await res.json();
+        if (data.success && data.tree_nodes) {
+            studioTreeNodes = data.tree_nodes;
+            renderStudioTree(studioTreeNodes);
+            
+            // Tự động mở file đầu tiên nếu chưa chọn file nào
+            if (!studioCurrentFilePath && studioTreeNodes.length > 0) {
+                const firstFile = studioTreeNodes.find(n => !n.is_dir);
+                if (firstFile) {
+                    openStudioFile(firstFile.path);
+                }
+            }
+        } else {
+            container.innerHTML = `<div style="padding: 12px; color: var(--text-muted);">Thư mục workspace đang trống.</div>`;
+        }
+    } catch(e) {
+        container.innerHTML = `<div style="padding: 12px; color: #ff0055;">Lỗi đọc thư mục: ${e.message}</div>`;
+    }
+}
+
+function renderStudioTree(nodes) {
+    const container = document.getElementById("studio-file-tree");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (!nodes || nodes.length === 0) {
+        container.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.82rem;">Không tìm thấy file nào</div>`;
+        return;
+    }
+
+    nodes.forEach(node => {
+        const item = document.createElement("div");
+        item.className = "studio-tree-item" + (node.is_dir ? " is-folder" : "") + (studioCurrentFilePath === node.path ? " active" : "");
+        
+        let icon = "📄";
+        if (node.is_dir) icon = "📁";
+        else if (node.ext === ".py") icon = "🐍";
+        else if (node.ext === ".bat") icon = "⚡";
+        else if (node.ext === ".html") icon = "🌐";
+        else if (node.ext === ".css") icon = "🎨";
+        else if (node.ext === ".js" || node.ext === ".json") icon = "📜";
+        else if (node.ext === ".txt" || node.ext === ".md") icon = "📝";
+
+        item.innerHTML = `
+            <span>${icon}</span>
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(node.path)}</span>
+        `;
+
+        if (!node.is_dir) {
+            item.addEventListener("click", () => {
+                document.querySelectorAll(".studio-tree-item").forEach(el => el.classList.remove("active"));
+                item.classList.add("active");
+                openStudioFile(node.path);
+            });
+        }
+        container.appendChild(item);
+    });
+}
+
+async function openStudioFile(relPath) {
+    studioCurrentFilePath = relPath;
+    const editor = document.getElementById("studio-code-editor");
+    const filenameEl = document.getElementById("studio-active-filename");
+    const filesizeEl = document.getElementById("studio-active-filesize");
+    const iconEl = document.getElementById("studio-active-icon");
+    const previewTab = document.getElementById("tab-preview-mode");
+
+    if (filenameEl) filenameEl.textContent = relPath;
+    if (editor) editor.value = "Đang tải nội dung file...";
+
+    try {
+        const res = await fetch(`/api/agent/file?path=${encodeURIComponent(relPath)}`);
+        const data = await res.json();
+        if (data.success) {
+            if (editor) editor.value = data.content;
+            if (filesizeEl) filesizeEl.textContent = `(${data.content.length.toLocaleString()} ký tự)`;
+            
+            // Xử lý icon
+            const ext = relPath.substring(relPath.lastIndexOf(".")).toLowerCase();
+            if (iconEl) {
+                if (ext === ".py") iconEl.textContent = "🐍";
+                else if (ext === ".bat") iconEl.textContent = "⚡";
+                else if (ext === ".html") iconEl.textContent = "🌐";
+                else iconEl.textContent = "📄";
+            }
+
+            // Kích hoạt Live Web Preview nếu là HTML
+            if (ext === ".html") {
+                if (previewTab) previewTab.style.display = "inline-block";
+                const frame = document.getElementById("studio-preview-frame");
+                if (frame) frame.src = `/api/agent/preview/${encodeURIComponent(relPath)}?t=${Date.now()}`;
+            } else {
+                if (previewTab) previewTab.style.display = "none";
+                switchStudioMode("code");
+            }
+        } else {
+            if (editor) editor.value = `// Không thể mở file: ${data.error || "Lỗi không xác định"}`;
+        }
+    } catch(e) {
+        if (editor) editor.value = `// Lỗi nạp file: ${e.message}`;
+    }
+}
+
+async function saveStudioCurrentFile() {
+    if (!studioCurrentFilePath) {
+        showToast("⚠️ Chưa chọn file để lưu");
+        return;
+    }
+    const editor = document.getElementById("studio-code-editor");
+    const content = editor ? editor.value : "";
+
+    try {
+        const res = await fetch("/api/agent/file", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({path: studioCurrentFilePath, content: content})
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`💾 Đã lưu file [${studioCurrentFilePath}] thành công!`);
+            // Cập nhật lại Web Preview nếu đang mở file HTML
+            if (studioCurrentFilePath.endsWith(".html")) {
+                const frame = document.getElementById("studio-preview-frame");
+                if (frame) frame.src = `/api/agent/preview/${encodeURIComponent(studioCurrentFilePath)}?t=${Date.now()}`;
+            }
+        } else {
+            showToast(`⚠️ Không thể lưu: ${data.error || "Lỗi server"}`);
+        }
+    } catch(e) {
+        showToast(`❌ Lỗi lưu file: ${e.message}`);
+    }
+}
+
+function switchStudioMode(mode) {
+    const codeTab = document.getElementById("tab-code-mode");
+    const previewTab = document.getElementById("tab-preview-mode");
+    const codeView = document.getElementById("studio-code-view");
+    const previewView = document.getElementById("studio-preview-view");
+
+    if (mode === "preview") {
+        codeTab?.classList.remove("active");
+        previewTab?.classList.add("active");
+        if (codeView) codeView.style.display = "none";
+        if (previewView) previewView.style.display = "flex";
+    } else {
+        previewTab?.classList.remove("active");
+        codeTab?.classList.add("active");
+        if (previewView) previewView.style.display = "none";
+        if (codeView) codeView.style.display = "flex";
+    }
+}
+
+let studioListenersSetup = false;
+function setupStudioEventListeners() {
+    if (studioListenersSetup) return;
+    studioListenersSetup = true;
+
+    // Tìm kiếm trong cây thư mục
+    document.getElementById("studio-search-input")?.addEventListener("input", (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        if (!query) {
+            renderStudioTree(studioTreeNodes);
+            return;
+        }
+        const filtered = studioTreeNodes.filter(n => n.path.toLowerCase().includes(query));
+        renderStudioTree(filtered);
+    });
+
+    // Làm mới
+    document.getElementById("btn-studio-refresh")?.addEventListener("click", loadStudioFiles);
+
+    // Mở Explorer
+    document.getElementById("btn-studio-open-explorer")?.addEventListener("click", () => {
+        openAgentFolder("");
+    });
+
+    // Lưu file
+    document.getElementById("btn-studio-save-file")?.addEventListener("click", saveStudioCurrentFile);
+
+    // Chạy file
+    document.getElementById("btn-studio-run-file")?.addEventListener("click", () => {
+        if (!studioCurrentFilePath) {
+            showToast("⚠️ Chưa chọn file để chạy");
+            return;
+        }
+        // Nếu là file trong folder game/app, ưu tiên chạy .bat tương ứng nếu có
+        launchAgentApp(studioCurrentFilePath.includes("/") ? studioCurrentFilePath.substring(0, studioCurrentFilePath.lastIndexOf("/")) : studioCurrentFilePath);
+    });
+
+    // Chuyển tab Code / Preview
+    document.getElementById("tab-code-mode")?.addEventListener("click", () => switchStudioMode("code"));
+    document.getElementById("tab-preview-mode")?.addEventListener("click", () => switchStudioMode("preview"));
+
+    // Phím tắt Ctrl + S trong editor
+    document.getElementById("studio-code-editor")?.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+            e.preventDefault();
+            saveStudioCurrentFile();
+        }
+    });
+}

@@ -41,19 +41,39 @@ def tool_read_file(rel_path: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 def tool_list_files(sub_dir: str = "") -> Dict[str, Any]:
-    """Liệt kê danh sách file và thư mục trong workspace"""
+    """Liệt kê danh sách file và thư mục trong workspace với cấu trúc chi tiết cho Studio IDE"""
     try:
         target_dir = os.path.join(WORKSPACE_DIR, os.path.normpath(sub_dir).lstrip("\\/."))
         if not os.path.exists(target_dir):
             return {"success": False, "error": "Thư mục không tồn tại"}
-        tree = []
+        items = []
+        tree_nodes = []
         for root, dirs, files in os.walk(target_dir):
             rel_root = os.path.relpath(root, WORKSPACE_DIR)
             for d in dirs:
-                tree.append(f"📁 {os.path.join(rel_root, d) if rel_root != '.' else d}")
+                rel_d = os.path.normpath(os.path.join(rel_root, d) if rel_root != '.' else d).replace("\\", "/")
+                items.append(f"📁 {rel_d}")
+                tree_nodes.append({
+                    "path": rel_d,
+                    "name": d,
+                    "is_dir": True,
+                    "size": 0,
+                    "ext": ""
+                })
             for f in files:
-                tree.append(f"📄 {os.path.join(rel_root, f) if rel_root != '.' else f}")
-        return {"success": True, "items": tree[:50]}
+                rel_f = os.path.normpath(os.path.join(rel_root, f) if rel_root != '.' else f).replace("\\", "/")
+                f_full = os.path.join(root, f)
+                f_size = os.path.getsize(f_full) if os.path.exists(f_full) else 0
+                ext = os.path.splitext(f)[1].lower()
+                items.append(f"📄 {rel_f}")
+                tree_nodes.append({
+                    "path": rel_f,
+                    "name": f,
+                    "is_dir": False,
+                    "size": f_size,
+                    "ext": ext
+                })
+        return {"success": True, "items": items[:80], "tree_nodes": tree_nodes[:150]}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -133,9 +153,9 @@ QUY TRÌNH LÀM VIỆC CỦA BẠN:
 4. Báo cáo hoàn thành cho anh Trường, nêu rõ đường dẫn file đã tạo trên máy tính và báo anh chỉ cần click đúp vào file `.bat` để trải nghiệm.
 5. Luôn lễ phép, xưng 'Em' và gọi 'Anh Trường'."""
 
-def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 4) -> Dict[str, Any]:
+def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 6) -> Dict[str, Any]:
     """
-    Vòng lặp Agentic Runner: Tự suy nghĩ, gọi công cụ, kiểm tra kết quả và tự sửa lỗi cho đến khi xong bài toán
+    Vòng lặp Agentic Runner: Tự suy nghĩ, gọi công cụ, kiểm tra kết quả và tự sửa lỗi (Self-Healing) cho đến khi xong bài toán
     """
     from . import gemini_client
     
@@ -193,6 +213,8 @@ def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 4) -> D
                     r = tool_run_command(cmd)
                     actions_taken.append({"tool": "run_command", "command": cmd, "returncode": r.get("returncode")})
                     tool_results_text += f"\n[Kết quả run_command '{cmd}']: ExitCode={r.get('returncode')}\nSTDOUT:\n{r.get('stdout', '')[:500]}\nSTDERR:\n{r.get('stderr', '')[:500]}"
+                    if r.get("returncode") != 0:
+                        tool_results_text += f"\n⚠️ [CẢNH BÁO LỖI - KÍCH HOẠT VÒNG LẶP TỰ SỬA LỖI SELF-HEALING]: Lệnh '{cmd}' gặp lỗi! KINI Agent hãy phân tích STDERR, dùng 'read_file' xem lại mã nguồn, dùng 'write_file' sửa lỗi triệt để và dùng 'run_command' kiểm thử lại ngay!"
                     executed_any = True
                     
                 elif tool_name == "read_file":
@@ -224,3 +246,33 @@ def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 4) -> D
         "actions": actions_taken,
         "workspace": WORKSPACE_DIR
     }
+
+# ============================================================
+# KIẾN TRÚC SƯ LẬP KẾ HOẠCH HỆ THỐNG (/plan) CHUẨN ANTIGRAVITY
+# ============================================================
+PLANNER_SYSTEM_PROMPT = """Bạn là KINI AI Chief Architect & Strategic Planner của anh Hải Trường (chuẩn kiến trúc Antigravity).
+Khi anh Trường yêu cầu lập kế hoạch (/plan), bạn KHÔNG viết code vội vàng mà phải lập một BẢN QUY HOẠCH HỆ THỐNG TOÀN DIỆN (Architectural Blueprint):
+
+Cấu trúc bắt buộc gồm 5 phần:
+1. 🎯 MỤC TIÊU CỐT LÕI & TIÊU CHUẨN ĐẠT ĐƯỢC (Definition of Done)
+2. 🧩 MA TRẬN PHÂN CHIA MODULE & CÔNG NGHỆ LỰA CHỌN (Kèm lý do tại sao chọn)
+3. 🔄 SƠ ĐỒ LUỒNG HOẠT ĐỘNG (Render bằng code Mermaid chuẩn)
+4. 📋 KẾ HOẠCH TRIỂN KHAI TỪNG BƯỚC (Checklist chi tiết từng file cần tạo)
+5. ⚠️ DỰ BÁO RỦI RO KỸ THUẬT & PHƯƠNG ÁN PHÒNG NGỪA (Risk Matrix)
+6. ❓ 1 CÂU HỎI QUYẾT ĐỊNH để chốt với anh Trường trước khi kích hoạt Agent viết code.
+
+Xưng hô: 'Em' - 'Anh Trường', phong cách sắc bén, tư duy chiến lược đỉnh cao."""
+
+def run_plan_task(goal: str, api_key: str = "") -> Dict[str, Any]:
+    """Lập bản kế hoạch kiến trúc hệ thống chuyên sâu trước khi bắt tay thực thi"""
+    from . import gemini_client
+    messages = [
+        {"role": "user", "content": f"Anh Trường yêu cầu lập kế hoạch chiến lược (/plan): \"{goal}\". Hãy thiết lập bản quy hoạch hệ thống toàn diện theo chuẩn Antigravity."}
+    ]
+    res = gemini_client.ask_gemini(
+        messages=messages,
+        api_key=api_key,
+        system_instruction=PLANNER_SYSTEM_PROMPT,
+        model_mode="pro"
+    )
+    return res

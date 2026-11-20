@@ -49,6 +49,10 @@
             </div>
 
             <div class="sidebar-footer">
+                <button class="sidebar-menu-btn" id="btn-sidebar-studio-btn">
+                    <span class="menu-icon">💻</span>
+                    <span>Studio Workspace</span>
+                </button>
                 <button class="sidebar-menu-btn" id="btn-open-memory-modal">
                     <span class="menu-icon">🧠</span>
                     <span>Bộ Nhớ KINI</span>
@@ -80,6 +84,10 @@
                 </div>
 
                 <div class="nav-right">
+                    <button class="btn-nav-action" id="btn-open-studio-modal" title="Mở Studio Workspace (Antigravity IDE)">
+                        <span>💻</span>
+                        <span>Studio IDE</span>
+                    </button>
                     <button class="btn-nav-action" id="btn-top-new-chat" title="Bắt đầu hội thoại mới">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         <span>Đoạn chat mới</span>
@@ -252,6 +260,9 @@
                     <button class="quick-pill" data-action="chat">
                         <span>💬</span> Cuộc trò chuyện
                     </button>
+                    <button class="quick-pill" data-action="plan">
+                        <span>📋</span> Kế hoạch (/plan)
+                    </button>
                     <button class="quick-pill" data-action="agent">
                         <span>🤖</span> Agent Tự Hành
                     </button>
@@ -359,6 +370,68 @@
             <div class="modal-footer">
                 <button class="btn btn-outline" data-close="modal-settings">Hủy</button>
                 <button class="btn btn-primary" id="btn-save-settings">💾 Lưu Cài Đặt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL 5: KINI STUDIO WORKSPACE (ANTIGRAVITY IDE VIEW)
+         ============================================================ -->
+    <div class="modal modal-fullscreen" id="modal-studio" style="display: none;">
+        <div class="modal-dialog studio-dialog">
+            <div class="modal-header studio-header">
+                <div class="modal-title">
+                    <span style="font-size: 1.3rem;">💻</span>
+                    <div>
+                        <h3>KINI Studio Workspace</h3>
+                        <span class="studio-path-badge">H:\KINI_AI\workspace</span>
+                    </div>
+                </div>
+                <div class="studio-header-actions">
+                    <button class="btn btn-sm btn-outline" id="btn-studio-refresh" title="Tải lại danh sách file">🔄 Làm mới</button>
+                    <button class="btn btn-sm btn-outline" id="btn-studio-open-explorer" title="Mở thư mục trên máy tính">📂 Explorer</button>
+                    <button class="modal-close" data-close="modal-studio">&times;</button>
+                </div>
+            </div>
+            <div class="studio-body">
+                <!-- Cột trái: Cây thư mục dự án -->
+                <aside class="studio-sidebar">
+                    <div class="studio-search-bar">
+                        <input type="text" id="studio-search-input" placeholder="🔍 Tìm kiếm file...">
+                    </div>
+                    <div class="studio-tree-container" id="studio-file-tree">
+                        <!-- File Tree render động -->
+                    </div>
+                </aside>
+
+                <!-- Cột phải: Trình soạn thảo mã nguồn & Web Preview -->
+                <section class="studio-editor-pane">
+                    <div class="studio-tab-bar">
+                        <div class="studio-file-info">
+                            <span class="file-icon" id="studio-active-icon">📄</span>
+                            <span class="file-name" id="studio-active-filename">Chưa chọn file</span>
+                            <span class="file-size-badge" id="studio-active-filesize"></span>
+                        </div>
+                        <div class="studio-pane-modes">
+                            <button class="studio-mode-tab active" id="tab-code-mode">📝 Mã nguồn</button>
+                            <button class="studio-mode-tab" id="tab-preview-mode">🌐 Web Preview</button>
+                        </div>
+                        <div class="studio-editor-actions">
+                            <button class="btn btn-sm btn-outline" id="btn-studio-run-file" title="Khởi chạy file trên máy tính">▶️ Chạy file</button>
+                            <button class="btn btn-sm btn-primary" id="btn-studio-save-file" title="Lưu thay đổi vào ổ đĩa">💾 Lưu (Ctrl+S)</button>
+                        </div>
+                    </div>
+
+                    <!-- Vùng Soạn thảo Code -->
+                    <div class="studio-code-view" id="studio-code-view">
+                        <textarea id="studio-code-editor" class="studio-textarea" placeholder="// Chọn một file từ danh mục bên trái để xem hoặc chỉnh sửa mã nguồn..."></textarea>
+                    </div>
+
+                    <!-- Vùng Xem trước Web (Iframe Preview) -->
+                    <div class="studio-preview-view" id="studio-preview-view" style="display: none;">
+                        <iframe id="studio-preview-frame" class="studio-iframe" src="about:blank"></iframe>
+                    </div>
+                </section>
             </div>
         </div>
     </div>

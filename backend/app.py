@@ -213,6 +213,19 @@ async def chat_with_kini(
                 "is_image_generated": False
             }
 
+    # 3.0. KIỂM TRA LỆNH LẬP KẾ HOẠCH KIẾN TRÚC HỆ THỐNG (/plan) CHUẨN ANTIGRAVITY
+    if message.strip().startswith("/plan"):
+        clean_goal = message.replace("/plan", "").strip()
+        plan_res = agent_engine.run_plan_task(clean_goal, api_key=api_key)
+        reply = plan_res.get("reply", "Không thể lập kế hoạch.")
+        database.add_message(conv_id, "assistant", reply)
+        return {
+            "success": True,
+            "reply": reply,
+            "is_plan": True,
+            "model_used": plan_res.get("model_used", "gemini-3.1-pro-preview")
+        }
+
     # 3. KIỂM TRA Ý ĐỊNH AGENT TỰ HÀNH CHUẨN ANTIGRAVITY (Tự động tạo dự án, viết code file vào đĩa)
     is_agent_cmd = (
         message.strip().startswith("/agent") or 
@@ -490,6 +503,31 @@ def open_agent_path(data: dict):
         except Exception as e:
             return {"success": False, "error": str(e)}
     return {"success": False, "error": "Đường dẫn không tồn tại"}
+
+@app.get("/api/agent/file")
+def get_workspace_file_content(path: str = ""):
+    res = agent_engine.tool_read_file(path)
+    if res.get("success"):
+        return res
+    raise HTTPException(status_code=404, detail=res.get("error", "Không tìm thấy file"))
+
+@app.post("/api/agent/file")
+def save_workspace_file_content(data: dict):
+    path = data.get("path", "").strip()
+    content = data.get("content", "")
+    if not path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn file")
+    res = agent_engine.tool_write_file(path, content)
+    if res.get("success"):
+        return res
+    raise HTTPException(status_code=500, detail=res.get("error", "Không thể ghi file"))
+
+@app.get("/api/agent/preview/{filepath:path}")
+def serve_agent_preview(filepath: str):
+    full_path = os.path.join(agent_engine.WORKSPACE_DIR, os.path.normpath(filepath).lstrip("\\/."))
+    if os.path.exists(full_path) and os.path.isfile(full_path):
+        return FileResponse(full_path)
+    raise HTTPException(status_code=404, detail="Không tìm thấy tệp xem trước")
 
 @app.get("/api/usage")
 def get_quota_usage():
