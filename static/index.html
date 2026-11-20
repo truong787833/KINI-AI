@@ -21,6 +21,17 @@
     <!-- highlight.js: Syntax Highlight code blocks -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- CodeMirror: Trình soạn thảo chuẩn VS Code / Antigravity -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -84,10 +95,14 @@
                 </div>
 
                 <div class="nav-right">
-                    <button class="btn-nav-action" id="btn-open-studio-modal" title="Mở Studio Workspace (Antigravity IDE)">
-                        <span>💻</span>
-                        <span>Studio IDE</span>
-                    </button>
+                    <div class="view-mode-toggle" id="view-mode-toggle">
+                        <button class="btn-mode-tab active" id="btn-mode-chat" title="Chế độ Trò chuyện Toàn màn hình">
+                            <span>💬</span> <span>Chat</span>
+                        </button>
+                        <button class="btn-mode-tab" id="btn-mode-ide" title="Chế độ Antigravity Studio (Workspace + Code + Chat song song)">
+                            <span>⚡</span> <span>Antigravity Studio</span>
+                        </button>
+                    </div>
                     <button class="btn-nav-action" id="btn-top-new-chat" title="Bắt đầu hội thoại mới">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         <span>Đoạn chat mới</span>
@@ -99,26 +114,94 @@
                 </div>
             </header>
 
-            <!-- Khung Chat Messages (Hiển thị khi bắt đầu trò chuyện) -->
-            <div class="chat-viewport" id="chat-viewport" style="display: none;">
-                <div class="chat-messages-container" id="chat-messages">
-                    <!-- Các tin nhắn render động tại đây -->
+            <div class="main-body-container" id="main-body-container">
+                <!-- ANTIGRAVITY STUDIO WORKSPACE PANE (HIỂN THỊ TRONG CHẾ ĐỘ IDE) -->
+                <div class="antigravity-studio-pane" id="antigravity-studio-pane" style="display: none;">
+                    <!-- Cột 1: Cây Thư Mục Cấp Bậc (Hierarchical File Tree) -->
+                    <aside class="ide-file-tree-sidebar">
+                        <div class="ide-tree-header">
+                            <span class="ide-header-title">WORKSPACE EXPLORER</span>
+                            <div class="ide-header-btns">
+                                <button class="ide-mini-btn" id="btn-ide-refresh" title="Làm mới cây thư mục">🔄</button>
+                                <button class="ide-mini-btn" id="btn-ide-open-explorer" title="Mở thư mục trên máy tính Windows">📂</button>
+                            </div>
+                        </div>
+                        <div class="ide-search-box">
+                            <input type="text" id="ide-file-search" placeholder="🔍 Tìm file trong workspace...">
+                        </div>
+                        <div class="ide-tree-content" id="ide-file-tree">
+                            <!-- Render Cây thư mục cấp bậc lồng nhau -->
+                        </div>
+                    </aside>
+
+                    <!-- Cột 2: Trình Soạn Thảo Antigravity Code Editor (CodeMirror) -->
+                    <section class="ide-editor-section">
+                        <div class="ide-editor-tabs">
+                            <div class="ide-active-tab">
+                                <span class="tab-icon" id="ide-tab-icon">🐍</span>
+                                <span class="tab-name" id="ide-tab-name">main.py</span>
+                                <span class="tab-modified-dot" id="ide-tab-dirty" style="display:none;">•</span>
+                            </div>
+                            <div class="ide-tab-actions">
+                                <div class="ide-mode-switch">
+                                    <button class="ide-mode-btn active" id="ide-mode-code">📝 Mã nguồn</button>
+                                    <button class="ide-mode-btn" id="ide-mode-preview" style="display: none;">🌐 Web Preview</button>
+                                </div>
+                                <button class="ide-action-btn" id="btn-ide-run-file" title="Chạy file trên máy">▶️ Chạy file</button>
+                                <button class="ide-action-btn primary" id="btn-ide-save-file" title="Lưu thay đổi (Ctrl+S)">💾 Lưu (Ctrl+S)</button>
+                                <button class="ide-action-btn" id="btn-ide-maximize" title="Thu phóng khung soạn thảo">⤢</button>
+                            </div>
+                        </div>
+
+                        <!-- Vùng CodeMirror Editor -->
+                        <div class="ide-codemirror-wrapper" id="ide-codemirror-wrapper"></div>
+
+                        <!-- Vùng Web Preview Iframe -->
+                        <div class="ide-preview-wrapper" id="ide-preview-wrapper" style="display: none;">
+                            <iframe id="ide-preview-frame" class="ide-preview-iframe" src="about:blank"></iframe>
+                        </div>
+
+                        <!-- Khung Nhật Ký Terminal ở Dưới (Antigravity Terminal Drawer) -->
+                        <div class="ide-terminal-drawer" id="ide-terminal-drawer">
+                            <div class="terminal-drawer-header">
+                                <div class="terminal-title">
+                                    <span class="terminal-dot"></span>
+                                    <span>TERMINAL OUTPUT</span>
+                                </div>
+                                <div class="terminal-actions">
+                                    <button class="terminal-clear-btn" id="btn-terminal-clear">Xóa log</button>
+                                    <button class="terminal-clear-btn" id="btn-terminal-toggle">▼</button>
+                                </div>
+                            </div>
+                            <div class="terminal-drawer-body" id="ide-terminal-logs">
+                                <div class="term-line prompt">KINI-Agent:~/workspace$ Sẵn sàng tự động thực thi...</div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
-            </div>
 
-            <!-- Hero Section Chuẩn Gemini (Hiển thị ở màn hình khởi đầu) -->
-            <div class="hero-section" id="hero-section">
-                <div class="hero-content">
-                    <h1 class="hero-title">Chúng ta nên bắt đầu từ đâu nhỉ?</h1>
-                    <p class="hero-subtitle">Em đã sẵn sàng hỗ trợ anh Hải Trường: Viết báo cáo, phân tích tài liệu, vẽ tranh nghệ thuật & tư duy chiến lược.</p>
-                </div>
-            </div>
+                <!-- Cột 3: Khung Chat Chính (Full trong Chat Mode, 440px bên phải trong IDE Mode) -->
+                <div class="chat-main-pane" id="chat-main-pane">
+                    <!-- Khung Chat Messages (Hiển thị khi bắt đầu trò chuyện) -->
+                    <div class="chat-viewport" id="chat-viewport" style="display: none;">
+                        <div class="chat-messages-container" id="chat-messages">
+                            <!-- Các tin nhắn render động tại đây -->
+                        </div>
+                    </div>
 
-            <!-- Lớp phủ bóng mờ dưới đáy chống tràn chữ khi cuộn (Chuẩn Gemini) -->
-            <div class="prompt-bottom-shade" id="prompt-bottom-shade"></div>
+                    <!-- Hero Section Chuẩn Gemini (Hiển thị ở màn hình khởi đầu) -->
+                    <div class="hero-section" id="hero-section">
+                        <div class="hero-content">
+                            <h1 class="hero-title">Chúng ta nên bắt đầu từ đâu nhỉ?</h1>
+                            <p class="hero-subtitle">Em đã sẵn sàng hỗ trợ anh Hải Trường: Viết báo cáo, phân tích tài liệu, vẽ tranh nghệ thuật & tư duy chiến lược.</p>
+                        </div>
+                    </div>
 
-            <!-- Floating Prompt Bar Container (Thanh nhập lệnh trung tâm chuẩn Gemini) -->
-            <div class="prompt-bar-wrapper" id="prompt-bar-wrapper">
+                    <!-- Lớp phủ bóng mờ dưới đáy chống tràn chữ khi cuộn (Chuẩn Gemini) -->
+                    <div class="prompt-bottom-shade" id="prompt-bottom-shade"></div>
+
+                    <!-- Floating Prompt Bar Container (Thanh nhập lệnh trung tâm chuẩn Gemini) -->
+                    <div class="prompt-bar-wrapper" id="prompt-bar-wrapper">
                 <!-- File Attachment Chips Bar -->
                 <div class="attachment-preview-bar" id="attachment-preview-bar" style="display: none;">
                     <div class="attach-chip" id="attach-chip">
@@ -277,8 +360,10 @@
                     </button>
                 </div>
             </div>
-        </main>
-    </div>
+        </div> <!-- Close chat-main-pane -->
+    </div> <!-- Close main-body-container -->
+</main>
+</div>
 
     <!-- ============================================================
          MODAL 1: BỘ NHỚ DÀI HẠN (LONG-TERM MEMORY)
@@ -370,68 +455,6 @@
             <div class="modal-footer">
                 <button class="btn btn-outline" data-close="modal-settings">Hủy</button>
                 <button class="btn btn-primary" id="btn-save-settings">💾 Lưu Cài Đặt</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================================
-         MODAL 5: KINI STUDIO WORKSPACE (ANTIGRAVITY IDE VIEW)
-         ============================================================ -->
-    <div class="modal modal-fullscreen" id="modal-studio" style="display: none;">
-        <div class="modal-dialog studio-dialog">
-            <div class="modal-header studio-header">
-                <div class="modal-title">
-                    <span style="font-size: 1.3rem;">💻</span>
-                    <div>
-                        <h3>KINI Studio Workspace</h3>
-                        <span class="studio-path-badge">H:\KINI_AI\workspace</span>
-                    </div>
-                </div>
-                <div class="studio-header-actions">
-                    <button class="btn btn-sm btn-outline" id="btn-studio-refresh" title="Tải lại danh sách file">🔄 Làm mới</button>
-                    <button class="btn btn-sm btn-outline" id="btn-studio-open-explorer" title="Mở thư mục trên máy tính">📂 Explorer</button>
-                    <button class="modal-close" data-close="modal-studio">&times;</button>
-                </div>
-            </div>
-            <div class="studio-body">
-                <!-- Cột trái: Cây thư mục dự án -->
-                <aside class="studio-sidebar">
-                    <div class="studio-search-bar">
-                        <input type="text" id="studio-search-input" placeholder="🔍 Tìm kiếm file...">
-                    </div>
-                    <div class="studio-tree-container" id="studio-file-tree">
-                        <!-- File Tree render động -->
-                    </div>
-                </aside>
-
-                <!-- Cột phải: Trình soạn thảo mã nguồn & Web Preview -->
-                <section class="studio-editor-pane">
-                    <div class="studio-tab-bar">
-                        <div class="studio-file-info">
-                            <span class="file-icon" id="studio-active-icon">📄</span>
-                            <span class="file-name" id="studio-active-filename">Chưa chọn file</span>
-                            <span class="file-size-badge" id="studio-active-filesize"></span>
-                        </div>
-                        <div class="studio-pane-modes">
-                            <button class="studio-mode-tab active" id="tab-code-mode">📝 Mã nguồn</button>
-                            <button class="studio-mode-tab" id="tab-preview-mode">🌐 Web Preview</button>
-                        </div>
-                        <div class="studio-editor-actions">
-                            <button class="btn btn-sm btn-outline" id="btn-studio-run-file" title="Khởi chạy file trên máy tính">▶️ Chạy file</button>
-                            <button class="btn btn-sm btn-primary" id="btn-studio-save-file" title="Lưu thay đổi vào ổ đĩa">💾 Lưu (Ctrl+S)</button>
-                        </div>
-                    </div>
-
-                    <!-- Vùng Soạn thảo Code -->
-                    <div class="studio-code-view" id="studio-code-view">
-                        <textarea id="studio-code-editor" class="studio-textarea" placeholder="// Chọn một file từ danh mục bên trái để xem hoặc chỉnh sửa mã nguồn..."></textarea>
-                    </div>
-
-                    <!-- Vùng Xem trước Web (Iframe Preview) -->
-                    <div class="studio-preview-view" id="studio-preview-view" style="display: none;">
-                        <iframe id="studio-preview-frame" class="studio-iframe" src="about:blank"></iframe>
-                    </div>
-                </section>
             </div>
         </div>
     </div>

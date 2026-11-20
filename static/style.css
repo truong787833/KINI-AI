@@ -1670,200 +1670,471 @@ body::before {
 }
 
 /* ============================================================
-   KINI STUDIO WORKSPACE (ANTIGRAVITY IDE VIEW STYLES)
+   KINI ANTIGRAVITY STUDIO IDE (GENUINE SPLIT-WORKSPACE STYLES)
    ============================================================ */
-.modal-fullscreen .modal-dialog.studio-dialog {
-    max-width: 95vw;
-    width: 95vw;
-    height: 90vh;
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    overflow: hidden;
-}
-
-.studio-header {
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--border-color);
-    background: rgba(18, 20, 32, 0.85);
-}
-
-.studio-path-badge {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-family: 'Consolas', monospace;
-}
-
-.studio-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.studio-body {
+.main-body-container {
     display: flex;
     flex: 1;
-    overflow: hidden;
-    height: calc(100% - 58px);
-}
-
-/* Left File Tree Sidebar */
-.studio-sidebar {
-    width: 260px;
-    min-width: 220px;
-    border-right: 1px solid var(--border-color);
-    background: rgba(10, 12, 20, 0.6);
-    display: flex;
-    flex-direction: column;
-}
-
-.studio-search-bar {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.studio-search-bar input {
+    height: calc(100vh - 58px);
     width: 100%;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 6px 10px;
-    color: #fff;
-    font-size: 0.82rem;
-    outline: none;
+    overflow: hidden;
+    position: relative;
 }
 
-.studio-tree-container {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px 6px;
-}
-
-.studio-tree-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.84rem;
-    color: var(--text-secondary);
-    transition: var(--transition);
-    user-select: none;
-}
-
-.studio-tree-item:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
-}
-
-.studio-tree-item.active {
-    background: rgba(0, 242, 254, 0.12);
-    border-left: 2px solid #00f2fe;
-    color: #00f2fe;
-    font-weight: 600;
-}
-
-.studio-tree-item.is-folder {
-    font-weight: 600;
-    color: #cbd5e1;
-}
-
-/* Right Editor & Preview Pane */
-.studio-editor-pane {
-    flex: 1;
+.chat-main-pane {
     display: flex;
     flex-direction: column;
-    background: rgba(13, 14, 21, 0.95);
+    flex: 1;
+    height: 100%;
+    position: relative;
     overflow: hidden;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.studio-tab-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 16px;
-    border-bottom: 1px solid var(--border-color);
-    background: rgba(18, 20, 32, 0.7);
+/* Khi kích hoạt chế độ Antigravity IDE (Split Screen) */
+.app-container.mode-ide .antigravity-studio-pane {
+    display: flex !important;
+    flex: 1.4;
+    height: 100%;
+    background: #090a10;
+    overflow: hidden;
+    border-right: 1px solid var(--border-color);
 }
 
-.studio-file-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #f1f5f9;
+.app-container.mode-ide .chat-main-pane {
+    flex: none;
+    width: 440px;
+    min-width: 380px;
+    max-width: 480px;
+    height: 100%;
+    border-left: 1px solid var(--border-color);
+    background: #08090f;
 }
 
-.file-size-badge {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-weight: normal;
-}
-
-.studio-pane-modes {
+/* Nút Chuyển Mode Chat vs IDE trên Top Navbar */
+.view-mode-toggle {
     display: flex;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     padding: 2px;
     gap: 2px;
 }
 
-.studio-mode-tab {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
+.btn-mode-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
     font-size: 0.8rem;
-    padding: 4px 10px;
-    border-radius: 4px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
     cursor: pointer;
     transition: var(--transition);
 }
 
-.studio-mode-tab.active {
+.btn-mode-tab:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-mode-tab.active {
+    background: rgba(0, 242, 254, 0.15);
+    color: #00f2fe;
+    font-weight: 600;
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+}
+
+/* --- Cột 1: Cây Thư Mục Cấp Bậc (Hierarchical File Tree) --- */
+.ide-file-tree-sidebar {
+    width: 240px;
+    min-width: 210px;
+    max-width: 300px;
+    background: #08090e;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    user-select: none;
+}
+
+.ide-tree-header {
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(18, 20, 32, 0.6);
+}
+
+.ide-header-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.8px;
+}
+
+.ide-header-btns {
+    display: flex;
+    gap: 4px;
+}
+
+.ide-mini-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.ide-mini-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ide-search-box {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ide-search-box input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 0.8rem;
+    padding: 5px 10px;
+    outline: none;
+}
+
+.ide-search-box input:focus {
+    border-color: #00f2fe;
+}
+
+.ide-tree-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 4px;
+}
+
+/* Thư mục & File cấp bậc */
+.tree-folder-group {
+    margin-bottom: 2px;
+}
+
+.tree-folder-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    transition: var(--transition);
+}
+
+.tree-folder-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.tree-folder-chevron {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    width: 12px;
+    text-align: center;
+    transition: transform 0.2s ease;
+}
+
+.tree-folder-row.collapsed .tree-folder-chevron {
+    transform: rotate(-90deg);
+}
+
+.tree-folder-children {
+    padding-left: 16px;
+    border-left: 1px dashed rgba(255, 255, 255, 0.1);
+    margin-left: 12px;
+    margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.tree-folder-row.collapsed + .tree-folder-children {
+    display: none;
+}
+
+.tree-file-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: #94a3b8;
+    transition: var(--transition);
+}
+
+.tree-file-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+
+.tree-file-row.active {
+    background: rgba(0, 242, 254, 0.12);
+    color: #00f2fe;
+    font-weight: 600;
+    border-left: 2px solid #00f2fe;
+}
+
+.tree-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* --- Cột 2: Trình Soạn Thảo Antigravity Code Editor --- */
+.ide-editor-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #090a10;
+    overflow: hidden;
+}
+
+.ide-editor-tabs {
+    height: 38px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px;
+    background: #0f1017;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ide-active-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #090a10;
+    padding: 6px 14px;
+    border-radius: 6px 6px 0 0;
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.tab-modified-dot {
+    color: #ffb703;
+    font-size: 1.2rem;
+    line-height: 0;
+}
+
+.ide-tab-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ide-mode-switch {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.ide-mode-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.ide-mode-btn.active {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
     font-weight: 600;
 }
 
-.studio-editor-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.studio-code-view {
-    flex: 1;
-    display: flex;
-    position: relative;
-    overflow: hidden;
-}
-
-.studio-textarea {
-    width: 100%;
-    height: 100%;
-    background: #090a0f;
-    border: none;
+.ide-action-btn {
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.05);
     color: #e2e8f0;
-    font-family: 'Consolas', 'Fira Code', monospace;
-    font-size: 0.9rem;
-    line-height: 1.6;
-    padding: 16px;
-    outline: none;
-    resize: none;
-    white-space: pre;
-    tab-size: 4;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition);
 }
 
-.studio-preview-view {
+.ide-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.ide-action-btn.primary {
+    background: #00f2fe;
+    color: #08090e;
+    font-weight: 600;
+    border: none;
+}
+
+.ide-action-btn.primary:hover {
+    background: #38bdf8;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+}
+
+/* Vùng CodeMirror */
+.ide-codemirror-wrapper {
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    background: #090a10;
+}
+
+.CodeMirror {
+    height: 100% !important;
+    font-family: 'Consolas', 'Fira Code', 'Cascadia Code', monospace !important;
+    font-size: 13.5px !important;
+    line-height: 1.55 !important;
+    background: #090a10 !important;
+    color: #f8fafc !important;
+}
+
+.CodeMirror-gutters {
+    background: #0b0c14 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
+    width: 44px;
+}
+
+.CodeMirror-linenumber {
+    color: #475569 !important;
+    font-size: 12px;
+}
+
+.CodeMirror-activeline-background {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Web Preview */
+.ide-preview-wrapper {
     flex: 1;
     background: #fff;
     display: flex;
 }
 
-.studio-iframe {
+.ide-preview-iframe {
     width: 100%;
     height: 100%;
     border: none;
+}
+
+/* Khung Nhật Ký Terminal ở Dưới (Antigravity Terminal Drawer) */
+.ide-terminal-drawer {
+    height: 130px;
+    min-height: 28px;
+    border-top: 1px solid var(--border-color);
+    background: #06070a;
+    display: flex;
+    flex-direction: column;
+    transition: height 0.2s ease;
+}
+
+.ide-terminal-drawer.collapsed {
+    height: 28px;
+}
+
+.terminal-drawer-header {
+    height: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px;
+    background: #0e0f17;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    user-select: none;
+}
+
+.terminal-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.5px;
+}
+
+.terminal-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00f2fe;
+    box-shadow: 0 0 6px #00f2fe;
+}
+
+.terminal-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.terminal-clear-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.terminal-clear-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.terminal-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+}
+
+.term-line {
+    word-break: break-all;
+    margin-bottom: 2px;
+}
+
+.term-line.prompt {
+    color: #00f2fe;
+    font-weight: 600;
+}
+
+.term-line.success {
+    color: #34d399;
+}
+
+.term-line.error {
+    color: #f87171;
 }

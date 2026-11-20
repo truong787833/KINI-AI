@@ -31,6 +31,7 @@ function initApp() {
     initSettings();
     initGallery();
     initKeyboardShortcuts();
+    initAntigravityIDE();
     loadConversations(true);
 }
 
@@ -75,16 +76,12 @@ function initNavigationAndModals() {
         loadSettings();
     });
 
-    // Studio Workspace Modal Triggers
-    document.getElementById("btn-open-studio-modal")?.addEventListener("click", () => {
-        openModal("modal-studio");
-        initStudioWorkspace();
-    });
-
+    // Antigravity IDE Mode vs Chat Mode Switcher
+    document.getElementById("btn-mode-chat")?.addEventListener("click", () => switchViewMode("chat"));
+    document.getElementById("btn-mode-ide")?.addEventListener("click", () => switchViewMode("ide"));
     document.getElementById("btn-sidebar-studio-btn")?.addEventListener("click", () => {
         closeSidebar();
-        openModal("modal-studio");
-        initStudioWorkspace();
+        switchViewMode("ide");
     });
 
     // Close Modal buttons
@@ -1323,221 +1320,394 @@ window.launchAgentApp = async function(folder) {
 };
 
 // ============================================================
-// KINI STUDIO WORKSPACE (ANTIGRAVITY IDE CORE CONTROLLER)
+// KINI ANTIGRAVITY STUDIO IDE (GENUINE SPLIT-WORKSPACE CONTROLLER)
 // ============================================================
-let studioCurrentFilePath = "";
-let studioTreeNodes = [];
+let ideCodeMirror = null;
+let ideActiveFilePath = "";
+let ideRawTreeNodes = [];
+let ideIsMaximized = false;
 
-function initStudioWorkspace() {
-    loadStudioFiles();
-    setupStudioEventListeners();
+function initAntigravityIDE() {
+    // 1. Khởi tạo CodeMirror nếu chưa có
+    const wrapper = document.getElementById("ide-codemirror-wrapper");
+    if (wrapper && typeof CodeMirror !== "undefined" && !ideCodeMirror) {
+        ideCodeMirror = CodeMirror(wrapper, {
+            lineNumbers: true,
+            theme: "material-darker",
+            mode: "python",
+            indentUnit: 4,
+            tabSize: 4,
+            lineWrapping: true,
+            matchBrackets: true,
+            styleActiveLine: true,
+            value: "// Chọn một file từ Workspace Explorer bên trái để xem & sửa mã nguồn..."
+        });
+
+        // Lắng nghe sự kiện Ctrl + S trong CodeMirror
+        ideCodeMirror.setOption("extraKeys", {
+            "Ctrl-S": function(cm) {
+                saveIdeCurrentFile();
+            },
+            "Cmd-S": function(cm) {
+                saveIdeCurrentFile();
+            }
+        });
+
+        ideCodeMirror.on("change", () => {
+            const dirtyDot = document.getElementById("ide-tab-dirty");
+            if (dirtyDot && ideActiveFilePath) dirtyDot.style.display = "inline";
+        });
+    }
+
+    setupIdeEventListeners();
 }
 
-async function loadStudioFiles() {
-    const container = document.getElementById("studio-file-tree");
-    if (!container) return;
-    container.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.85rem;">⏳ Đang đọc cây thư mục...</div>`;
+function switchViewMode(mode) {
+    const appContainer = document.querySelector(".app-container");
+    const btnChat = document.getElementById("btn-mode-chat");
+    const btnIde = document.getElementById("btn-mode-ide");
+    const studioPane = document.getElementById("antigravity-studio-pane");
+
+    if (mode === "ide") {
+        appContainer.classList.add("mode-ide");
+        btnChat?.classList.remove("active");
+        btnIde?.classList.add("active");
+        if (studioPane) studioPane.style.display = "flex";
+        
+        loadIdeFileTree();
+        
+        // Refresh CodeMirror layout sau khi pane hiển thị
+        setTimeout(() => {
+            if (ideCodeMirror) ideCodeMirror.refresh();
+        }, 150);
+        appendTerminalLog("KINI-IDE: Chuyển sang chế độ Antigravity Studio (Code + Chat song song).", "prompt");
+    } else {
+        appContainer.classList.remove("mode-ide");
+        btnIde?.classList.remove("active");
+        btnChat?.classList.add("active");
+        if (studioPane) studioPane.style.display = "none";
+    }
+}
+
+async function loadIdeFileTree() {
+    const treeContainer = document.getElementById("ide-file-tree");
+    if (!treeContainer) return;
+    treeContainer.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.8rem;">⏳ Đang đọc workspace...</div>`;
 
     try {
         const res = await fetch("/api/agent/workspace");
         const data = await res.json();
         if (data.success && data.tree_nodes) {
-            studioTreeNodes = data.tree_nodes;
-            renderStudioTree(studioTreeNodes);
-            
-            // Tự động mở file đầu tiên nếu chưa chọn file nào
-            if (!studioCurrentFilePath && studioTreeNodes.length > 0) {
-                const firstFile = studioTreeNodes.find(n => !n.is_dir);
-                if (firstFile) {
-                    openStudioFile(firstFile.path);
-                }
+            // Lọc bỏ __pycache__ và .pyc để cây thư mục sạch sẽ chuẩn mực
+            ideRawTreeNodes = data.tree_nodes.filter(n => 
+                !n.path.includes("__pycache__") && 
+                !n.path.endsWith(".pyc")
+            );
+            renderHierarchicalTree(ideRawTreeNodes);
+
+            // Mở file mặc định nếu chưa chọn
+            if (!ideActiveFilePath) {
+                const defaultFile = ideRawTreeNodes.find(n => n.path === "snake_game/main.py") || ideRawTreeNodes.find(n => !n.is_dir);
+                if (defaultFile) openIdeFile(defaultFile.path);
             }
         } else {
-            container.innerHTML = `<div style="padding: 12px; color: var(--text-muted);">Thư mục workspace đang trống.</div>`;
+            treeContainer.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.8rem;">Thư mục workspace đang trống</div>`;
         }
     } catch(e) {
-        container.innerHTML = `<div style="padding: 12px; color: #ff0055;">Lỗi đọc thư mục: ${e.message}</div>`;
+        treeContainer.innerHTML = `<div style="padding: 12px; color: #ff0055; font-size: 0.8rem;">Lỗi nạp thư mục: ${e.message}</div>`;
     }
 }
 
-function renderStudioTree(nodes) {
-    const container = document.getElementById("studio-file-tree");
+function renderHierarchicalTree(nodes) {
+    const container = document.getElementById("ide-file-tree");
     if (!container) return;
     container.innerHTML = "";
 
-    if (!nodes || nodes.length === 0) {
-        container.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.82rem;">Không tìm thấy file nào</div>`;
-        return;
-    }
+    // Gom nhóm theo cấu trúc cấp bậc (Folder -> Files)
+    const folders = {};
+    const rootFiles = [];
 
     nodes.forEach(node => {
-        const item = document.createElement("div");
-        item.className = "studio-tree-item" + (node.is_dir ? " is-folder" : "") + (studioCurrentFilePath === node.path ? " active" : "");
-        
-        let icon = "📄";
-        if (node.is_dir) icon = "📁";
-        else if (node.ext === ".py") icon = "🐍";
-        else if (node.ext === ".bat") icon = "⚡";
-        else if (node.ext === ".html") icon = "🌐";
-        else if (node.ext === ".css") icon = "🎨";
-        else if (node.ext === ".js" || node.ext === ".json") icon = "📜";
-        else if (node.ext === ".txt" || node.ext === ".md") icon = "📝";
+        if (node.path.includes("/")) {
+            const parts = node.path.split("/");
+            const topFolder = parts[0];
+            if (!folders[topFolder]) folders[topFolder] = [];
+            if (!node.is_dir) {
+                folders[topFolder].push(node);
+            }
+        } else {
+            if (!node.is_dir) rootFiles.push(node);
+        }
+    });
 
-        item.innerHTML = `
-            <span>${icon}</span>
-            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(node.path)}</span>
+    // 1. Render các Folder nhóm
+    Object.keys(folders).sort().forEach(folderName => {
+        const folderGroup = document.createElement("div");
+        folderGroup.className = "tree-folder-group";
+
+        const folderRow = document.createElement("div");
+        folderRow.className = "tree-folder-row";
+        folderRow.innerHTML = `
+            <span class="tree-folder-chevron">▼</span>
+            <span>📁</span>
+            <span class="tree-item-name">${escapeHtml(folderName)}</span>
         `;
 
-        if (!node.is_dir) {
-            item.addEventListener("click", () => {
-                document.querySelectorAll(".studio-tree-item").forEach(el => el.classList.remove("active"));
-                item.classList.add("active");
-                openStudioFile(node.path);
+        const childrenBox = document.createElement("div");
+        childrenBox.className = "tree-folder-children";
+
+        folderRow.addEventListener("click", () => {
+            folderRow.classList.toggle("collapsed");
+        });
+
+        // Render các file con bên trong folder
+        folders[folderName].forEach(fileNode => {
+            const fileRow = document.createElement("div");
+            fileRow.className = "tree-file-row" + (ideActiveFilePath === fileNode.path ? " active" : "");
+            fileRow.dataset.path = fileNode.path;
+
+            const icon = getFileIcon(fileNode.ext);
+            const shortName = fileNode.path.split("/").pop();
+
+            fileRow.innerHTML = `
+                <span>${icon}</span>
+                <span class="tree-item-name">${escapeHtml(shortName)}</span>
+            `;
+
+            fileRow.addEventListener("click", (e) => {
+                e.stopPropagation();
+                document.querySelectorAll(".tree-file-row").forEach(el => el.classList.remove("active"));
+                fileRow.classList.add("active");
+                openIdeFile(fileNode.path);
             });
-        }
-        container.appendChild(item);
+
+            childrenBox.appendChild(fileRow);
+        });
+
+        folderGroup.appendChild(folderRow);
+        folderGroup.appendChild(childrenBox);
+        container.appendChild(folderGroup);
+    });
+
+    // 2. Render các Root File
+    rootFiles.forEach(fileNode => {
+        const fileRow = document.createElement("div");
+        fileRow.className = "tree-file-row" + (ideActiveFilePath === fileNode.path ? " active" : "");
+        fileRow.dataset.path = fileNode.path;
+
+        const icon = getFileIcon(fileNode.ext);
+        fileRow.innerHTML = `
+            <span>${icon}</span>
+            <span class="tree-item-name">${escapeHtml(fileNode.path)}</span>
+        `;
+
+        fileRow.addEventListener("click", () => {
+            document.querySelectorAll(".tree-file-row").forEach(el => el.classList.remove("active"));
+            fileRow.classList.add("active");
+            openIdeFile(fileNode.path);
+        });
+
+        container.appendChild(fileRow);
     });
 }
 
-async function openStudioFile(relPath) {
-    studioCurrentFilePath = relPath;
-    const editor = document.getElementById("studio-code-editor");
-    const filenameEl = document.getElementById("studio-active-filename");
-    const filesizeEl = document.getElementById("studio-active-filesize");
-    const iconEl = document.getElementById("studio-active-icon");
-    const previewTab = document.getElementById("tab-preview-mode");
+function getFileIcon(ext) {
+    if (ext === ".py") return "🐍";
+    if (ext === ".bat") return "⚡";
+    if (ext === ".html") return "🌐";
+    if (ext === ".css") return "🎨";
+    if (ext === ".js" || ext === ".json") return "📜";
+    if (ext === ".txt" || ext === ".md") return "📝";
+    return "📄";
+}
 
-    if (filenameEl) filenameEl.textContent = relPath;
-    if (editor) editor.value = "Đang tải nội dung file...";
+async function openIdeFile(relPath) {
+    ideActiveFilePath = relPath;
+    const tabName = document.getElementById("ide-tab-name");
+    const tabIcon = document.getElementById("ide-tab-icon");
+    const dirtyDot = document.getElementById("ide-tab-dirty");
+    const previewBtn = document.getElementById("ide-mode-preview");
+
+    if (tabName) tabName.textContent = relPath;
+    if (dirtyDot) dirtyDot.style.display = "none";
+
+    const ext = relPath.substring(relPath.lastIndexOf(".")).toLowerCase();
+    if (tabIcon) tabIcon.textContent = getFileIcon(ext);
+
+    // Xác định CodeMirror Mode chuẩn
+    let cmMode = "python";
+    if (ext === ".js" || ext === ".json") cmMode = "javascript";
+    else if (ext === ".html") cmMode = "htmlmixed";
+    else if (ext === ".css") cmMode = "css";
+    else if (ext === ".md") cmMode = "markdown";
+
+    if (ideCodeMirror) {
+        ideCodeMirror.setOption("mode", cmMode);
+        ideCodeMirror.setValue("// Đang tải dữ liệu...");
+    }
 
     try {
         const res = await fetch(`/api/agent/file?path=${encodeURIComponent(relPath)}`);
         const data = await res.json();
         if (data.success) {
-            if (editor) editor.value = data.content;
-            if (filesizeEl) filesizeEl.textContent = `(${data.content.length.toLocaleString()} ký tự)`;
-            
-            // Xử lý icon
-            const ext = relPath.substring(relPath.lastIndexOf(".")).toLowerCase();
-            if (iconEl) {
-                if (ext === ".py") iconEl.textContent = "🐍";
-                else if (ext === ".bat") iconEl.textContent = "⚡";
-                else if (ext === ".html") iconEl.textContent = "🌐";
-                else iconEl.textContent = "📄";
+            if (ideCodeMirror) {
+                ideCodeMirror.setValue(data.content);
+                ideCodeMirror.clearHistory();
+                setTimeout(() => ideCodeMirror.refresh(), 50);
             }
 
-            // Kích hoạt Live Web Preview nếu là HTML
+            // Kích hoạt nút Web Preview nếu là file HTML
             if (ext === ".html") {
-                if (previewTab) previewTab.style.display = "inline-block";
-                const frame = document.getElementById("studio-preview-frame");
+                if (previewBtn) previewBtn.style.display = "inline-block";
+                const frame = document.getElementById("ide-preview-frame");
                 if (frame) frame.src = `/api/agent/preview/${encodeURIComponent(relPath)}?t=${Date.now()}`;
             } else {
-                if (previewTab) previewTab.style.display = "none";
-                switchStudioMode("code");
+                if (previewBtn) previewBtn.style.display = "none";
+                switchIdeEditorTab("code");
             }
+            appendTerminalLog(`[WORKSPACE]: Mở file '${relPath}' (${data.content.length} ký tự).`, "prompt");
         } else {
-            if (editor) editor.value = `// Không thể mở file: ${data.error || "Lỗi không xác định"}`;
+            if (ideCodeMirror) ideCodeMirror.setValue(`// Không thể đọc file: ${data.error}`);
+            appendTerminalLog(`[LỖI]: Không thể mở '${relPath}': ${data.error}`, "error");
         }
     } catch(e) {
-        if (editor) editor.value = `// Lỗi nạp file: ${e.message}`;
+        if (ideCodeMirror) ideCodeMirror.setValue(`// Lỗi kết nối: ${e.message}`);
+        appendTerminalLog(`[LỖI]: ${e.message}`, "error");
     }
 }
 
-async function saveStudioCurrentFile() {
-    if (!studioCurrentFilePath) {
+async function saveIdeCurrentFile() {
+    if (!ideActiveFilePath || !ideCodeMirror) {
         showToast("⚠️ Chưa chọn file để lưu");
         return;
     }
-    const editor = document.getElementById("studio-code-editor");
-    const content = editor ? editor.value : "";
+    const content = ideCodeMirror.getValue();
 
     try {
         const res = await fetch("/api/agent/file", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({path: studioCurrentFilePath, content: content})
+            body: JSON.stringify({path: ideActiveFilePath, content: content})
         });
         const data = await res.json();
         if (data.success) {
-            showToast(`💾 Đã lưu file [${studioCurrentFilePath}] thành công!`);
-            // Cập nhật lại Web Preview nếu đang mở file HTML
-            if (studioCurrentFilePath.endsWith(".html")) {
-                const frame = document.getElementById("studio-preview-frame");
-                if (frame) frame.src = `/api/agent/preview/${encodeURIComponent(studioCurrentFilePath)}?t=${Date.now()}`;
+            const dirtyDot = document.getElementById("ide-tab-dirty");
+            if (dirtyDot) dirtyDot.style.display = "none";
+            showToast(`💾 Đã lưu [${ideActiveFilePath}] vào đĩa thành công!`);
+            appendTerminalLog(`[SUCCESS]: Đã lưu file '${ideActiveFilePath}' (${content.length} bytes).`, "success");
+
+            // Refresh Web Preview nếu là HTML
+            if (ideActiveFilePath.endsWith(".html")) {
+                const frame = document.getElementById("ide-preview-frame");
+                if (frame) frame.src = `/api/agent/preview/${encodeURIComponent(ideActiveFilePath)}?t=${Date.now()}`;
             }
         } else {
-            showToast(`⚠️ Không thể lưu: ${data.error || "Lỗi server"}`);
+            showToast(`⚠️ Không thể lưu: ${data.error}`);
+            appendTerminalLog(`[LỖI LƯU]: ${data.error}`, "error");
         }
     } catch(e) {
-        showToast(`❌ Lỗi lưu file: ${e.message}`);
+        showToast(`❌ Lỗi: ${e.message}`);
+        appendTerminalLog(`[LỖI MẠNG]: ${e.message}`, "error");
     }
 }
 
-function switchStudioMode(mode) {
-    const codeTab = document.getElementById("tab-code-mode");
-    const previewTab = document.getElementById("tab-preview-mode");
-    const codeView = document.getElementById("studio-code-view");
-    const previewView = document.getElementById("studio-preview-view");
+function switchIdeEditorTab(mode) {
+    const btnCode = document.getElementById("ide-mode-code");
+    const btnPrev = document.getElementById("ide-mode-preview");
+    const codeWrapper = document.getElementById("ide-codemirror-wrapper");
+    const prevWrapper = document.getElementById("ide-preview-wrapper");
 
     if (mode === "preview") {
-        codeTab?.classList.remove("active");
-        previewTab?.classList.add("active");
-        if (codeView) codeView.style.display = "none";
-        if (previewView) previewView.style.display = "flex";
+        btnCode?.classList.remove("active");
+        btnPrev?.classList.add("active");
+        if (codeWrapper) codeWrapper.style.display = "none";
+        if (prevWrapper) prevWrapper.style.display = "flex";
     } else {
-        previewTab?.classList.remove("active");
-        codeTab?.classList.add("active");
-        if (previewView) previewView.style.display = "none";
-        if (codeView) codeView.style.display = "flex";
+        btnPrev?.classList.remove("active");
+        btnCode?.classList.add("active");
+        if (prevWrapper) prevWrapper.style.display = "none";
+        if (codeWrapper) {
+            codeWrapper.style.display = "block";
+            if (ideCodeMirror) ideCodeMirror.refresh();
+        }
     }
 }
 
-let studioListenersSetup = false;
-function setupStudioEventListeners() {
-    if (studioListenersSetup) return;
-    studioListenersSetup = true;
+function appendTerminalLog(text, type = "normal") {
+    const termLogs = document.getElementById("ide-terminal-logs");
+    if (!termLogs) return;
+    const line = document.createElement("div");
+    line.className = `term-line ${type}`;
+    line.textContent = text;
+    termLogs.appendChild(line);
+    termLogs.scrollTop = termLogs.scrollHeight;
+}
+
+let ideListenersSetup = false;
+function setupIdeEventListeners() {
+    if (ideListenersSetup) return;
+    ideListenersSetup = true;
 
     // Tìm kiếm trong cây thư mục
-    document.getElementById("studio-search-input")?.addEventListener("input", (e) => {
+    document.getElementById("ide-file-search")?.addEventListener("input", (e) => {
         const query = e.target.value.toLowerCase().trim();
         if (!query) {
-            renderStudioTree(studioTreeNodes);
+            renderHierarchicalTree(ideRawTreeNodes);
             return;
         }
-        const filtered = studioTreeNodes.filter(n => n.path.toLowerCase().includes(query));
-        renderStudioTree(filtered);
+        const filtered = ideRawTreeNodes.filter(n => n.path.toLowerCase().includes(query));
+        renderHierarchicalTree(filtered);
     });
 
     // Làm mới
-    document.getElementById("btn-studio-refresh")?.addEventListener("click", loadStudioFiles);
+    document.getElementById("btn-ide-refresh")?.addEventListener("click", loadIdeFileTree);
 
     // Mở Explorer
-    document.getElementById("btn-studio-open-explorer")?.addEventListener("click", () => {
+    document.getElementById("btn-ide-open-explorer")?.addEventListener("click", () => {
         openAgentFolder("");
     });
 
     // Lưu file
-    document.getElementById("btn-studio-save-file")?.addEventListener("click", saveStudioCurrentFile);
+    document.getElementById("btn-ide-save-file")?.addEventListener("click", saveIdeCurrentFile);
 
     // Chạy file
-    document.getElementById("btn-studio-run-file")?.addEventListener("click", () => {
-        if (!studioCurrentFilePath) {
+    document.getElementById("btn-ide-run-file")?.addEventListener("click", () => {
+        if (!ideActiveFilePath) {
             showToast("⚠️ Chưa chọn file để chạy");
             return;
         }
-        // Nếu là file trong folder game/app, ưu tiên chạy .bat tương ứng nếu có
-        launchAgentApp(studioCurrentFilePath.includes("/") ? studioCurrentFilePath.substring(0, studioCurrentFilePath.lastIndexOf("/")) : studioCurrentFilePath);
+        const folder = ideActiveFilePath.includes("/") ? ideActiveFilePath.substring(0, ideActiveFilePath.lastIndexOf("/")) : ideActiveFilePath;
+        appendTerminalLog(`[TERMINAL]: KINI Agent đang kích hoạt chạy '${ideActiveFilePath}' trên Windows...`, "prompt");
+        launchAgentApp(folder);
     });
 
-    // Chuyển tab Code / Preview
-    document.getElementById("tab-code-mode")?.addEventListener("click", () => switchStudioMode("code"));
-    document.getElementById("tab-preview-mode")?.addEventListener("click", () => switchStudioMode("preview"));
-
-    // Phím tắt Ctrl + S trong editor
-    document.getElementById("studio-code-editor")?.addEventListener("keydown", (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-            e.preventDefault();
-            saveStudioCurrentFile();
+    // Thu phóng toàn màn hình khung soạn thảo
+    document.getElementById("btn-ide-maximize")?.addEventListener("click", () => {
+        const pane = document.getElementById("antigravity-studio-pane");
+        const chatPane = document.getElementById("chat-main-pane");
+        ideIsMaximized = !ideIsMaximized;
+        if (ideIsMaximized) {
+            if (chatPane) chatPane.style.display = "none";
+            if (pane) pane.style.flex = "1";
+        } else {
+            if (chatPane) chatPane.style.display = "flex";
+            if (pane) pane.style.flex = "1.4";
         }
+        if (ideCodeMirror) ideCodeMirror.refresh();
+    });
+
+    // Mode Code vs Preview
+    document.getElementById("ide-mode-code")?.addEventListener("click", () => switchIdeEditorTab("code"));
+    document.getElementById("ide-mode-preview")?.addEventListener("click", () => switchIdeEditorTab("preview"));
+
+    // Terminal clear & toggle
+    document.getElementById("btn-terminal-clear")?.addEventListener("click", () => {
+        const termLogs = document.getElementById("ide-terminal-logs");
+        if (termLogs) termLogs.innerHTML = `<div class="term-line prompt">KINI-Agent:~/workspace$ Terminal đã được làm sạch.</div>`;
+    });
+
+    document.getElementById("btn-terminal-toggle")?.addEventListener("click", () => {
+        const drawer = document.getElementById("ide-terminal-drawer");
+        drawer?.classList.toggle("collapsed");
     });
 }
