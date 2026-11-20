@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KINI AI - Siêu Trợ Lý & Studio Sáng Tạo Ảnh</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KINI AI">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-area">
+                <div class="logo-box">
+                    <span class="logo-glow"></span>
+                    <span class="logo-text">K</span>
+                </div>
+                <div>
+                    <h1 class="brand-title">KINI AI <span class="badge-pro">PRO 2.0</span></h1>
+                    <p class="brand-sub">Trợ lý Trí tuệ Nhân tạo & Xưởng Tạo Ảnh Nghệ Thuật</p>
+                </div>
+            </div>
+
+            <!-- Desktop Nav Tabs -->
+            <nav class="desktop-nav">
+                <button class="nav-tab active" data-tab="tab-chat">
+                    <span class="tab-icon">💬</span> KINI Chat
+                </button>
+                <button class="nav-tab" data-tab="tab-studio">
+                    <span class="tab-icon">🎨</span> KINI Studio (Tạo Ảnh)
+                </button>
+                <button class="nav-tab" data-tab="tab-gallery">
+                    <span class="tab-icon">🖼️</span> Bộ Sưu Tập Ảnh
+                </button>
+                <button class="nav-tab" data-tab="tab-settings">
+                    <span class="tab-icon">⚙️</span> Cài Đặt
+                </button>
+            </nav>
+
+            <div class="header-right">
+                <div class="model-badge">
+                    <span class="status-dot green"></span>
+                    <span id="header-model-name">Gemini 2.0 Flash</span>
+                </div>
+                <button class="btn btn-sm btn-outline" id="btn-new-chat-top">
+                    <span>➕</span> Đoạn chat mới
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-layout">
+        <!-- ==========================================
+             TAB 1: KINI CHAT
+             ========================================== -->
+        <section class="tab-pane active" id="tab-chat">
+            <div class="chat-wrapper">
+                <!-- Sidebar danh sách hội thoại (ẩn trên màn hình nhỏ) -->
+                <aside class="chat-sidebar" id="chat-sidebar">
+                    <div class="sidebar-header">
+                        <h3>Lịch sử trò chuyện</h3>
+                        <button class="btn btn-xs btn-primary" id="btn-create-conv">➕ Mới</button>
+                    </div>
+                    <div class="conv-list" id="conv-list">
+                        <!-- Danh sách conversation render ở đây -->
+                    </div>
+                </aside>
+
+                <!-- Khung Chat Chính -->
+                <div class="chat-main-area">
+                    <div class="chat-messages" id="chat-messages">
+                        <!-- Tin nhắn chào đầu tiên -->
+                        <div class="message-row assistant">
+                            <div class="avatar-badge">🤖</div>
+                            <div class="message-content">
+                                <div class="sender-name">KINI AI</div>
+                                <div class="bubble-text">
+                                    <p>Xin chào <b>anh Hải Trường</b>! Em là <b>KINI AI</b> — Trợ lý trí tuệ nhân tạo cá nhân của anh.</p>
+                                    <p style="margin-top: 6px;">Em có thể hỗ trợ anh:</p>
+                                    <ul style="margin: 6px 0; padding-left: 20px;">
+                                        <li>💡 Trả lời mọi câu hỏi kiến thức, công tác, kế hoạch.</li>
+                                        <li>✍️ Soạn thảo văn bản, báo cáo tổng kết, tóm tắt tài liệu.</li>
+                                        <li>🎨 Vẽ tranh nghệ thuật, ảnh 3D, chân dung trong tab <b>KINI Studio</b>.</li>
+                                        <li>📷 Phân tích tài liệu, hình ảnh (bấm biểu tượng đính kèm ảnh bên dưới).</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gợi ý nhanh -->
+                    <div class="quick-prompts" id="quick-prompts">
+                        <button class="prompt-chip" data-prompt="Lên ý tưởng kế hoạch công tác tuần tới thật khoa học">📋 Lên kế hoạch tuần</button>
+                        <button class="prompt-chip" data-prompt="Soạn thảo mẫu báo cáo tóm tắt công tác ngắn gọn, súc tích">✍️ Soạn báo cáo mẫu</button>
+                        <button class="prompt-chip" data-prompt="Hướng dẫn cách viết prompt để tạo ra bức ảnh 3D đẹp nhất">🎨 Cách tạo ảnh đẹp</button>
+                        <button class="prompt-chip" data-prompt="Tóm tắt những kiến thức quan trọng nhất về trí tuệ nhân tạo năm 2026">🧠 Xu hướng AI 2026</button>
+                    </div>
+
+                    <!-- Khung Nhập Liệu Chat -->
+                    <div class="chat-input-container">
+                        <!-- Xem trước ảnh đính kèm (nếu có) -->
+                        <div class="image-preview-bar" id="chat-img-preview" style="display: none;">
+                            <img id="preview-thumb" src="" alt="preview">
+                            <span id="preview-name">anh_dinh_kem.jpg</span>
+                            <button class="btn-remove-preview" id="btn-remove-img">&times;</button>
+                        </div>
+
+                        <form id="chat-form" class="chat-form">
+                            <input type="file" id="chat-file-input" accept="image/*" style="display: none;">
+                            <button type="button" class="btn-attach" id="btn-attach-img" title="Đính kèm ảnh để KINI phân tích">
+                                📷
+                            </button>
+                            <textarea id="chat-input" class="chat-textarea" placeholder="Nhắn tin cho KINI AI... (Nhấn Enter để gửi)" rows="1"></textarea>
+                            <button type="submit" class="btn-send" id="btn-chat-send">
+                                <span>Gửi</span>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             TAB 2: KINI STUDIO (TẠO ẢNH AI)
+             ========================================== -->
+        <section class="tab-pane" id="tab-studio">
+            <div class="studio-wrapper">
+                <div class="studio-controls-card">
+                    <div class="card-title-row">
+                        <div>
+                            <h2>🎨 KINI Studio - Sáng Tạo Ảnh Nghệ Thuật AI</h2>
+                            <p class="card-subtitle">Nhập ý tưởng bằng tiếng Việt ➡️ Trí tuệ nhân tạo sẽ hiện thực hóa thành bức ảnh tuyệt mỹ</p>
+                        </div>
+                    </div>
+
+                    <!-- Nhập Prompt -->
+                    <div class="form-group">
+                        <label for="studio-prompt">Mô tả bức ảnh bạn muốn vẽ <span class="required">*</span></label>
+                        <textarea id="studio-prompt" class="form-control" rows="3" placeholder="Ví dụ: Chiến sĩ đứng gác ngắm trăng bên bờ biển Cồn Cỏ, sóng vỗ bờ, phong cách điện ảnh sắc nét 8k..."></textarea>
+                    </div>
+
+                    <!-- Gợi ý prompt mẫu nhanh -->
+                    <div class="studio-prompt-examples">
+                        <span>Ý tưởng hay:</span>
+                        <button type="button" class="example-btn" data-text="Logo KINI AI chữ cách điệu 3D phát sáng neon xanh tím, phong cách cyberpunk công nghệ tương lai, 8k">🤖 Logo KINI 3D Cyberpunk</button>
+                        <button type="button" class="example-btn" data-text="Chiến sĩ hải quân đứng gác trên đảo san hô, hoàng hôn buông xuống mặt biển bao la, ánh nắng rực rỡ, góc chụp điện ảnh sắc nét">🌅 Chiến sĩ gác đảo hoàng hôn</button>
+                        <button type="button" class="example-btn" data-text="Một chú mèo phi hành gia dễ thương đội mũ không gian đang lơ lửng ngắm dải ngân hà, 3D Pixar render cực kỳ sắc nét">🐱 Mèo phi hành gia 3D</button>
+                        <button type="button" class="example-btn" data-text="Cảnh núi rừng Việt Nam hùng vĩ trong sương sớm, tranh sơn dầu cổ điển với nét cọ sống động">🏔️ Núi rừng tranh sơn dầu</button>
+                    </div>
+
+                    <!-- Chọn Phong Cách (Style Chips) -->
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label>Chọn phong cách nghệ thuật:</label>
+                        <div class="style-chips-grid">
+                            <label class="style-chip active">
+                                <input type="radio" name="studio-style" value="realistic" checked>
+                                <span class="chip-icon">📸</span>
+                                <span class="chip-title">Chân Thực (8K)</span>
+                            </label>
+                            <label class="style-chip">
+                                <input type="radio" name="studio-style" value="3d">
+                                <span class="chip-icon">🎮</span>
+                                <span class="chip-title">3D Pixar</span>
+                            </label>
+                            <label class="style-chip">
+                                <input type="radio" name="studio-style" value="cinematic">
+                                <span class="chip-icon">🎬</span>
+                                <span class="chip-title">Điện Ảnh</span>
+                            </label>
+                            <label class="style-chip">
+                                <input type="radio" name="studio-style" value="cyberpunk">
+                                <span class="chip-icon">⚡</span>
+                                <span class="chip-title">Cyberpunk Neon</span>
+                            </label>
+                            <label class="style-chip">
+                                <input type="radio" name="studio-style" value="anime">
+                                <span class="chip-icon">🌸</span>
+                                <span class="chip-title">Anime Nhật Bản</span>
+                            </label>
+                            <label class="style-chip">
+                                <input type="radio" name="studio-style" value="oil">
+                                <span class="chip-icon">🖌️</span>
+                                <span class="chip-title">Tranh Sơn Dầu</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Tỷ lệ khung hình -->
+                    <div class="form-group" style="margin-top: 14px;">
+                        <label>Tỷ lệ khung hình:</label>
+                        <div class="ratio-chips-row">
+                            <label class="ratio-chip active">
+                                <input type="radio" name="studio-ratio" value="1024x1024" checked>
+                                <span>1:1 (Vuông Avatar)</span>
+                            </label>
+                            <label class="ratio-chip">
+                                <input type="radio" name="studio-ratio" value="1280x720">
+                                <span>16:9 (Màn hình ngang)</span>
+                            </label>
+                            <label class="ratio-chip">
+                                <input type="radio" name="studio-ratio" value="720x1280">
+                                <span>9:16 (Dọc TikTok/Story)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Nút Bấm Tạo Ảnh -->
+                    <button type="button" class="btn btn-primary btn-generate" id="btn-generate-image">
+                        <span class="btn-sparkle">✨</span> BẮT ĐẦU VẼ ẢNH BẰNG AI
+                    </button>
+                </div>
+
+                <!-- Khu vực hiển thị kết quả tạo ảnh -->
+                <div class="studio-result-card" id="studio-result-card">
+                    <div class="result-placeholder" id="result-placeholder">
+                        <div class="placeholder-icon">🎨</div>
+                        <h3>Chưa có bức ảnh nào được tạo</h3>
+                        <p>Nhập mô tả ở khung bên trái và bấm <b>BẮT ĐẦU VẼ</b> để xem tác phẩm tuyệt đẹp của bạn!</p>
+                    </div>
+
+                    <!-- Loading Spinner khi đang vẽ -->
+                    <div class="generating-spinner-box" id="generating-spinner" style="display: none;">
+                        <div class="cyber-spinner"></div>
+                        <h4>AI đang pha màu và vẽ tác phẩm của bạn...</h4>
+                        <p>Quá trình này mất khoảng 5 - 15 giây</p>
+                    </div>
+
+                    <!-- Ảnh vừa tạo xong -->
+                    <div class="generated-display-box" id="generated-display" style="display: none;">
+                        <div class="image-wrapper">
+                            <img id="main-generated-img" src="" alt="AI Art">
+                        </div>
+                        <div class="image-meta-bar">
+                            <div class="meta-info">
+                                <span class="meta-tag" id="meta-style-tag">Phong cách: Chân Thực</span>
+                                <p class="meta-prompt" id="meta-prompt-text"></p>
+                            </div>
+                            <div class="meta-actions">
+                                <a href="#" download="kini_art.jpg" class="btn btn-success" id="btn-download-art">
+                                    <span>⬇️</span> Tải Ảnh HD Về Máy
+                                </a>
+                                <button type="button" class="btn btn-outline" id="btn-copy-prompt">
+                                    📋 Sao chép mô tả
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             TAB 3: BỘ SƯU TẬP ẢNH (GALLERY)
+             ========================================== -->
+        <section class="tab-pane" id="tab-gallery">
+            <div class="gallery-wrapper">
+                <div class="gallery-header">
+                    <h2>🖼️ Phòng Trưng Bày Tác Phẩm Đã Tạo</h2>
+                    <p>Tất cả các bức ảnh do KINI AI tạo ra đều được lưu giữ tại đây để bạn có thể xem lại hoặc tải về bất cứ lúc nào</p>
+                </div>
+                <div class="gallery-grid" id="gallery-grid">
+                    <!-- Ảnh gallery render động ở đây -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             TAB 4: CÀI ĐẶT
+             ========================================== -->
+        <section class="tab-pane" id="tab-settings">
+            <div class="settings-wrapper">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>🔑 Cấu Hình Google Gemini API Key</h2>
+                        <p>Khóa kết nối trực tiếp với Siêu Bộ Não Google Gemini (Hoàn toàn miễn phí)</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="setting-gemini-key">Gemini API Key</label>
+                        <input type="password" id="setting-gemini-key" class="form-control" placeholder="Dán mã AIzaSy... của bạn vào đây">
+                        <small class="form-hint">Lấy key miễn phí trong 10 giây tại: 👉 <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--primary);">aistudio.google.com/app/apikey</a></small>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button type="button" class="btn btn-primary" id="btn-save-api-key">💾 Lưu API Key</button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2>🧠 Tùy Biến Tính Cách & Xưng Hô Của KINI AI</h2>
+                        <p>Dạy cho KINI AI biết nó là ai, phong cách nói chuyện và nhiệm vụ nó cần làm cho bạn</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="setting-persona">Lời nhắc hệ thống (System Prompt)</label>
+                        <textarea id="setting-persona" class="form-control" rows="5"></textarea>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button type="button" class="btn btn-primary" id="btn-save-persona">💾 Lưu Tính Cách AI</button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2>📲 Cài Đặt Lên Màn Hình Điện Thoại (Dùng Như App APK)</h2>
+                        <p>Tận hưởng trải nghiệm mở toàn màn hình, mượt mà và cực nhẹ</p>
+                    </div>
+                    <div class="pwa-guide-steps">
+                        <div class="step-card">
+                            <span class="step-num">1</span>
+                            <p>Mở đường link web trên trình duyệt <b>Chrome</b> hoặc <b>Cốc Cốc</b> trên điện thoại.</p>
+                        </div>
+                        <div class="step-card">
+                            <span class="step-num">2</span>
+                            <p>Bấm vào biểu tượng <b>Ba Chấm (⋮)</b> ở góc trên bên phải màn hình trình duyệt.</p>
+                        </div>
+                        <div class="step-card">
+                            <span class="step-num">3</span>
+                            <p>Chọn <b>"Thêm vào Màn hình chính"</b> (hoặc <i>"Cài đặt ứng dụng"</i>). Biểu tượng KINI AI sẽ xuất hiện trên màn hình như app tải từ CH Play!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar (App Navigation) -->
+    <nav class="mobile-bottom-nav">
+        <button class="bottom-nav-item active" data-tab="tab-chat">
+            <span class="nav-icon">💬</span>
+            <span class="nav-label">KINI Chat</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="tab-studio">
+            <span class="nav-icon">🎨</span>
+            <span class="nav-label">Tạo Ảnh</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="tab-gallery">
+            <span class="nav-icon">🖼️</span>
+            <span class="nav-label">Bộ Sưu Tập</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="tab-settings">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">Cài Đặt</span>
+        </button>
+    </nav>
+
+    <!-- Modal Phóng To Ảnh (Lightbox) -->
+    <div class="modal-lightbox" id="lightbox-modal" style="display: none;">
+        <div class="lightbox-content">
+            <button class="lightbox-close" id="lightbox-close">&times;</button>
+            <img id="lightbox-img" src="" alt="preview">
+            <div class="lightbox-bottom">
+                <p id="lightbox-prompt"></p>
+                <a href="#" download="kini_art.jpg" class="btn btn-sm btn-success" id="lightbox-download">⬇️ Tải Ảnh Về</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
