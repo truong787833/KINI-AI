@@ -52,13 +52,20 @@
   - Người dùng quyết định chọn tên thương hiệu: **KINI AI**.
   - Yêu cầu đặt dự án tại ổ đĩa: `H:\KINI_AI`.
   - Yêu cầu trọng tâm: Tích hợp khả năng **Tạo Ảnh AI (Image Generation)** bên cạnh tính năng Chatbot thông minh.
-  - Khởi tạo cấu trúc thư mục, khởi tạo `PROJECT_MEMORY.md`.
+  - Khởi tạo toàn bộ cấu trúc mã nguồn:
+    + Backend FastAPI (`backend/app.py`, `backend/database.py`, `backend/gemini_client.py`, `backend/image_generator.py`).
+    + Frontend Web App chuẩn Mobile PWA (`static/index.html`, `static/style.css`, `static/app.js`, `static/manifest.json`, icon app).
+    + Script chạy tự động `run.py` và `start.bat`.
+    + Đã kiểm thử thành công tạo ảnh mẫu bằng AI Image Engine với tốc độ ~7 giây/ảnh.
+    + Đã khởi tạo Git repository và lưu mốc an toàn đầu tiên (`ea25e22`).
 
 ---
 
 ## 4. Danh Sách Tính Năng Hoàn Thành & Đang Hoạt Động Ổn Định
-- [ ] KINI Chatbot (Google Gemini API).
-- [ ] KINI Image Studio (Tạo ảnh từ tiếng Việt).
-- [ ] Quản lý lịch sử hội thoại & Thư viện ảnh cá nhân.
-- [ ] Giao diện Web App chuẩn Mobile (PWA).
-- [ ] Sẵn sàng Deploy lên Render.com.
+- [x] **KINI Chatbot (Google Gemini API)**: Đầy đủ tính năng Chat thông minh, ngữ cảnh hội thoại đa lượt, phân tích ảnh đính kèm (Vision).
+- [x] **KINI Image Studio**: Tạo ảnh nghệ thuật từ mô tả tiếng Việt (6 phong cách: Hiện thực 8K, 3D Pixar, Điện ảnh Cinematic, Anime, Cyberpunk, Sơn dầu), chọn tỉ lệ ảnh (Vuông, Dọc, Ngang).
+- [x] **KINI Gallery**: Quản lý bộ sưu tập ảnh đã vẽ, xem phóng to (Lightbox), tải ảnh HD về máy với 1 chạm.
+- [x] **Cài đặt & Cá nhân hóa**: Lưu API Key Gemini, điều chỉnh nhiệt độ sáng tạo (Temperature), tùy biến Persona (phong cách xưng hô của trợ lý).
+- [x] **Giao diện Web App Mobile-First (PWA)**: Thanh điều hướng đáy (Bottom Navigation) trên điện thoại, Sidebar trên máy tính, cài đặt trực tiếp vào màn hình chính điện thoại.
+- [x] **File Khởi Chạy Nhanh (`start.bat`)**: Chỉ cần bấm đúp là tự cài thư viện và mở web app trên trình duyệt.
+- [x] **Sẵn sàng Deploy lên Render.com**: Hỗ trợ nhận biến môi trường `PORT` tự động khi đẩy lên cloud.
