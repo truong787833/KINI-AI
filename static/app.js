@@ -1,4 +1,4 @@
-// KINI AI 3.5 - Gemini Luxury Architecture Controller (Real-time Grounding & Legal Precision)
+// KINI AI 4.0 - Gemini 4 Hydrogen · Ultra-Complete Architecture (Real-time Grounding & Legal Precision)
 let currentConvId = "default";
 let selectedFile = null;
 let selectedFiles = [];
@@ -6,11 +6,23 @@ let currentAudioPlayer = null;
 let speechRecognizer = null;
 let isRecording = false;
 
+// === Cấu hình marked.js (Markdown renderer đẹp như ChatGPT) ===
+function setupMarkdown() {
+    if (typeof marked !== "undefined") {
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: false
+        });
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initApp();
 });
 
 function initApp() {
+    setupMarkdown();
     initNavigationAndModals();
     initChatCore();
     initClipboardAndDragDrop();
@@ -18,6 +30,7 @@ function initApp() {
     initMemories();
     initSettings();
     initGallery();
+    initKeyboardShortcuts();
     loadConversations();
     checkInitialHero();
 }
@@ -112,7 +125,7 @@ function initNavigationAndModals() {
                 document.querySelectorAll(".model-option").forEach(o => o.classList.remove("active"));
                 opt.classList.add("active");
                 const m = opt.dataset.model;
-                modelLabel.textContent = m === "flash" ? "Flash Siêu Tốc" : "Gemini Pro Deep";
+                modelLabel.textContent = m === "flash" ? "⚡ Gemini 3.8 Flash" : "🧠 Gemini 4 Pro";
                 modelDropdown.classList.remove("show");
             });
         });
@@ -507,8 +520,9 @@ function appendLoadingMessage() {
     row.innerHTML = `
         <div class="message-avatar">K</div>
         <div class="message-body">
-            <div class="message-bubble" style="display:flex; align-items:center; gap:8px; color:var(--text-secondary);">
-                <span>KINI đang suy nghĩ & phân tích...</span>
+            <div class="message-bubble kini-thinking">
+                <div class="thinking-dots"><span></span><span></span><span></span></div>
+                <span class="thinking-text">KINI đang phân tích...</span>
             </div>
         </div>
     `;
@@ -530,8 +544,16 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false) {
     let imgBlock = "";
     if (imageUrl) {
         imgBlock = `
-            <div>
-                <img src="${imageUrl}" class="msg-inline-image" alt="Artwork" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')">
+            <div class="msg-image-card">
+                <img src="${imageUrl}" class="msg-inline-image" alt="Artwork" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" loading="lazy">
+                <div class="msg-image-actions">
+                    <a href="${imageUrl}" download="kini_artwork.jpg" class="btn-img-action" title="Tải ảnh HD">
+                        ⬇️ Tải Ảnh HD
+                    </a>
+                    <button class="btn-img-action" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" title="Phóng to ảnh">
+                        🔍 Phóng to
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -637,6 +659,43 @@ async function handleSpeakText(text, btnElement) {
         btnElement.classList.remove("speaking");
         btnElement.innerHTML = `<span class="action-icon">🔊</span> Nghe đọc`;
     }
+}
+
+// ============================================================
+// PHÍM TẮT BÀN PHÍM TOÀN CỤC (KEYBOARD SHORTCUTS)
+// ============================================================
+function initKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+        const isInInput = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT";
+        // Ctrl+N = Đoạn chat mới (chỉ khi không trong input)
+        if ((e.ctrlKey || e.metaKey) && e.key === "n" && !e.shiftKey && !isInInput) {
+            e.preventDefault();
+            startNewChat();
+            showToast("💬 Đã mở đoạn chat mới (Ctrl+N)");
+        }
+        // Ctrl+/ = Mở Cài đặt
+        if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+            e.preventDefault();
+            openModal("modal-settings");
+            loadSettings();
+            showToast("⚙️ Mở cài đặt (Ctrl+/)");
+        }
+        // Ctrl+Shift+M = Mở Bộ nhớ
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "M") {
+            e.preventDefault();
+            openModal("modal-memory");
+            loadMemories();
+            showToast("🧠 Mở bộ nhớ KINI (Ctrl+Shift+M)");
+        }
+        // Escape = Đóng modal đang mở
+        if (e.key === "Escape") {
+            document.querySelectorAll(".modal").forEach(m => {
+                if (m.style.display !== "none") m.style.display = "none";
+            });
+            const lightbox = document.getElementById("lightbox-overlay");
+            if (lightbox && lightbox.style.display !== "none") lightbox.style.display = "none";
+        }
+    });
 }
 
 // Thu âm giọng nói (Speech-to-Text)
@@ -1017,29 +1076,69 @@ function escapeAttr(text) {
 
 function formatMarkdown(text) {
     if (!text) return "";
+    
+    // Nếu có marked.js (đã load từ CDN) thì dùng nó để render chuẩn như ChatGPT
+    if (typeof marked !== "undefined") {
+        try {
+            // Cấu hình renderer cho code blocks với highlight.js
+            const renderer = new marked.Renderer();
+            renderer.code = function(code, lang) {
+                let highlighted = code;
+                if (typeof hljs !== "undefined") {
+                    try {
+                        if (lang && hljs.getLanguage(lang)) {
+                            highlighted = hljs.highlight(code, { language: lang }).value;
+                        } else {
+                            highlighted = hljs.highlightAuto(code).value;
+                        }
+                    } catch(e) {
+                        highlighted = escapeHtml(code);
+                    }
+                } else {
+                    highlighted = escapeHtml(code);
+                }
+                const langLabel = lang ? `<span class="code-lang-label">${lang}</span>` : "";
+                const codeText = code;
+                return `<div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        ${langLabel}
+                        <button class="btn-copy-code" onclick="copyCodeBlock(this, \`${escapeAttr(codeText)}\`)" title="Sao chép code">📋 Sao chép</button>
+                    </div>
+                    <pre><code class="hljs ${lang || ''}">${highlighted}</code></pre>
+                </div>`;
+            };
+            marked.setOptions({ renderer, breaks: true, gfm: true });
+            return marked.parse(text);
+        } catch(e) {
+            // fallback nếu marked lỗi
+        }
+    }
+    
+    // Fallback: Regex markdown thủ công
     let html = escapeHtml(text);
-
     // Code blocks
     html = html.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function(match, lang, code) {
         return `<pre><code>${code.trim()}</code></pre>`;
     });
-
     // Inline code
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
     // Bold
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
     // Italic
     html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
     // Headers
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-    // Line breaks to <br>
+    // Line breaks
     html = html.replace(/\n/g, '<br>');
-
     return html;
+}
+
+// Copy code block helper
+function copyCodeBlock(btn, code) {
+    navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = "✓ Đã sao chép";
+        setTimeout(() => btn.textContent = "📋 Sao chép", 2000);
+    });
 }

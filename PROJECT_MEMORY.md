@@ -98,6 +98,28 @@
     + **Nâng cấp Engine Tạo Ảnh (`backend/image_generator.py`)**: Ưu tiên mô hình FLUX.1 thế hệ mới và Sana 4K, loại bỏ hoàn toàn fallback `turbo` (nguyên nhân gây mờ nhòe chữ), tối ưu hóa prompt chuyên sâu cho chữ nổi 3D (Typography 3D), loại bỏ hoàn toàn watermark.
     + **Xử lý đa tệp Backend (`backend/app.py`)**: Hỗ trợ nhận danh sách `files: List[UploadFile]` để trích xuất nội dung hàng loạt tệp tài liệu, code và hình ảnh cùng lúc.
 
+- **2026-11-21 (Đại Nâng Cấp Siêu Hoàn Thiện KINI AI 4.0 - Lệnh /goal Toàn Diện)**:
+  - **Phản hồi của người dùng**: Yêu cầu tự nâng cấp và hoàn thiện tất cả: cấu hình, giao diện, tốc độ, thông minh, học hỏi, ghi nhớ, chính xác, nút bấm, phím tắt, chữ, UI, cài đặt... đạt siêu hoàn thiện vượt trội nhất.
+  - **Các nâng cấp đột phá đã hoàn tất**:
+    1. **Bộ não AI Mới Nhất 2026**: Bổ sung hỗ trợ thế hệ mô hình siêu việt `gemini-4-hydrogen`, `gemini-4-neon`, `gemini-3.8-flash` vào `backend/gemini_client.py`.
+    2. **Khắc phục triệt để rò rỉ mã JSON Tool**: Đã import `re` và `json` trong `backend/app.py`, hoàn thiện hàm trích xuất prompt và thêm khối bảo vệ `else` đảm bảo 100% không bao giờ lọt mã máy `dalle.text2im` ra màn hình chat.
+    3. **Bộ Render Markdown & Syntax Highlighting Chuẩn ChatGPT/Gemini**:
+       - Tích hợp thư viện `marked.js` và `highlight.js` (GitHub Dark theme).
+       - Tự động định dạng bảng (tables), danh sách (bulleted/numbered lists), trích dẫn (blockquotes), in đậm, in nghiêng.
+       - Tự động tô màu cú pháp mã nguồn (Python, JS, HTML, CSS, SQL...) kèm nút "📋 Sao chép code" 1 chạm trên từng khối mã.
+    4. **Hệ Thống Phím Tắt Toàn Cục (Keyboard Shortcuts)**:
+       - `Ctrl + N`: Mở đoạn chat mới ngay lập tức.
+       - `Ctrl + /`: Mở bảng Cài Đặt & API Key.
+       - `Ctrl + Shift + M`: Mở Siêu Bộ Nhớ KINI AI.
+       - `Escape`: Đóng nhanh các cửa sổ Modal / Lightbox phóng to ảnh.
+    5. **Engine Tạo Ảnh Nghệ Thuật & Logo 3D Đỉnh Cao**:
+       - Viết lại module prompt engineering trong `backend/image_generator.py` theo chuẩn Midjourney & FLUX.1: mô tả chữ nổi kim loại Chrome 3D, viền sáng neon cyan/magenta, rãnh vi mạch điện tử, khói sương thể tích và ánh sáng phòng thu 8K Octane.
+       - Tích hợp cụm nút thao tác trực tiếp trên ảnh chat: "⬇️ Tải Ảnh HD" và "🔍 Phóng to".
+    6. **Giao Diện & Trải Nghiệm Người Dùng (UI/UX)**:
+       - Nâng cấp Badge thương hiệu lên **PRO 4.0**.
+       - Hiệu ứng KINI Thinking mượt mà với 3 chấm sóng động học gradient tím/cyan (`.kini-thinking`).
+       - Hệ thống thông báo nổi Toast Notification Glassmorphism (`.kini-toast`) phản hồi tức thì khi Copy/Dán hoặc thao tác.
+
 ---
 
 ## 4. Danh Sách Tính Năng Hoàn Thành & Đang Hoạt Động Ổn Định
@@ -115,5 +137,9 @@
 - [x] **Xuất File 1 Chạm (Word .docx & Excel .xlsx)**: Tải báo cáo hoặc bảng dữ liệu về máy ngay lập tức.
 - [x] **Siêu Bộ Nhớ Vĩnh Viễn (Long-term Memory)**: Ghi nhớ thông tin về anh Trường xuyên suốt mọi phiên làm việc, có bảng quản lý ký ức.
 - [x] **Bộ Sưu Tập Tác Phẩm (Gallery) & Lightbox**: Xem phóng to và tải ảnh HD 1 chạm.
+- [x] **Bộ Đôi Nút Tải Ảnh HD & Phóng To Trực Tiếp Trong Chat**: Tải ảnh ngay bên dưới khung tranh đã vẽ mà không cần mở gallery.
+- [x] **Render Markdown & Tô Màu Mã Nguồn (Syntax Highlighting)**: Tích hợp marked.js + highlight.js, render bảng, danh sách, trích dẫn, khối code có nút copy.
+- [x] **Hệ Thống Phím Tắt Toàn Cục (Keyboard Shortcuts)**: Ctrl+N (chat mới), Ctrl+/ (cài đặt), Ctrl+Shift+M (bộ nhớ), Escape (đóng popup).
+- [x] **Chặn Triệt Để Rò Rỉ Mã Máy JSON Tool Call**: Bắt và render ảnh trực tiếp, không bao giờ xuất hiện chuỗi máy móc trong giao diện.
 - [x] **Cài Đặt & API Key**: Lưu trữ an toàn trong SQLite cục bộ.
 - [x] **Web App PWA & Mobile First**: Cài đặt vào màn hình điện thoại như App thực thụ.

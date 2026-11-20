@@ -16,6 +16,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <!-- highlight.js: Syntax Highlight code blocks -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -26,7 +31,7 @@
                     <div class="brand-avatar">K</div>
                     <div class="brand-info">
                         <span class="brand-name">KINI AI</span>
-                        <span class="brand-badge">PRO 3.5</span>
+                        <span class="brand-badge">PRO 4.0</span>
                     </div>
                 </div>
                 <button class="btn-icon" id="btn-close-sidebar" title="Đóng menu">✕</button>
@@ -151,12 +156,12 @@
                         </button>
                         <div class="model-dropdown-menu" id="model-dropdown-menu">
                             <div class="model-option active" data-model="flash">
-                                <strong>⚡ Gemini Flash</strong>
-                                <small>Tốc độ chớp nhoáng, tối ưu mọi tác vụ hàng ngày</small>
+                                <strong>⚡ Gemini 3.8 Flash</strong>
+                                <small>Tốc độ chớp nhoáng · Mới nhất 2026 · Mọi tác vụ hàng ngày</small>
                             </div>
                             <div class="model-option" data-model="pro">
-                                <strong>🧠 Gemini Pro Deep</strong>
-                                <small>Suy luận chuyên sâu, bài toán phức tạp, phân tích lớn</small>
+                                <strong>🧠 Gemini 4 Hydrogen Pro</strong>
+                                <small>Suy luận siêu sâu · Mạnh nhất 2026 · Phân tích chuyên gia</small>
                             </div>
                         </div>
                     </div>

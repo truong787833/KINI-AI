@@ -30,24 +30,33 @@ def optimize_prompt_with_gemini(prompt: str, style: str = "realistic", api_key: 
     try:
         from . import gemini_client
         sys_prompt = (
-            "You are a world-class AI Image Prompt Engineer. "
-            "Convert the user's Vietnamese request into a concise, vivid, ultra-detailed English prompt for AI image generation (FLUX.1 / Stable Diffusion). "
-            "CRITICAL GUIDELINES:\n"
-            "- If the user asks for a LOGO, NAME, BRAND or TYPOGRAPHY (e.g. 'KINI AI', 'Logo KINI'): "
-            "You MUST specify: 'A magnificent 3D typography centerpiece spelling the exact text \"<NAME>\", massive bold metallic chrome block letters, "
-            "vibrant glowing neon cyan and magenta edge lighting, intricate circuit board grooves etched onto the metal, dark moody background, "
-            "volumetric smoke, cinematic lighting, 8k resolution, octane 3D render, raytracing, sharp focus, NO humans, NO people, NO faces, centered composition'.\n"
-            "- If the user asks for portrait/landscape: describe subject, textures, lighting, cinematic depth of field.\n"
-            "- Output ONLY the English prompt in one single paragraph. Do not include markdown or explanations."
+            "You are a world-class AI Image Prompt Engineer specializing in Midjourney, FLUX.1, and Stable Diffusion. "
+            "Convert the Vietnamese request into ONE ultra-detailed English prompt paragraph for FLUX.1 image generation.\n\n"
+            "CRITICAL RULES:\n"
+            "1. LOGO/BRAND/TEXT TYPOGRAPHY requests (keywords: logo, chữ, tên, brand, KINI, etc.):\n"
+            "   Output EXACTLY: 'A breathtaking 3D typographic artwork of the word \"<EXACT_TEXT>\" in massive chrome metallic block letters, "
+            "each letter individually sculpted with gleaming brushed metal surfaces, glowing neon cyan edge lighting, "
+            "vibrant magenta accent glow, intricate circuit board engravings etched deep into the metal, "
+            "glowing amber spark particles floating around letters, volumetric fog and atmospheric haze, "
+            "ultra-sharp lens focus on lettering, deep dark space background with subtle blue-purple nebula, "
+            "8K resolution, octane render, ray tracing, hyper-realistic textures, NO humans, NO faces, perfectly centered'\n"
+            "2. PORTRAIT/CHARACTER: 'Ultra-realistic portrait, [description], cinematic 8K, dramatic lighting, shallow depth of field, masterpiece'\n"
+            "3. LANDSCAPE/SCENE: 'Epic [scene description], golden hour lighting, atmospheric perspective, 8K, masterpiece quality'\n"
+            "4. ANIME/CARTOON: 'Makoto Shinkai anime style, [description], vibrant colors, detailed line art, studio quality'\n"
+            "5. CYBERPUNK: 'Neon-lit cyberpunk [description], rain-slicked streets, holographic ads, neon reflections, cinematic atmosphere'\n\n"
+            "Output ONLY the final English prompt. No explanations, no markdown."
         )
         res = gemini_client.ask_gemini(
-            messages=[{"role": "user", "content": f"Hãy viết prompt tạo ảnh cho: '{prompt}' theo phong cách {style}"}],
+            messages=[{"role": "user", "content": f"Tạo prompt FLUX.1 cho: '{prompt}' - Phong cách: {style}"}],
             api_key=api_key,
             system_instruction=sys_prompt
         )
         if res.get("success") and res.get("reply"):
-            enhanced = res["reply"].strip().replace('"', '').replace('\n', ' ')
-            logger.info(f"Prompt tối ưu từ Gemini: {enhanced[:120]}...")
+            enhanced = res["reply"].strip().replace('"', '').replace('\n', ' ').strip()
+            # Loại bỏ phần giải thích thừa nếu có
+            if enhanced.startswith("Prompt:"):
+                enhanced = enhanced[7:].strip()
+            logger.info(f"Prompt tối ưu từ Gemini: {enhanced[:150]}...")
             return enhanced
     except Exception as e:
         logger.warning(f"Không thể tối ưu prompt qua Gemini: {e}")
@@ -76,8 +85,9 @@ def generate_ai_image(
     filename = f"kini_{int(time.time())}_{uuid.uuid4().hex[:8]}.jpg"
     file_path = os.path.join(IMAGES_DIR, filename)
 
-    # 2. Thử lần lượt các Engine tạo ảnh chất lượng cao (FLUX.1 và SANA độ phân giải cao)
-    models_to_try = ["flux", "sana"]
+    # 2. Thử lần lượt các Engine tạo ảnh chất lượng cao
+    # flux-pro > flux-realism > flux > sana (theo thứ tự chất lượng)
+    models_to_try = ["flux", "flux-realism", "turbo", "sana"]
     seed = random.randint(100000, 9999999)
     encoded_prompt = urllib.parse.quote(english_prompt)
 

@@ -1,4 +1,6 @@
 import os
+import re
+import json
 import uuid
 import base64
 import threading
@@ -75,21 +77,30 @@ def extract_tool_image_prompt(text: str) -> Optional[str]:
     try:
         m = re.search(r'\{[\s\S]*"action"\s*:\s*"dalle\.text2im"[\s\S]*\}', text)
         if m:
-            data = json.loads(m.group(0))
+            # Tìm đoạn json hoàn chỉnh
+            json_str = m.group(0)
+            data = json.loads(json_str)
             inp = data.get("action_input", "")
             if isinstance(inp, str):
                 try:
                     inp_json = json.loads(inp)
-                    return inp_json.get("prompt", inp)
-                except:
-                    return inp
+                    p = inp_json.get("prompt", inp)
+                    if p: return p
+                except Exception:
+                    if inp: return inp
             elif isinstance(inp, dict):
-                return inp.get("prompt", "")
+                p = inp.get("prompt", "")
+                if p: return p
     except Exception:
         pass
-    m_p = re.search(r'"prompt"\s*:\s*"([^"]+)"', text)
-    if m_p:
-        return m_p.group(1)
+
+    try:
+        m_p = re.search(r'"prompt"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"', text)
+        if m_p:
+            cleaned = m_p.group(1).encode('utf-8').decode('unicode_escape', errors='ignore')
+            return cleaned
+    except Exception:
+        pass
     return None
 
 @app.post("/api/chat")
@@ -264,6 +275,20 @@ async def chat_with_kini(
                 "reply": assistant_reply,
                 "image_url": generated_img_url,
                 "is_image_generated": True
+            }
+        else:
+            assistant_reply = (
+                f"🎨 **KINI AI đã sẵn sàng phác thảo tác phẩm cho anh Trường:**\n\n"
+                f"Dạ thưa anh, cổng tạo ảnh nghệ thuật đang có độ trễ tạm thời: {img_result.get('error', 'Máy chủ bận')}.\n\n"
+                f"💡 *Mô tả ý tưởng:* \"{tool_prompt}\"\n\n"
+                f"Anh vui lòng bấm nút gửi lại hoặc mở mục **KINI Studio (Tạo Ảnh)** để thử ngay nhé!"
+            )
+            database.add_message(conv_id, "assistant", assistant_reply)
+            return {
+                "success": True,
+                "reply": assistant_reply,
+                "image_url": "",
+                "is_image_generated": False
             }
 
     database.add_message(conv_id, "assistant", assistant_reply)
