@@ -1,6 +1,7 @@
 import os
 import uuid
 import base64
+import threading
 from typing import Optional, List
 from datetime import datetime
 
@@ -12,14 +13,20 @@ from fastapi.responses import FileResponse, JSONResponse
 from . import database
 from . import gemini_client
 from . import image_generator
+from . import file_parser
+from . import tts_service
+from . import doc_exporter
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 IMAGES_DIR = os.path.join(BASE_DIR, "generated_images")
+AUDIO_DIR = os.path.join(BASE_DIR, "generated_audio")
+os.makedirs(IMAGES_DIR, exist_ok=True)
+os.makedirs(AUDIO_DIR, exist_ok=True)
 
 database.init_db()
 
-app = FastAPI(title="KINI AI - Siêu Trợ Lý & Studio Sáng Tạo", version="1.0.0")
+app = FastAPI(title="KINI AI - Siêu Trợ Lý Trí Tuệ Nhân Tạo & Xưởng Sáng Tạo", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,9 +43,11 @@ def get_index():
     index_file = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_file):
         return FileResponse(index_file)
-    return {"message": "KINI AI API is running. index.html not found."}
+    return {"message": "KINI AI Server is running."}
 
-# --- CÁC ENDPOINT QUẢN LÝ HỘI THOẠI & CHAT ---
+# ============================================================
+# 1. HỘI THOẠI & CHAT CHUẨN GEMINI
+# ============================================================
 @app.get("/api/conversations")
 def get_conversations():
     return {"conversations": database.list_conversations()}
@@ -62,35 +71,92 @@ def remove_conversation(conv_id: str):
 
 @app.post("/api/chat")
 async def chat_with_kini(
-    conv_id: str = Form(...),
-    message: str = Form(...),
-    image: Optional[UploadFile] = File(None)
+    conv_id: str = Form("default"),
+    message: str = Form(""),
+    model_mode: str = Form("flash"),
+    file: Optional[UploadFile] = File(None)
 ):
     api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))
-    persona = database.get_setting("custom_persona", gemini_client.DEFAULT_SYSTEM_PROMPT)
-
-    image_url = ""
+    
+    file_display_url = ""
+    file_display_name = ""
     image_base64 = None
     image_mime = "image/jpeg"
+    extracted_doc_text = ""
 
-    # Nếu người dùng gửi kèm ảnh
-    if image and image.filename:
-        image_bytes = await image.read()
-        image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-        image_mime = image.content_type or "image/jpeg"
+    # 1. Xử lý tệp đính kèm (Hình ảnh hoặc Tài liệu PDF/Word/Excel/TXT)
+    if file and file.filename:
+        file_display_name = file.filename
+        content_bytes = await file.read()
+        ext = os.path.splitext(file.filename)[1].lower()
         
-        # Lưu ảnh vào thư mục để hiển thị trên chat
-        ext = os.path.splitext(image.filename)[1] or ".jpg"
-        img_name = f"upload_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"
-        img_path = os.path.join(IMAGES_DIR, img_name)
-        with open(img_path, "wb") as f:
-            f.write(image_bytes)
-        image_url = f"/api/images/{img_name}"
+        # Nếu là file ảnh
+        if ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+            image_base64 = base64.b64encode(content_bytes).decode("utf-8")
+            image_mime = file.content_type or "image/jpeg"
+            save_name = f"upload_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"
+            save_path = os.path.join(IMAGES_DIR, save_name)
+            with open(save_path, "wb") as f:
+                f.write(content_bytes)
+            file_display_url = f"/api/images/{save_name}"
+            
+        # Nếu là tài liệu (PDF, Word, Excel, CSV, Text, Code)
+        else:
+            temp_name = f"temp_doc_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"
+            temp_path = os.path.join(IMAGES_DIR, temp_name)
+            with open(temp_path, "wb") as f:
+                f.write(content_bytes)
+            file_display_url = f"/api/images/{temp_name}"
+            
+            # Trích xuất văn bản từ tài liệu
+            parsed = file_parser.parse_uploaded_file(temp_path, file.filename)
+            if parsed.get("success"):
+                extracted_doc_text = f"\n\n[DỮ LIỆU TỆP ĐÍNH KÈM '{file.filename}']:\n{parsed['text']}\n"
+            else:
+                extracted_doc_text = f"\n\n[Thông báo về tệp '{file.filename}']: Không thể trích xuất toàn bộ: {parsed.get('error')}\n"
 
-    # Lưu tin nhắn của User vào DB
-    database.add_message(conv_id, "user", message, image_url=image_url)
+    # Ghép văn bản câu hỏi của người dùng kèm dữ liệu tệp nếu có
+    full_user_content = message.strip()
+    if extracted_doc_text:
+        full_user_content += extracted_doc_text
 
-    # Lấy lịch sử hội thoại gần nhất (tối đa 12 tin gần nhất để giữ context)
+    if not full_user_content and not file_display_url:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập câu hỏi hoặc gửi tệp.")
+
+    # Lưu tin nhắn người dùng vào cơ sở dữ liệu
+    database.add_message(conv_id, "user", full_user_content, image_url=file_display_url)
+
+    # 2. KIỂM TRA Ý ĐỊNH VẼ TRANH / TẠO ẢNH / THIẾT KẾ LOGO TRỰC TIẾP
+    generated_img_url = ""
+    if gemini_client.is_image_request(message):
+        clean_prompt = gemini_client.clean_image_prompt(message)
+        # Sử dụng Engine tạo ảnh tối ưu hóa bằng Gemini
+        img_result = image_generator.generate_ai_image(clean_prompt, style="realistic", api_key=api_key)
+        if img_result.get("success"):
+            generated_img_url = img_result["image_url"]
+            database.add_gallery_item(
+                prompt=img_result["prompt"],
+                style=img_result.get("style", "realistic"),
+                image_url=generated_img_url,
+                image_path=img_result["file_path"],
+                width=img_result.get("width", 1024),
+                height=img_result.get("height", 1024)
+            )
+            assistant_reply = (
+                f"🎨 **Tác phẩm do KINI AI tạo ra cho anh Trường:**\n\n"
+                f"*Mô tả gốc:* \"{clean_prompt}\"\n\n"
+                f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', clean_prompt)}`\n\n"
+                f"Anh có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu em chỉnh sửa thêm chi tiết nhé!"
+            )
+            database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url)
+            return {
+                "success": True,
+                "reply": assistant_reply,
+                "image_url": generated_img_url,
+                "is_image_generated": True
+            }
+
+    # 3. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
     past_msgs = database.get_conversation_messages(conv_id)[-12:]
     formatted_history = []
     for m in past_msgs:
@@ -103,7 +169,6 @@ async def chat_with_kini(
     res = gemini_client.ask_gemini(
         messages=formatted_history,
         api_key=api_key,
-        system_instruction=persona,
         image_base64=image_base64,
         image_mime=image_mime
     )
@@ -111,26 +176,105 @@ async def chat_with_kini(
     assistant_reply = res.get("reply", "Xin lỗi, đã xảy ra lỗi trong quá trình xử lý.")
     database.add_message(conv_id, "assistant", assistant_reply)
 
+    # Tự động trích xuất ký ức ngầm trong background để KINI luôn ghi nhớ về anh Trường
+    threading.Thread(
+        target=gemini_client.extract_and_save_memory_async, 
+        args=(message, api_key), 
+        daemon=True
+    ).start()
+
     return {
         "success": res.get("success", False),
         "reply": assistant_reply,
-        "image_url": image_url
+        "image_url": file_display_url,
+        "model_used": res.get("model_used", "gemini")
     }
 
-# --- CÁC ENDPOINT TẠO ẢNH AI (KINI STUDIO) ---
+# ============================================================
+# 2. GIỌNG ĐỌC AI TIẾNG VIỆT (TEXT-TO-SPEECH)
+# ============================================================
+@app.post("/api/tts")
+async def text_to_speech(data: dict):
+    text = data.get("text", "").strip()
+    voice = data.get("voice", "female")
+    if not text:
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp văn bản cần đọc.")
+    
+    result = await tts_service.generate_vietnamese_audio_async(text, voice_type=voice)
+    if result.get("success"):
+        return result
+    raise HTTPException(status_code=500, detail=result.get("error", "Lỗi tạo giọng đọc"))
+
+@app.get("/api/audio/{filename}")
+def serve_audio(filename: str):
+    file_path = os.path.join(AUDIO_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path, media_type="audio/mpeg")
+    raise HTTPException(status_code=404, detail="Không tìm thấy tệp âm thanh")
+
+# ============================================================
+# 3. SIÊU BỘ NHỚ DÀI HẠN (LONG-TERM MEMORY)
+# ============================================================
+@app.get("/api/memories")
+def list_memories():
+    return {"memories": database.get_all_memories(limit=100)}
+
+@app.post("/api/memories")
+def create_memory(data: dict):
+    fact = data.get("fact", "").strip()
+    category = data.get("category", "personal")
+    if not fact:
+        raise HTTPException(status_code=400, detail="Nội dung ký ức không được rỗng.")
+    mem_id = database.add_memory(fact, category=category)
+    return {"success": True, "id": mem_id, "fact": fact}
+
+@app.delete("/api/memories/{memory_id}")
+def delete_single_memory(memory_id: int):
+    database.delete_memory(memory_id)
+    return {"success": True}
+
+@app.delete("/api/memories")
+def clear_all_memories():
+    database.clear_memories()
+    return {"success": True}
+
+# ============================================================
+# 4. XUẤT FILE 1 CHẠM (WORD .DOCX & EXCEL .XLSX)
+# ============================================================
+@app.post("/api/export-docx")
+def export_docx(data: dict):
+    content = data.get("content", "").strip()
+    title = data.get("title", "Tài Liệu KINI AI").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Không có nội dung để xuất Word.")
+    filename = doc_exporter.export_text_to_docx(content, title=title)
+    return {"success": True, "download_url": f"/api/images/{filename}", "filename": filename}
+
+@app.post("/api/export-xlsx")
+def export_xlsx(data: dict):
+    content = data.get("content", "").strip()
+    title = data.get("title", "Bang_Du_Lieu").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Không có dữ liệu bảng để xuất Excel.")
+    filename = doc_exporter.export_table_to_xlsx(content, title=title)
+    return {"success": True, "download_url": f"/api/images/{filename}", "filename": filename}
+
+# ============================================================
+# 5. TẠO ẢNH & GALLERY (KINI STUDIO)
+# ============================================================
 @app.post("/api/generate-image")
 def create_image(data: dict):
     prompt = data.get("prompt", "").strip()
     style = data.get("style", "realistic")
     width = int(data.get("width", 1024))
     height = int(data.get("height", 1024))
+    api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))
 
     if not prompt:
         raise HTTPException(status_code=400, detail="Vui lòng nhập mô tả bức ảnh bạn muốn vẽ.")
 
-    result = image_generator.generate_ai_image(prompt, style=style, width=width, height=height)
+    result = image_generator.generate_ai_image(prompt, style=style, width=width, height=height, api_key=api_key)
     if result["success"]:
-        # Lưu tác phẩm vào Gallery
         item_id = database.add_gallery_item(
             prompt=result["prompt"],
             style=result["style"],
@@ -154,9 +298,11 @@ def serve_image(filename: str):
     file_path = os.path.join(IMAGES_DIR, filename)
     if os.path.exists(file_path):
         return FileResponse(file_path)
-    raise HTTPException(status_code=404, detail="Không tìm thấy ảnh")
+    raise HTTPException(status_code=404, detail="Không tìm thấy tệp")
 
-# --- CÁC ENDPOINT CÀI ĐẶT ---
+# ============================================================
+# 6. CÀI ĐẶT
+# ============================================================
 @app.get("/api/settings")
 def read_settings():
     return {

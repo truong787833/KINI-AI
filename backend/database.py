@@ -60,6 +60,16 @@ def init_db():
     )
     """)
 
+    # Bảng siêu bộ nhớ dài hạn (Long-term Memory)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS memories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fact TEXT NOT NULL,
+        category TEXT DEFAULT 'general',
+        created_at TEXT NOT NULL
+    )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -144,5 +154,49 @@ def set_setting(key: str, value: str):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
+# --- QUẢN LÝ SIÊU BỘ NHỚ DÀI HẠN (LONG-TERM MEMORY) ---
+def add_memory(fact: str, category: str = "general") -> int:
+    clean_fact = fact.strip()
+    if not clean_fact:
+        return 0
+    now = datetime.now().isoformat()
+    conn = get_connection()
+    cur = conn.cursor()
+    # Kiểm tra trùng lặp
+    cur.execute("SELECT id FROM memories WHERE fact = ?", (clean_fact,))
+    existing = cur.fetchone()
+    if existing:
+        conn.close()
+        return existing["id"]
+        
+    cur.execute("INSERT INTO memories (fact, category, created_at) VALUES (?, ?, ?)",
+                (clean_fact, category, now))
+    mem_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return mem_id
+
+def get_all_memories(limit: int = 100) -> List[Dict[str, Any]]:
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM memories ORDER BY id DESC LIMIT ?", (limit,))
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def delete_memory(memory_id: int):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+    conn.commit()
+    conn.close()
+
+def clear_memories():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM memories")
     conn.commit()
     conn.close()
