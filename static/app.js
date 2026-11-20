@@ -31,8 +31,7 @@ function initApp() {
     initSettings();
     initGallery();
     initKeyboardShortcuts();
-    loadConversations();
-    checkInitialHero();
+    loadConversations(true);
 }
 
 // ============================================================
@@ -458,6 +457,8 @@ async function sendMessage() {
             appendAssistantMessage(data.reply, data.image_url, data.is_image_generated);
             // Cập nhật số lượng ký ức
             updateMemoryCountBadge();
+            // Cập nhật danh sách hội thoại bên sidebar ngay khi có tin nhắn mới
+            loadConversations(false);
         } else {
             appendAssistantMessage("⚠️ Không nhận được phản hồi từ KINI AI. Vui lòng thử lại.");
         }
@@ -973,9 +974,9 @@ function initSettings() {
 }
 
 // ============================================================
-// 8. QUẢN LÝ LỊCH SỬ CUỘC HỘI THOẠI
+// 8. QUẢN LÝ LỊCH SỬ CUỘC HỘI THOẠI (LƯU & KHÔI PHỤC TỰ ĐỘNG)
 // ============================================================
-async function loadConversations() {
+async function loadConversations(autoRestore = false) {
     const list = document.getElementById("conv-list");
     if (!list) return;
 
@@ -989,7 +990,7 @@ async function loadConversations() {
             const item = document.createElement("div");
             item.className = `conv-item ${c.id === currentConvId ? 'active' : ''}`;
             item.innerHTML = `
-                <span class="conv-title">${escapeHtml(c.title)}</span>
+                <span class="conv-title" title="${escapeAttr(c.title)}">${escapeHtml(c.title)}</span>
                 <button class="conv-delete-btn" title="Xóa đoạn chat">✕</button>
             `;
             item.addEventListener("click", (e) => {
@@ -1002,12 +1003,37 @@ async function loadConversations() {
             });
             list.appendChild(item);
         });
-    } catch (e) {}
+
+        // Tự động khôi phục phiên trò chuyện gần nhất khi mở trang hoặc F5
+        if (autoRestore) {
+            const savedConvId = localStorage.getItem("kini_last_conv_id");
+            if (savedConvId && convs.some(c => c.id === savedConvId)) {
+                switchConversation(savedConvId);
+            } else if (convs.length > 0) {
+                switchConversation(convs[0].id);
+            } else {
+                checkInitialHero();
+            }
+        }
+    } catch (e) {
+        if (autoRestore) checkInitialHero();
+    }
 }
 
 async function switchConversation(convId) {
     currentConvId = convId;
-    loadConversations();
+    localStorage.setItem("kini_last_conv_id", convId);
+    
+    // Cập nhật trạng thái active trên danh sách sidebar
+    document.querySelectorAll(".conv-item").forEach(it => {
+        it.classList.remove("active");
+    });
+    // Tìm item ứng với convId
+    const items = document.querySelectorAll(".conv-item");
+    items.forEach(it => {
+        // có thể cập nhật qua loadConversations() nhẹ
+    });
+    loadConversations(false);
 
     const messagesContainer = document.getElementById("chat-messages");
     messagesContainer.innerHTML = "";
@@ -1031,6 +1057,7 @@ async function switchConversation(convId) {
                     appendAssistantMessage(m.content, m.image_url);
                 }
             });
+            scrollToBottom();
         }
     } catch (e) {
         checkInitialHero();
@@ -1046,11 +1073,14 @@ async function startNewChat() {
         });
         const data = await res.json();
         currentConvId = data.id;
-        loadConversations();
+        localStorage.setItem("kini_last_conv_id", currentConvId);
+        await loadConversations(false);
         document.getElementById("chat-messages").innerHTML = "";
         checkInitialHero();
+        showToast("💬 Đã tạo đoạn chat mới!");
     } catch (e) {
-        currentConvId = "default";
+        currentConvId = "c_" + Date.now().toString(36);
+        localStorage.setItem("kini_last_conv_id", currentConvId);
         document.getElementById("chat-messages").innerHTML = "";
         checkInitialHero();
     }

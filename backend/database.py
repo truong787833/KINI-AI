@@ -70,6 +70,18 @@ def init_db():
     )
     """)
 
+    # Tự động đồng bộ các đoạn chat cũ từ tin nhắn nếu chưa có trong bảng conversations
+    cur.execute("""
+    INSERT OR IGNORE INTO conversations (id, title, created_at, updated_at)
+    SELECT conv_id, 
+           CASE WHEN conv_id = 'default' THEN 'Cuộc trò chuyện chính' ELSE 'Đoạn chat ' || substr(conv_id, 1, 8) END,
+           min(created_at), 
+           max(created_at)
+    FROM messages
+    WHERE conv_id NOT IN (SELECT id FROM conversations)
+    GROUP BY conv_id
+    """)
+
     conn.commit()
     conn.close()
 
@@ -77,7 +89,14 @@ def init_db():
 def list_conversations() -> List[Dict[str, Any]]:
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM conversations ORDER BY updated_at DESC")
+    cur.execute("""
+    SELECT c.*, COUNT(m.id) as msg_count 
+    FROM conversations c
+    LEFT JOIN messages m ON c.id = m.conv_id
+    GROUP BY c.id
+    HAVING msg_count > 0 OR c.id = 'default'
+    ORDER BY c.updated_at DESC
+    """)
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -99,14 +118,42 @@ def create_conversation(conv_id: str, title: str):
     conn.commit()
     conn.close()
 
+def update_conversation_title(conv_id: str, title: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
+                (title.strip(), datetime.now().isoformat(), conv_id))
+    conn.commit()
+    conn.close()
+
 def add_message(conv_id: str, role: str, content: str, image_url: str = "") -> int:
     now = datetime.now().isoformat()
     conn = get_connection()
     cur = conn.cursor()
+    
+    # Đảm bảo cuộc hội thoại luôn tồn tại trong bảng conversations
+    cur.execute("SELECT id, title FROM conversations WHERE id = ?", (conv_id,))
+    conv = cur.fetchone()
+    if not conv:
+        # Tự động đặt tiêu đề theo nội dung câu hỏi đầu tiên
+        first_line = content.strip().split("\n")[0]
+        clean_title = first_line[:40] if role == "user" else "Đoạn chat mới"
+        if not clean_title or len(clean_title) < 2:
+            clean_title = "Đoạn chat mới"
+        cur.execute("INSERT INTO conversations (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                    (conv_id, clean_title, now, now))
+    else:
+        # Nếu tiêu đề vẫn là mặc định mà người dùng gửi tin nhắn đầu tiên, cập nhật tiêu đề thông minh
+        if role == "user" and conv["title"] in ["Đoạn chat mới", "Cuộc trò chuyện mới"]:
+            first_line = content.strip().split("\n")[0]
+            clean_title = first_line[:40]
+            if clean_title and len(clean_title) >= 3:
+                cur.execute("UPDATE conversations SET title = ? WHERE id = ?", (clean_title, conv_id))
+        cur.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conv_id))
+
     cur.execute("INSERT INTO messages (conv_id, role, content, image_url, created_at) VALUES (?, ?, ?, ?, ?)",
                 (conv_id, role, content, image_url, now))
     msg_id = cur.lastrowid
-    cur.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conv_id))
     conn.commit()
     conn.close()
     return msg_id
