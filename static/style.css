@@ -391,8 +391,19 @@ body::before {
 .chat-viewport {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 20px 130px;
+    padding: 20px 20px 160px;
     scroll-behavior: smooth;
+}
+
+.prompt-bottom-shade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 150px;
+    background: linear-gradient(to top, var(--bg-app) 45%, rgba(13, 14, 21, 0.85) 75%, transparent 100%);
+    pointer-events: none;
+    z-index: 10;
 }
 
 .chat-messages-container {

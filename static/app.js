@@ -388,13 +388,16 @@ function checkInitialHero() {
     const messages = document.getElementById("chat-messages");
     const hero = document.getElementById("hero-section");
     const viewport = document.getElementById("chat-viewport");
+    const quickPills = document.getElementById("quick-pills-bar");
 
     if (!messages || messages.children.length === 0) {
         if (hero) hero.style.display = "flex";
         if (viewport) viewport.style.display = "none";
+        if (quickPills) quickPills.style.display = "flex";
     } else {
         if (hero) hero.style.display = "none";
         if (viewport) viewport.style.display = "block";
+        if (quickPills) quickPills.style.display = "none";
     }
 }
 
@@ -404,8 +407,10 @@ async function sendMessage() {
 
     if (!message && (!selectedFiles || selectedFiles.length === 0)) return;
 
-    // Chuyển từ giao diện Hero sang giao diện Chat
+    // Chuyển từ giao diện Hero sang giao diện Chat, ẩn thanh tác vụ gợi ý bên dưới để không bị đè chữ
     document.getElementById("hero-section").style.display = "none";
+    const quickPills = document.getElementById("quick-pills-bar");
+    if (quickPills) quickPills.style.display = "none";
     const viewport = document.getElementById("chat-viewport");
     viewport.style.display = "block";
 
@@ -1016,6 +1021,8 @@ async function switchConversation(convId) {
             checkInitialHero();
         } else {
             document.getElementById("hero-section").style.display = "none";
+            const quickPills = document.getElementById("quick-pills-bar");
+            if (quickPills) quickPills.style.display = "none";
             document.getElementById("chat-viewport").style.display = "block";
             msgs.forEach(m => {
                 if (m.role === "user") {

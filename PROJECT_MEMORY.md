@@ -119,6 +119,7 @@
        - Nâng cấp Badge thương hiệu lên **PRO 4.0**.
        - Hiệu ứng KINI Thinking mượt mà với 3 chấm sóng động học gradient tím/cyan (`.kini-thinking`).
        - Hệ thống thông báo nổi Toast Notification Glassmorphism (`.kini-toast`) phản hồi tức thì khi Copy/Dán hoặc thao tác.
+       - **Khắc phục tràn chữ khi cuộn (Ảnh 1)**: Thêm lớp phủ bóng mờ dưới đáy `prompt-bottom-shade`, tự động ẩn thanh gợi ý `quick-pills-bar` khi đang trò chuyện và tăng lề đệm cuộn `chat-viewport` lên 160px để tin nhắn không bị chồng lấn dưới thanh nhập lệnh.
 
 ---
 
