@@ -108,16 +108,17 @@ def init_db():
     conn.close()
 
 # --- QUẢN LÝ HỘI THOẠI & TIN NHẮN ---
-def list_conversations() -> List[Dict[str, Any]]:
+def list_conversations(client_id: str = "master") -> List[Dict[str, Any]]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
     SELECT c.*, COUNT(m.id) as msg_count 
     FROM conversations c
     LEFT JOIN messages m ON c.id = m.conv_id
+    WHERE c.client_id = ?
     GROUP BY c.id
     ORDER BY c.is_pinned DESC, c.updated_at DESC
-    """)
+    """, (client_id,))
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -130,12 +131,12 @@ def get_conversation_messages(conv_id: str) -> List[Dict[str, Any]]:
     conn.close()
     return [dict(r) for r in rows]
 
-def create_conversation(conv_id: str, title: str, category: str = "haitruong"):
+def create_conversation(conv_id: str, title: str, category: str = "haitruong", client_id: str = "master"):
     now = datetime.now().isoformat()
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("INSERT OR REPLACE INTO conversations (id, title, created_at, updated_at, is_pinned, category) VALUES (?, ?, ?, ?, 0, ?)",
-                (conv_id, title, now, now, category))
+    cur.execute("INSERT OR REPLACE INTO conversations (id, title, created_at, updated_at, is_pinned, category, client_id) VALUES (?, ?, ?, ?, 0, ?, ?)",
+                (conv_id, title, now, now, category, client_id))
     conn.commit()
     conn.close()
 
@@ -225,23 +226,24 @@ def get_gallery_items(limit: int = 50) -> List[Dict[str, Any]]:
     return [dict(r) for r in rows]
 
 # --- QUẢN LÝ CÀI ĐẶT ---
-def get_setting(key: str, default: str = "") -> str:
+def get_setting(key: str, default: str = "", client_id: str = "master") -> str:
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    cur.execute("SELECT value FROM settings WHERE key = ? AND client_id = ?", (key, client_id))
     row = cur.fetchone()
     conn.close()
     return row["value"] if row else default
 
-def set_setting(key: str, value: str):
+def set_setting(key: str, value: str, client_id: str = "master"):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    cur.execute("DELETE FROM settings WHERE key = ? AND client_id = ?", (key, client_id))
+    cur.execute("INSERT INTO settings (key, value, client_id) VALUES (?, ?, ?)", (key, value, client_id))
     conn.commit()
     conn.close()
 
 # --- QUẢN LÝ SIÊU BỘ NHỚ DÀI HẠN (LONG-TERM MEMORY) ---
-def add_memory(fact: str = "", category: str = "general", key: str = "", value: str = "") -> int:
+def add_memory(fact: str = "", category: str = "general", key: str = "", value: str = "", client_id: str = "master") -> int:
     clean_fact = fact.strip()
     clean_key = key.strip()
     clean_value = value.strip()
@@ -271,14 +273,14 @@ def add_memory(fact: str = "", category: str = "general", key: str = "", value: 
     conn = get_connection()
     cur = conn.cursor()
     # Kiểm tra trùng lặp
-    cur.execute("SELECT id FROM memories WHERE fact = ? OR (key != '' AND key = ? AND value = ?)", (clean_fact, clean_key, clean_value))
+    cur.execute("SELECT id FROM memories WHERE (fact = ? OR (key != '' AND key = ? AND value = ?)) AND client_id = ?", (clean_fact, clean_key, clean_value, client_id))
     existing = cur.fetchone()
     if existing:
         conn.close()
         return existing["id"]
         
-    cur.execute("INSERT INTO memories (key, value, fact, category, created_at) VALUES (?, ?, ?, ?, ?)",
-                (clean_key, clean_value, clean_fact, clean_cat, now))
+    cur.execute("INSERT INTO memories (key, value, fact, category, created_at, client_id) VALUES (?, ?, ?, ?, ?, ?)",
+                (clean_key, clean_value, clean_fact, clean_cat, now, client_id))
     mem_id = cur.lastrowid
     conn.commit()
     conn.close()
@@ -317,10 +319,10 @@ def update_memory(memory_id: int, key: str = "", value: str = "", category: str 
     conn.close()
     return True
 
-def get_all_memories(limit: int = 100) -> List[Dict[str, Any]]:
+def get_all_memories(limit: int = 100, client_id: str = "master") -> List[Dict[str, Any]]:
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM memories ORDER BY id DESC LIMIT ?", (limit,))
+    cur.execute("SELECT * FROM memories WHERE client_id = ? ORDER BY id DESC LIMIT ?", (client_id, limit))
     rows = cur.fetchall()
     conn.close()
     results = []

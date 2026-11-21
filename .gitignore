@@ -4,5 +4,6 @@ __pycache__/
 .env
 .venv/
 dist_release/
+tools/cloudflared.exe
 generated_images/*
 !.gitkeep

@@ -247,3 +247,13 @@
   4. Xây dựng script đóng gói tự động 	ools/build_portable_release.py: Loại trừ triệt để kini_ai.db, .env, PROJECT_MEMORY.md, tạo gói zip phân phối sạch dist_release/KINI_AI_v4.2_Portable.zip.
   5. Biên soạn file HUONG_DAN_SU_DUNG.txt chi tiết từng bước cho người mới (cách cài đặt, lấy key miễn phí, cách dùng trên PC và Mobile qua Wifi).
   6. Xác nhận dữ liệu gốc của anh Trường tại H:\KINI_AI\kini_ai.db được bảo toàn nguyên vẹn 100%.
+
+
+### Mốc Nâng Cấp: Hệ Thống Web Link Online Độc Lập Cho Mọi Thiết Bị (Mobile & PC Khác)
+- **Yêu cầu của anh Trường**: Cung cấp link trang web độc lập để test trên điện thoại và máy tính khác ngay lập tức, không gửi file, hoàn toàn trắng tinh cho người dùng tự dạy, giữ nguyên dữ liệu gốc của anh Trường.
+- **Triển khai kỹ thuật**:
+  1. Cơ chế Multi-client Session Isolation: Tự động phân tách dữ liệu bằng X-Client-Id header giữa master (máy anh Trường) và các thiết bị khách vãng lai (usr_...).
+  2. Cơ sở dữ liệu SQLite: Bổ sung cột client_id vào conversations, memories, settings.
+  3. Tích hợp Cloudflare Tunnel chính hãng (cloudflared.exe) tạo đường link trực tuyến bảo mật HTTPS toàn cầu.
+  4. Đường link trực tuyến đang hoạt động trực tiếp: https://nirvana-reunion-defend-reference.trycloudflare.com.
+  5. Tạo file Mo_Link_Public_Online.bat để anh Trường bật/tắt link trực tuyến bất cứ lúc nào chỉ với 1 click.

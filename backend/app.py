@@ -8,7 +8,7 @@ import mimetypes
 from typing import Optional, List
 from datetime import datetime
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -51,17 +51,25 @@ def get_index():
     return {"message": "KINI AI Server is running."}
 
 # ============================================================
-# 1. HỘI THOẠI & CHAT CHUẨN GEMINI
+# 1. HỘI THOẠI & CHAT CHUẨN GEMINI (HỖ TRỢ ĐA NGƯỜI DÙNG / THIẾT BỊ ĐỘC LẬP)
 # ============================================================
+def get_request_client_id(request: Request) -> str:
+    cid = request.headers.get("x-client-id", "").strip()
+    if not cid:
+        cid = request.query_params.get("client_id", "").strip()
+    return cid if cid else "master"
+
 @app.get("/api/conversations")
-def get_conversations():
-    return {"conversations": database.list_conversations()}
+def get_conversations(request: Request):
+    cid = get_request_client_id(request)
+    return {"conversations": database.list_conversations(client_id=cid)}
 
 @app.post("/api/conversations")
-def create_new_conversation(data: dict):
+def create_new_conversation(data: dict, request: Request):
+    cid = get_request_client_id(request)
     title = data.get("title", "Cuộc trò chuyện mới")
     conv_id = str(uuid.uuid4())[:8]
-    database.create_conversation(conv_id, title)
+    database.create_conversation(conv_id, title, client_id=cid)
     return {"id": conv_id, "title": title}
 
 @app.get("/api/conversations/{conv_id}/messages")
@@ -196,13 +204,15 @@ def extract_tool_image_prompt(text: str) -> Optional[str]:
 
 @app.post("/api/chat")
 async def chat_with_kini(
+    request: Request,
     conv_id: str = Form("default"),
     message: str = Form(""),
     model_mode: str = Form("flash"),
     file: Optional[UploadFile] = File(None),
     files: Optional[List[UploadFile]] = File(None)
 ):
-    api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))
+    cid = get_request_client_id(request)
+    api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id=cid)
     
     file_display_url = ""
     file_display_name = ""
@@ -475,11 +485,13 @@ def serve_audio(filename: str):
 # 3. SIÊU BỘ NHỚ DÀI HẠN (LONG-TERM MEMORY)
 # ============================================================
 @app.get("/api/memories")
-def list_memories():
-    return {"memories": database.get_all_memories(limit=100)}
+def list_memories(request: Request):
+    cid = get_request_client_id(request)
+    return {"memories": database.get_all_memories(limit=100, client_id=cid)}
 
 @app.post("/api/memories")
-def create_memory(data: dict):
+def create_memory(data: dict, request: Request):
+    cid = get_request_client_id(request)
     key = data.get("key", "").strip()
     value = data.get("value", "").strip()
     fact = data.get("fact", "").strip()
@@ -494,7 +506,7 @@ def create_memory(data: dict):
     if not fact and not value:
         raise HTTPException(status_code=400, detail="Nội dung ký ức không được rỗng.")
 
-    mem_id = database.add_memory(fact=fact, category=category, key=key, value=value)
+    mem_id = database.add_memory(fact=fact, category=category, key=key, value=value, client_id=cid)
     return {
         "success": True,
         "id": mem_id,
@@ -826,17 +838,22 @@ def get_quota_usage():
 # 6. CÀI ĐẶT
 # ============================================================
 @app.get("/api/settings")
-def read_settings():
+def read_settings(request: Request):
+    cid = get_request_client_id(request)
+    api_k = database.get_setting("gemini_api_key", "", client_id=cid)
     return {
-        "gemini_api_key": database.get_setting("gemini_api_key", ""),
-        "has_api_key": bool(database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))),
-        "custom_persona": database.get_setting("custom_persona", gemini_client.DEFAULT_SYSTEM_PROMPT)
+        "gemini_api_key": api_k,
+        "has_api_key": bool(api_k or (cid == "master" and os.environ.get("GEMINI_API_KEY", ""))),
+        "custom_persona": database.get_setting("custom_persona", gemini_client.DEFAULT_SYSTEM_PROMPT, client_id=cid),
+        "client_id": cid,
+        "is_master": cid == "master"
     }
 
 @app.post("/api/settings")
-def save_settings(data: dict):
+def save_settings(data: dict, request: Request):
+    cid = get_request_client_id(request)
     if "gemini_api_key" in data:
-        database.set_setting("gemini_api_key", data["gemini_api_key"].strip())
+        database.set_setting("gemini_api_key", data["gemini_api_key"].strip(), client_id=cid)
     if "custom_persona" in data:
-        database.set_setting("custom_persona", data["custom_persona"].strip())
+        database.set_setting("custom_persona", data["custom_persona"].strip(), client_id=cid)
     return {"success": True, "message": "Đã lưu cài đặt thành công!"}

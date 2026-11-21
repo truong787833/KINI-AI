@@ -1,3 +1,31 @@
+// Quản lý Phiên Người Dùng Độc Lập (Device / Client Isolation)
+let kiniClientId = localStorage.getItem("kini_client_id");
+const isLocalhostHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+if (!kiniClientId) {
+    if (isLocalhostHost) {
+        kiniClientId = "master";
+    } else {
+        kiniClientId = "usr_" + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+    }
+    localStorage.setItem("kini_client_id", kiniClientId);
+}
+
+// Tự động gắn X-Client-Id vào mọi request fetch
+const _originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+    options = options || {};
+    options.headers = options.headers || {};
+    if (options.headers instanceof Headers) {
+        if (!options.headers.has("X-Client-Id")) {
+            options.headers.set("X-Client-Id", kiniClientId);
+        }
+    } else {
+        options.headers["X-Client-Id"] = kiniClientId;
+    }
+    return _originalFetch(url, options);
+};
+
 // KINI AI 4.0 - Gemini 4 Hydrogen · Ultra-Complete Architecture (Real-time Grounding & Legal Precision)
 let currentConvId = "default";
 let selectedFile = null;
