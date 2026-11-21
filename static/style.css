@@ -1,5 +1,6 @@
 /* KINI AI 3.5 - Gemini Luxury Aesthetic Styling */
 :root {
+    color-scheme: dark !important;
     --bg-main: #0c0d14;
     --bg-surface: #141622;
     --bg-surface-elevated: #1c1f30;
@@ -25,6 +26,41 @@
     --radius-full: 9999px;
 
     --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+   BỘ THANH KÉO CUỘN (SCROLLBARS) CHUẨN DARK THEME GOOGLE ANTIGRAVITY
+   Tông màu tối mờ nhạt, trong suốt, tiệp 100% với nền (Không còn màu trắng)
+   ============================================================ */
+html, body, * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.24);
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
 }
 
 * {
@@ -958,6 +994,17 @@ body::before {
     max-height: 160px;
     line-height: 1.45;
     padding: 6px 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.pill-textarea::-webkit-scrollbar {
+    width: 4px;
+}
+
+.pill-textarea::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
 }
 
 .pill-textarea::placeholder {
@@ -2329,6 +2376,41 @@ body::before {
     background: rgba(255, 255, 255, 0.03) !important;
 }
 
+/* Thanh cuộn CodeMirror tiệp màu nền tối mờ nhạt chuẩn Antigravity */
+.CodeMirror-vscrollbar,
+.CodeMirror-hscrollbar {
+    outline: none !important;
+    background: transparent !important;
+}
+
+.CodeMirror-vscrollbar::-webkit-scrollbar,
+.CodeMirror-hscrollbar::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+}
+
+.CodeMirror-vscrollbar::-webkit-scrollbar-track,
+.CodeMirror-hscrollbar::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.CodeMirror-vscrollbar::-webkit-scrollbar-thumb,
+.CodeMirror-hscrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-radius: 9999px !important;
+    transition: background 0.2s ease;
+}
+
+.CodeMirror-vscrollbar::-webkit-scrollbar-thumb:hover,
+.CodeMirror-hscrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+}
+
+.CodeMirror-scrollbar-filler,
+.CodeMirror-gutter-filler {
+    background: transparent !important;
+}
+
 /* Web Preview */
 .ide-preview-wrapper {
     flex: 1;
@@ -2436,9 +2518,10 @@ body::before {
 
 /* ============================================================
    SPLITTER RESIZERS & COLLAPSIBLE PANES (KÉO GIÃN & ẨN HIỆN)
+   Thanh kéo giãn tiệp màu nền, nhạt và thanh lịch chuẩn Antigravity
    ============================================================ */
 .ide-splitter-handle {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.04);
     z-index: 20;
     user-select: none;
     transition: background 0.15s ease, box-shadow 0.15s ease;
@@ -2446,12 +2529,12 @@ body::before {
 }
 
 .ide-splitter-handle.horizontal {
-    width: 6px;
+    width: 5px;
     cursor: col-resize;
     height: 100%;
     position: relative;
-    border-left: 1px solid rgba(255, 255, 255, 0.06);
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .ide-splitter-handle.horizontal::after {
@@ -2467,17 +2550,17 @@ body::before {
 
 .ide-splitter-handle.horizontal:hover,
 .ide-splitter-handle.horizontal.dragging {
-    background: #00f2fe !important;
-    box-shadow: 0 0 12px rgba(0, 242, 254, 0.8);
+    background: rgba(91, 156, 246, 0.5) !important;
+    box-shadow: 0 0 10px rgba(91, 156, 246, 0.35);
 }
 
 .ide-splitter-handle.vertical {
-    height: 6px;
+    height: 5px;
     cursor: row-resize;
     width: 100%;
     position: relative;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .ide-splitter-handle.vertical::after {
@@ -2493,8 +2576,8 @@ body::before {
 
 .ide-splitter-handle.vertical:hover,
 .ide-splitter-handle.vertical.dragging {
-    background: #00f2fe !important;
-    box-shadow: 0 0 12px rgba(0, 242, 254, 0.8);
+    background: rgba(91, 156, 246, 0.5) !important;
+    box-shadow: 0 0 10px rgba(91, 156, 246, 0.35);
 }
 
 .app-container.mode-ide #resizer-chat {
