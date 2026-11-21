@@ -36,6 +36,7 @@ function initApp() {
     try { initKeyboardShortcuts(); } catch(e) { console.error("initKeyboardShortcuts:", e); }
     try { initAntigravityIDE(); } catch(e) { console.error("initAntigravityIDE:", e); }
     try { loadConversations(true); } catch(e) { console.error("loadConversations:", e); }
+    try { initVersionSystem(); } catch(e) { console.error("initVersionSystem:", e); }
 }
 
 // ============================================================
@@ -1107,6 +1108,122 @@ function initSettings() {
 }
 
 // ============================================================
+// HỆ THỐNG PHIÊN BẢN & CẬP NHẬT OTA (CHUẨN GOOGLE ANTIGRAVITY)
+// ============================================================
+let currentSystemVersion = "4.1.0";
+let latestSystemVersion = "4.2.0";
+
+async function initVersionSystem() {
+    const btnRestartUpdate = document.getElementById("btn-restart-update");
+    const settingsVerEl = document.getElementById("settings-current-ver");
+
+    try {
+        const res = await fetch("/api/system/version");
+        const data = await res.json();
+        currentSystemVersion = data.version || "4.1.0";
+        latestSystemVersion = data.latest_version || "4.2.0";
+
+        if (settingsVerEl) settingsVerEl.textContent = "v" + currentSystemVersion;
+
+        // Nếu có bản cập nhật mới -> Hiện nút 'Restart to Update →' chuẩn Antigravity
+        if (data.has_update) {
+            if (btnRestartUpdate) {
+                btnRestartUpdate.style.display = "inline-flex";
+            }
+            const currV = document.getElementById("update-curr-ver");
+            const newV = document.getElementById("update-new-ver");
+            const list = document.getElementById("update-changelog-list");
+            if (currV) currV.textContent = "v" + currentSystemVersion;
+            if (newV) newV.textContent = "v" + latestSystemVersion;
+            if (list && data.changelog) {
+                list.innerHTML = data.changelog.map(item => `<li>${escapeHtml(item)}</li>`).join("");
+            }
+        } else {
+            if (btnRestartUpdate) btnRestartUpdate.style.display = "none";
+        }
+    } catch (e) {
+        console.warn("Lỗi kiểm tra phiên bản hệ thống:", e);
+    }
+
+    // Sự kiện bấm nút "Restart to Update →" trên Navbar
+    btnRestartUpdate?.addEventListener("click", () => {
+        openModal("modal-update");
+    });
+
+    // Sự kiện bấm nút "Restart & Update Now" trong Modal
+    document.getElementById("btn-confirm-apply-update")?.addEventListener("click", async () => {
+        const progContainer = document.getElementById("update-progress-container");
+        const progFill = document.getElementById("update-progress-fill");
+        const progStatus = document.getElementById("update-progress-status");
+        const btnConfirm = document.getElementById("btn-confirm-apply-update");
+        const btnCancel = document.getElementById("btn-cancel-update");
+
+        if (progContainer) progContainer.style.display = "block";
+        if (btnConfirm) btnConfirm.disabled = true;
+        if (btnCancel) btnCancel.disabled = true;
+
+        progFill.style.width = "25%";
+        progStatus.textContent = "📦 Đang tải gói OTA từ máy chủ...";
+        await new Promise(r => setTimeout(r, 600));
+
+        progFill.style.width = "65%";
+        progStatus.textContent = "⚡ Đang xác thực tệp tin và đồng bộ cơ sở dữ liệu...";
+        await new Promise(r => setTimeout(r, 700));
+
+        try {
+            const res = await fetch("/api/system/apply-update", { method: "POST" });
+            const data = await res.json();
+            progFill.style.width = "100%";
+            progStatus.textContent = "🎉 Cập nhật thành công! Đang khởi động lại KINI AI...";
+            await new Promise(r => setTimeout(r, 800));
+
+            showToast("🚀 KINI AI đã được nâng cấp lên phiên bản " + (data.new_version || latestSystemVersion) + "!");
+            closeModal("modal-update");
+            if (btnRestartUpdate) btnRestartUpdate.style.display = "none";
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
+        } catch(err) {
+            progStatus.textContent = "❌ Lỗi cập nhật: " + err.message;
+            if (btnConfirm) btnConfirm.disabled = false;
+            if (btnCancel) btnCancel.disabled = false;
+        }
+    });
+
+    // Nút Kiểm tra bản mới trong Cài đặt
+    document.getElementById("btn-settings-check-update")?.addEventListener("click", async () => {
+        try {
+            const res = await fetch("/api/system/check-update", { method: "POST" });
+            const data = await res.json();
+            if (data.has_update) {
+                showToast("🚀 Phát hiện phiên bản mới: v" + data.latest_version + "! Nút 'Restart to Update' đã xuất hiện.");
+                if (btnRestartUpdate) btnRestartUpdate.style.display = "inline-flex";
+            } else {
+                showToast("✨ Bạn đang ở phiên bản mới nhất (v" + data.current_version + ")!");
+            }
+        } catch(err) {
+            showToast("❌ Lỗi kiểm tra: " + err.message);
+        }
+    });
+
+    // Nút Thử nghiệm bật/tắt demo update trong Cài đặt
+    document.getElementById("btn-toggle-demo-update")?.addEventListener("click", async () => {
+        try {
+            const res = await fetch("/api/system/toggle-demo-update", { method: "POST" });
+            const data = await res.json();
+            if (data.has_update) {
+                showToast("🧪 Đã BẬT nút 'Restart to Update' để thử nghiệm!");
+            } else {
+                showToast("🧪 Đã TẮT nút 'Restart to Update'!");
+            }
+            await initVersionSystem();
+        } catch(err) {
+            showToast("❌ Lỗi: " + err.message);
+        }
+    });
+}
+
+// ============================================================
 // 8. QUẢN LÝ LỊCH SỬ CUỘC HỘI THOẠI (CHUẨN GOOGLE ANTIGRAVITY)
 // ============================================================
 function formatRelativeTime(dateStr) {
@@ -1294,6 +1411,12 @@ async function switchConversation(convId) {
     document.querySelectorAll(".conv-item").forEach(item => {
         if (item.dataset.id === convId) {
             item.classList.add("active");
+            // Cập nhật Breadcrumb trên Top Navbar chuẩn Google Antigravity
+            const titleSpan = item.querySelector(".conv-title");
+            const crumbConv = document.getElementById("crumb-conv-title");
+            if (titleSpan && crumbConv) {
+                crumbConv.textContent = titleSpan.textContent;
+            }
         } else {
             item.classList.remove("active");
         }

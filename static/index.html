@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261121_0750">
+    <link rel="stylesheet" href="/static/style.css?v=20261121_0800">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -94,9 +94,17 @@
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
                     <span class="app-title">KINI AI</span>
+                    <div class="nav-breadcrumb" id="nav-breadcrumb">
+                        <span class="crumb-project">haitruong</span>
+                        <span class="crumb-sep">/</span>
+                        <span class="crumb-conv" id="crumb-conv-title">TẠO EM KINI AI</span>
+                    </div>
                 </div>
 
                 <div class="nav-right">
+                    <button class="btn-restart-update" id="btn-restart-update" style="display: none;" title="Có bản cập nhật mới! Bấm để nâng cấp ngay">
+                        Restart to Update →
+                    </button>
                     <div class="view-mode-toggle" id="view-mode-toggle">
                         <button class="btn-mode-tab active" id="btn-mode-chat" title="Chế độ Trò chuyện Toàn màn hình">
                             <span>💬</span> <span>Chat</span>
@@ -498,10 +506,71 @@
                     <label>Lời Nhắc Tính Cách AI (System Persona)</label>
                     <textarea id="setting-persona" class="form-input" rows="4"></textarea>
                 </div>
+
+                <div class="settings-divider" style="margin: 18px 0 12px; border-top: 1px solid var(--border-color);"></div>
+                <div style="font-size: 0.76rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; margin-bottom: 8px;">HỆ THỐNG & PHIÊN BẢN (OTA SYSTEM)</div>
+                <div class="version-control-card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.88rem; font-weight: 600; color: #f1f5f9;">Phiên bản hiện tại: <span id="settings-current-ver" style="color: #38bdf8;">v4.1.0</span></div>
+                            <small style="color: var(--text-muted); font-size: 0.75rem;">Kênh: Stable · Bản phát hành chính thức</small>
+                        </div>
+                        <button class="btn btn-outline" id="btn-settings-check-update" style="padding: 6px 12px; font-size: 0.8rem;">🔄 Kiểm tra bản mới</button>
+                    </div>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 0.8rem; color: #94a3b8;">🧪 Thử nghiệm nút "Restart to Update"</span>
+                        <button class="btn-mini-toggle" id="btn-toggle-demo-update" style="background: rgba(56,189,248,0.15); border: 1px solid #38bdf8; color: #38bdf8; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem;">Bật / Tắt thử</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" data-close="modal-settings">Hủy</button>
                 <button class="btn btn-primary" id="btn-save-settings">💾 Lưu Cài Đặt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL 5: HỆ THỐNG CẬP NHẬT PHIÊN BẢN (ANTIGRAVITY UPDATE SYSTEM)
+         ============================================================ -->
+    <div class="modal" id="modal-update" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span style="font-size: 1.3rem;">🚀</span>
+                    <h3 id="update-modal-title">Cập Nhật KINI AI OS</h3>
+                </div>
+                <button class="modal-close" data-close="modal-update">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="update-banner">
+                    <div class="update-version-badge">
+                        <span class="curr-v" id="update-curr-ver">v4.1.0</span>
+                        <span class="arrow-v">➔</span>
+                        <span class="new-v" id="update-new-ver">v4.2.0</span>
+                    </div>
+                    <p class="update-desc" style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 8px;">Bản cập nhật mới đã sẵn sàng. KINI AI sẽ đồng bộ mã nguồn và khởi động lại ngay trong tích tắc.</p>
+                </div>
+                
+                <div class="update-changelog-box" style="margin-top: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #38bdf8; letter-spacing: 0.05em; margin-bottom: 8px;">✨ NỘI DUNG NÂNG CẤP (CHANGELOG):</div>
+                    <ul class="changelog-list" id="update-changelog-list" style="padding-left: 18px; margin: 0; font-size: 0.82rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 6px;">
+                        <!-- Render dynamically -->
+                    </ul>
+                </div>
+
+                <div class="update-progress-container" id="update-progress-container" style="display: none; margin-top: 14px;">
+                    <div style="background: rgba(255,255,255,0.08); height: 8px; border-radius: 999px; overflow: hidden;">
+                        <div id="update-progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #00f2fe); transition: width 0.3s ease;"></div>
+                    </div>
+                    <div id="update-progress-status" style="font-size: 0.8rem; color: #38bdf8; margin-top: 6px; text-align: center;">Đang chuẩn bị...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-update" id="btn-cancel-update">Để sau</button>
+                <button class="btn btn-primary" id="btn-confirm-apply-update">
+                    <span>🚀</span> Restart & Update Now
+                </button>
             </div>
         </div>
     </div>
@@ -534,6 +603,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20261121_0750"></script>
+    <script src="/static/app.js?v=20261121_0800"></script>
 </body>
 </html>

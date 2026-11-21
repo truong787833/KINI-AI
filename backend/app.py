@@ -86,6 +86,82 @@ def rename_conversation(conv_id: str, data: dict):
     database.update_conversation_title(conv_id, title)
     return {"success": True, "title": title}
 
+# ============================================================
+# HỆ THỐNG PHIÊN BẢN & CẬP NHẬT OTA (CHUẨN GOOGLE ANTIGRAVITY)
+# ============================================================
+VERSION_FILE = os.path.join(BASE_DIR, "version.json")
+
+def load_version_info() -> dict:
+    if os.path.exists(VERSION_FILE):
+        try:
+            with open(VERSION_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "version": "4.1.0",
+        "build_number": 410,
+        "release_date": "2026-11-21",
+        "channel": "stable",
+        "app_name": "KINI AI",
+        "latest_version": "4.2.0",
+        "has_update": True,
+        "changelog": []
+    }
+
+def save_version_info(data: dict):
+    try:
+        with open(VERSION_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving version: {e}")
+
+@app.get("/api/system/version")
+def get_system_version():
+    return load_version_info()
+
+@app.post("/api/system/check-update")
+def check_for_updates():
+    info = load_version_info()
+    return {
+        "has_update": info.get("has_update", False),
+        "current_version": info.get("version", "4.1.0"),
+        "latest_version": info.get("latest_version", "4.2.0"),
+        "changelog": info.get("changelog", [])
+    }
+
+@app.post("/api/system/apply-update")
+def apply_system_update():
+    info = load_version_info()
+    new_ver = info.get("latest_version", "4.2.0")
+    old_ver = info.get("version", "4.1.0")
+    info["version"] = new_ver
+    info["has_update"] = False
+    info["build_number"] = info.get("build_number", 410) + 10
+    save_version_info(info)
+    return {
+        "success": True,
+        "old_version": old_ver,
+        "new_version": new_ver,
+        "message": f"Đã cập nhật KINI AI lên phiên bản {new_ver} thành công!"
+    }
+
+@app.post("/api/system/toggle-demo-update")
+def toggle_demo_update(data: dict = {}):
+    info = load_version_info()
+    enabled = data.get("enabled", not info.get("has_update", False))
+    info["has_update"] = enabled
+    if enabled and info.get("version") == info.get("latest_version"):
+        parts = info.get("version", "4.2.0").split(".")
+        parts[-1] = str(int(parts[-1]) + 1)
+        info["latest_version"] = ".".join(parts)
+    save_version_info(info)
+    return {
+        "success": True,
+        "has_update": info["has_update"],
+        "latest_version": info.get("latest_version")
+    }
+
 def extract_tool_image_prompt(text: str) -> Optional[str]:
     """Trích xuất prompt vẽ ảnh nếu Gemini tự động sinh JSON tool call (dalle.text2im)"""
     try:

@@ -150,9 +150,15 @@
     + Thêm thanh kéo giãn `#resizer-sidebar` giữa Sidebar và Main Content, cho phép rê chuột kéo dãn/thu lại độ rộng tùy ý từ 160px đến 520px, tự động ghi nhớ kích thước vào `localStorage`.
     + Nút thu gọn `◀` trên header sidebar và nút toggle trên top navbar cho phép ẩn sidebar mượt mà về 0px và mở lại tức thì.
     + Hỗ trợ phím tắt toàn cục **Ctrl + B** để ẩn/hiện sidebar nhanh chóng chuẩn VS Code & Antigravity.
+  - **Hệ Thống Phiên Bản & Cập Nhật OTA Chuẩn Google Antigravity ('Restart to Update →')**:
+    + Tạo cấu trúc `version.json` đồng bộ phiên bản (`v4.1.0`, `v4.2.0`), changelog, build number.
+    + Bổ sung nút bấm màu xanh pill nổi bật **`Restart to Update →`** trên góc phải Top Navbar khi phát hiện bản mới.
+    + Cửa sổ Modal Cập Nhật (`modal-update`) hiển thị so sánh phiên bản (v4.1.0 ➔ v4.2.0), chi tiết nhật ký nâng cấp (Changelog) và thanh tiến trình tải gói OTA mượt mà.
+    + Tích hợp mục Quản Lý Phiên Bản trong Cài Đặt (Nút Kiểm tra cập nhật và Nút Bật/Tắt thử nghiệm hiệu ứng).
+    + Thanh Breadcrumb ngữ cảnh ở trung tâm Top Navbar chuẩn Antigravity (`haitruong / [Tiêu đề cuộc trò chuyện]`).
   - Khắc phục triệt để lỗi không hiển thị danh sách hội thoại: Loại bỏ lời gọi `initGallery()` chưa định nghĩa gây chặn đứng luồng `initApp()`, bọc an toàn `try...catch` cho từng phân hệ, bổ sung định nghĩa `switchConversation` (tải và render tin nhắn cũ theo ID hội thoại) và `startNewChat`.
   - Hoàn thiện 100% các thanh kéo giãn Resizers (`resizer-tree`, `resizer-terminal`, `resizer-chat`) với hit-zone rộng, dải kéo thoáng (Explorer 140px-600px, Chat 240px-800px, Terminal 30px-550px).
-  - Bổ sung nút đóng `✕` trực tiếp trên Header Workspace Explorer và Header Khung Chat, đi kèm nút `📁 Hiện Explorer` và `💬 Hiện Chat` để mở lại chỉ với 1 click. Cache buster nâng lên `v=20261121_0750`.
+  - Bổ sung nút đóng `✕` trực tiếp trên Header Workspace Explorer và Header Khung Chat, đi kèm nút `📁 Hiện Explorer` và `💬 Hiện Chat` để mở lại chỉ với 1 click. Cache buster nâng lên `v=20261121_0800`.
 
 ---
 

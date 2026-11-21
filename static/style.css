@@ -457,6 +457,109 @@ body::before {
     letter-spacing: -0.01em;
 }
 
+/* --- Google Antigravity Style Breadcrumb --- */
+.nav-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.85rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 340px;
+}
+
+.nav-breadcrumb .crumb-project {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.nav-breadcrumb .crumb-sep {
+    color: #475569;
+}
+
+.nav-breadcrumb .crumb-conv {
+    color: #f1f5f9;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Google Antigravity Style "Restart to Update" Pill --- */
+.btn-restart-update {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #5b9cf6;
+    color: #0c1222;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 12px rgba(91, 156, 246, 0.35);
+    white-space: nowrap;
+    animation: pulseUpdate 3s infinite;
+}
+
+@keyframes pulseUpdate {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(91, 156, 246, 0.35);
+    }
+    50% {
+        box-shadow: 0 0 18px rgba(91, 156, 246, 0.7);
+    }
+}
+
+.btn-restart-update:hover {
+    background: #73adff;
+    box-shadow: 0 0 20px rgba(91, 156, 246, 0.8);
+    transform: translateY(-1px);
+    color: #060911;
+}
+
+/* --- Update Modal Styling --- */
+.update-banner {
+    background: linear-gradient(135deg, rgba(91, 156, 246, 0.12), rgba(0, 242, 254, 0.08));
+    border: 1px solid rgba(91, 156, 246, 0.25);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+}
+
+.update-version-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.update-version-badge .curr-v {
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.update-version-badge .arrow-v {
+    color: #5b9cf6;
+}
+
+.update-version-badge .new-v {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
 .btn-icon {
     background: none;
     border: none;
