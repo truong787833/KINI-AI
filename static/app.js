@@ -17,22 +17,25 @@ function setupMarkdown() {
     }
 }
 
+function initGallery() {
+    // Gallery modal đã được khởi tạo trong initNavigationAndModals
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initApp();
 });
 
 function initApp() {
-    setupMarkdown();
-    initNavigationAndModals();
-    initChatCore();
-    initClipboardAndDragDrop();
-    initSpeechToText();
-    initMemories();
-    initSettings();
-    initGallery();
-    initKeyboardShortcuts();
-    initAntigravityIDE();
-    loadConversations(true);
+    try { setupMarkdown(); } catch(e) { console.error("setupMarkdown:", e); }
+    try { initNavigationAndModals(); } catch(e) { console.error("initNavigationAndModals:", e); }
+    try { initChatCore(); } catch(e) { console.error("initChatCore:", e); }
+    try { initClipboardAndDragDrop(); } catch(e) { console.error("initClipboardAndDragDrop:", e); }
+    try { initSpeechToText(); } catch(e) { console.error("initSpeechToText:", e); }
+    try { initMemories(); } catch(e) { console.error("initMemories:", e); }
+    try { initSettings(); } catch(e) { console.error("initSettings:", e); }
+    try { initKeyboardShortcuts(); } catch(e) { console.error("initKeyboardShortcuts:", e); }
+    try { initAntigravityIDE(); } catch(e) { console.error("initAntigravityIDE:", e); }
+    try { loadConversations(true); } catch(e) { console.error("loadConversations:", e); }
 }
 
 // ============================================================
@@ -429,7 +432,7 @@ function checkInitialHero() {
     const viewport = document.getElementById("chat-viewport");
     const quickPills = document.getElementById("quick-pills-bar");
 
-    if (!messages || messages.children.length === 0) {
+    if (!messages || !messages.children || messages.children.length === 0) {
         if (hero) hero.style.display = "flex";
         if (viewport) viewport.style.display = "none";
         if (quickPills) quickPills.style.display = "flex";
@@ -2258,37 +2261,63 @@ function setupIdeEventListeners() {
         setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 150);
     });
 
-    // 1. Thu gọn / Mở rộng Cây thư mục (Explorer)
+    // 1. Thu gọn / Mở rộng Cây thư mục (Workspace Explorer)
+    const sidebarTree = document.getElementById("ide-file-tree-sidebar");
+    const resizerTree = document.getElementById("resizer-tree");
+    const btnShowExplorer = document.getElementById("btn-show-explorer");
+
     document.getElementById("btn-collapse-tree")?.addEventListener("click", () => {
-        const sidebar = document.getElementById("ide-file-tree-sidebar");
-        const btn = document.getElementById("btn-collapse-tree");
-        if (sidebar) {
-            sidebar.classList.toggle("collapsed");
-            btn.textContent = sidebar.classList.contains("collapsed") ? "▶" : "◀";
+        if (sidebarTree) {
+            sidebarTree.classList.add("collapsed");
+            if (resizerTree) resizerTree.style.display = "none";
+            if (btnShowExplorer) btnShowExplorer.style.display = "inline-flex";
+            setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 150);
+            showToast("📁 Đã ẩn Workspace Explorer (Bấm 'Hiện Explorer' trên thanh công cụ để mở lại)");
+        }
+    });
+
+    btnShowExplorer?.addEventListener("click", () => {
+        if (sidebarTree) {
+            sidebarTree.classList.remove("collapsed");
+            if (resizerTree) resizerTree.style.display = "block";
+            btnShowExplorer.style.display = "none";
             setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 150);
         }
     });
 
     // 2. Ẩn / Hiện Khung Chat bên phải
-    document.getElementById("btn-toggle-chat")?.addEventListener("click", () => {
+    function toggleChatPane() {
         const chatPane = document.getElementById("chat-main-pane");
         const resizerChat = document.getElementById("resizer-chat");
-        const btn = document.getElementById("btn-toggle-chat");
+        const btnToggle = document.getElementById("btn-toggle-chat");
         if (chatPane) {
             chatPane.classList.toggle("collapsed");
             const isHidden = chatPane.classList.contains("collapsed");
-            btn.textContent = isHidden ? "💬 Hiện Chat" : "💬 Ẩn Chat";
+            if (btnToggle) {
+                btnToggle.textContent = isHidden ? "💬 Hiện Chat" : "💬 Ẩn Chat";
+                if (isHidden) {
+                    btnToggle.classList.add("primary");
+                } else {
+                    btnToggle.classList.remove("primary");
+                }
+            }
             if (resizerChat) resizerChat.style.display = isHidden ? "none" : "block";
             setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 150);
+            if (isHidden) {
+                showToast("💬 Đã ẩn Khung Chat (Bấm 'Hiện Chat' để mở lại bất kỳ lúc nào)");
+            }
         }
-    });
+    }
+
+    document.getElementById("btn-toggle-chat")?.addEventListener("click", toggleChatPane);
+    document.getElementById("btn-close-chat-pane")?.addEventListener("click", toggleChatPane);
 
     // 3. Kéo giãn thanh Explorer (resizer-tree)
     initSplitterDrag("resizer-tree", (deltaX) => {
         const sidebar = document.getElementById("ide-file-tree-sidebar");
         if (sidebar && !sidebar.classList.contains("collapsed")) {
             const currentW = sidebar.getBoundingClientRect().width;
-            const newW = Math.min(500, Math.max(160, currentW + deltaX));
+            const newW = Math.min(600, Math.max(140, currentW + deltaX));
             sidebar.style.width = newW + "px";
             if (ideCodeMirror) ideCodeMirror.refresh();
         }
@@ -2299,7 +2328,7 @@ function setupIdeEventListeners() {
         const drawer = document.getElementById("ide-terminal-drawer");
         if (drawer && !drawer.classList.contains("collapsed")) {
             const currentH = drawer.getBoundingClientRect().height;
-            const newH = Math.min(450, Math.max(40, currentH - deltaY));
+            const newH = Math.min(550, Math.max(30, currentH - deltaY));
             drawer.style.height = newH + "px";
             if (ideCodeMirror) ideCodeMirror.refresh();
         }
@@ -2310,7 +2339,7 @@ function setupIdeEventListeners() {
         const chatPane = document.getElementById("chat-main-pane");
         if (chatPane && !chatPane.classList.contains("collapsed")) {
             const currentW = chatPane.getBoundingClientRect().width;
-            const newW = Math.min(650, Math.max(300, currentW - deltaX));
+            const newW = Math.min(800, Math.max(240, currentW - deltaX));
             chatPane.style.width = newW + "px";
             if (ideCodeMirror) ideCodeMirror.refresh();
         }

@@ -1839,11 +1839,36 @@ body::before {
 .app-container.mode-ide .chat-main-pane {
     flex: none;
     width: 440px;
-    min-width: 380px;
-    max-width: 480px;
+    min-width: 240px;
+    max-width: 800px;
     height: 100%;
     border-left: 1px solid var(--border-color);
     background: #08090f;
+    display: flex;
+    flex-direction: column;
+}
+
+.ide-chat-header-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: #0e101a;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #94a3b8;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+}
+
+.app-container.mode-ide .ide-chat-header-bar {
+    display: flex;
+}
+
+.btn-danger-hover:hover {
+    color: #ff0055 !important;
+    background: rgba(255, 0, 85, 0.2) !important;
 }
 
 /* Nút Chuyển Mode Chat vs IDE trên Top Navbar */
@@ -1886,9 +1911,9 @@ body::before {
 
 /* --- Cột 1: Cây Thư Mục Cấp Bậc (Hierarchical File Tree) --- */
 .ide-file-tree-sidebar {
-    width: 240px;
-    min-width: 210px;
-    max-width: 300px;
+    width: 250px;
+    min-width: 140px;
+    max-width: 600px;
     background: #08090e;
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -2278,38 +2303,63 @@ body::before {
    SPLITTER RESIZERS & COLLAPSIBLE PANES (KÉO GIÃN & ẨN HIỆN)
    ============================================================ */
 .ide-splitter-handle {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
     z-index: 20;
     user-select: none;
     transition: background 0.15s ease, box-shadow 0.15s ease;
+    flex-shrink: 0;
 }
 
 .ide-splitter-handle.horizontal {
     width: 6px;
     cursor: col-resize;
     height: 100%;
+    position: relative;
     border-left: 1px solid rgba(255, 255, 255, 0.06);
     border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.ide-splitter-handle.horizontal::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -5px;
+    right: -5px;
+    cursor: col-resize;
+    z-index: 22;
+}
+
 .ide-splitter-handle.horizontal:hover,
 .ide-splitter-handle.horizontal.dragging {
-    background: #00f2fe;
-    box-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+    background: #00f2fe !important;
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.8);
 }
 
 .ide-splitter-handle.vertical {
     height: 6px;
     cursor: row-resize;
     width: 100%;
+    position: relative;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.ide-splitter-handle.vertical::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -5px;
+    bottom: -5px;
+    cursor: row-resize;
+    z-index: 22;
+}
+
 .ide-splitter-handle.vertical:hover,
 .ide-splitter-handle.vertical.dragging {
-    background: #00f2fe;
-    box-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+    background: #00f2fe !important;
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.8);
 }
 
 .app-container.mode-ide #resizer-chat {

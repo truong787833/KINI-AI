@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261121_0705">
+    <link rel="stylesheet" href="/static/style.css?v=20261121_0710">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -125,7 +125,7 @@
                                 <button class="ide-mini-btn" id="btn-ide-new-folder" title="Tạo thư mục mới">+📁</button>
                                 <button class="ide-mini-btn" id="btn-ide-refresh" title="Làm mới cây thư mục">🔄</button>
                                 <button class="ide-mini-btn" id="btn-ide-open-explorer" title="Mở thư mục trên máy tính Windows">📂</button>
-                                <button class="ide-mini-btn" id="btn-collapse-tree" title="Thu gọn/Mở rộng cây thư mục">◀</button>
+                                <button class="ide-mini-btn btn-danger-hover" id="btn-collapse-tree" title="Ẩn Workspace Explorer (Đóng ô này)">✕</button>
                             </div>
                         </div>
                         <div class="ide-search-box">
@@ -155,6 +155,7 @@
                                     <button class="ide-mode-btn" id="ide-mode-img" style="display: none;">🖼️ Xem Ảnh</button>
                                     <button class="ide-mode-btn" id="ide-mode-data" style="display: none;">📊 Dữ Liệu Bảng</button>
                                 </div>
+                                <button class="ide-action-btn primary" id="btn-show-explorer" title="Hiện lại Workspace Explorer" style="display: none;">📁 Hiện Explorer</button>
                                 <button class="ide-action-btn" id="btn-ide-copy-code" title="Sao chép toàn bộ mã nguồn">📋 Copy</button>
                                 <button class="ide-action-btn" id="btn-ide-search-code" title="Tìm kiếm trong mã nguồn">🔍 Tìm</button>
                                 <button class="ide-action-btn" id="btn-ide-run-file" title="Chạy file trên máy">▶️ Chạy file</button>
@@ -217,6 +218,14 @@
 
                 <!-- Cột 3: Khung Chat Chính (Full trong Chat Mode, 440px bên phải trong IDE Mode) -->
                 <div class="chat-main-pane" id="chat-main-pane">
+                    <!-- Thanh tiêu đề khung Chat khi ở chế độ IDE -->
+                    <div class="ide-chat-header-bar" id="ide-chat-header-bar">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:0.9rem;">💬</span>
+                            <span>KHUNG CHAT KINI</span>
+                        </div>
+                        <button class="ide-mini-btn btn-danger-hover" id="btn-close-chat-pane" title="Đóng khung chat (Ẩn ô này)">✕</button>
+                    </div>
                     <!-- Khung Chat Messages (Hiển thị khi bắt đầu trò chuyện) -->
                     <div class="chat-viewport" id="chat-viewport" style="display: none;">
                         <div class="chat-messages-container" id="chat-messages">
@@ -522,6 +531,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20261121_0705"></script>
+    <script src="/static/app.js?v=20261121_0710"></script>
 </body>
 </html>
