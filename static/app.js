@@ -1050,9 +1050,12 @@ function initSettings() {
 function formatRelativeTime(dateStr) {
     if (!dateStr) return "";
     try {
-        const d = new Date(dateStr);
+        const cleanStr = String(dateStr).replace(" ", "T");
+        const d = new Date(cleanStr);
+        if (isNaN(d.getTime())) return "gần đây";
         const now = new Date();
         const diffMs = now - d;
+        if (diffMs < 0) return "vừa xong";
         const diffSec = Math.floor(diffMs / 1000);
         if (diffSec < 60) return "vừa xong";
         const diffMin = Math.floor(diffSec / 60);
@@ -1064,8 +1067,86 @@ function formatRelativeTime(dateStr) {
         const diffMonths = Math.floor(diffDays / 30);
         return `${diffMonths}mo`;
     } catch (e) {
-        return "";
+        return "gần đây";
     }
+}
+
+function renderPinnedItem(c) {
+    const item = document.createElement("div");
+    item.className = `conv-item pinned-style ${c.id === currentConvId ? 'active' : ''}`;
+    item.dataset.id = c.id;
+    const timeStr = formatRelativeTime(c.updated_at || c.created_at);
+    const categoryTag = c.category ? `📁 ${escapeHtml(c.category)}` : "📁 haitruong";
+
+    item.innerHTML = `
+        <div class="conv-row-top">
+            <span class="conv-title" title="${escapeAttr(c.title)}">${escapeHtml(c.title)}</span>
+            <span class="conv-time">${timeStr}</span>
+            <div class="conv-actions">
+                <button class="conv-act-btn btn-pin-conv" title="Bỏ ghim">📍</button>
+                <button class="conv-act-btn btn-rename-conv" title="Đổi tên">✏️</button>
+                <button class="conv-act-btn delete btn-delete-conv" title="Xóa vĩnh viễn">🗑️</button>
+            </div>
+        </div>
+        <div class="conv-meta-folder">${categoryTag}</div>
+    `;
+
+    item.addEventListener("click", (e) => {
+        if (e.target.closest(".btn-pin-conv")) {
+            e.stopPropagation();
+            togglePinConversation(c.id);
+            return;
+        }
+        if (e.target.closest(".btn-rename-conv")) {
+            e.stopPropagation();
+            renameConversationPrompt(c.id, c.title);
+            return;
+        }
+        if (e.target.closest(".btn-delete-conv")) {
+            e.stopPropagation();
+            deleteConversation(c.id);
+            return;
+        }
+        switchConversation(c.id);
+    });
+    return item;
+}
+
+function renderProjectItem(c) {
+    const item = document.createElement("div");
+    item.className = `conv-item project-item ${c.id === currentConvId ? 'active' : ''}`;
+    item.dataset.id = c.id;
+    const timeStr = formatRelativeTime(c.updated_at || c.created_at);
+
+    item.innerHTML = `
+        <span class="conv-title" title="${escapeAttr(c.title)}">${escapeHtml(c.title)}</span>
+        <span class="conv-time">${timeStr}</span>
+        <div class="conv-actions">
+            <button class="conv-act-btn btn-pin-conv" title="Ghim lên đầu">📌</button>
+            <button class="conv-act-btn btn-rename-conv" title="Đổi tên">✏️</button>
+            <button class="conv-act-btn delete btn-delete-conv" title="Xóa vĩnh viễn">🗑️</button>
+        </div>
+    `;
+
+    item.addEventListener("click", (e) => {
+        if (e.target.closest(".btn-pin-conv")) {
+            e.stopPropagation();
+            togglePinConversation(c.id);
+            return;
+        }
+        if (e.target.closest(".btn-rename-conv")) {
+            e.stopPropagation();
+            renameConversationPrompt(c.id, c.title);
+            return;
+        }
+        if (e.target.closest(".btn-delete-conv")) {
+            e.stopPropagation();
+            deleteConversation(c.id);
+            return;
+        }
+        switchConversation(c.id);
+    });
+    return item;
 }
 
 async function loadConversations(autoRestore = false) {
@@ -1082,84 +1163,56 @@ async function loadConversations(autoRestore = false) {
         const pinned = convs.filter(c => c.is_pinned);
         const unpinned = convs.filter(c => !c.is_pinned);
 
-        function renderConvItem(c) {
-            const item = document.createElement("div");
-            item.className = `conv-item ${c.id === currentConvId ? 'active' : ''}`;
-            item.dataset.id = c.id;
-            const timeStr = formatRelativeTime(c.updated_at || c.created_at);
-            const icon = c.is_pinned ? "📌" : "💬";
-            const categoryTag = c.category ? `📁 ${escapeHtml(c.category)}` : "📁 haitruong";
-
-            item.innerHTML = `
-                <div class="conv-main">
-                    <span class="conv-icon">${icon}</span>
-                    <div class="conv-text-box">
-                        <span class="conv-title" title="${escapeAttr(c.title)}">${escapeHtml(c.title)}</span>
-                        <div class="conv-meta">
-                            <span class="conv-tag">${categoryTag}</span>
-                        </div>
-                    </div>
-                </div>
-                <span class="conv-time">${timeStr}</span>
-                <div class="conv-actions">
-                    <button class="conv-act-btn btn-pin-conv" title="${c.is_pinned ? 'Bỏ ghim' : 'Ghim lên đầu'}">${c.is_pinned ? '📍' : '📌'}</button>
-                    <button class="conv-act-btn btn-rename-conv" title="Đổi tên đoạn chat">✏️</button>
-                    <button class="conv-act-btn delete btn-delete-conv" title="Xóa vĩnh viễn">🗑️</button>
-                </div>
-            `;
-
-            item.addEventListener("click", (e) => {
-                if (e.target.closest(".btn-pin-conv")) {
-                    e.stopPropagation();
-                    togglePinConversation(c.id);
-                    return;
-                }
-                if (e.target.closest(".btn-rename-conv")) {
-                    e.stopPropagation();
-                    renameConversationPrompt(c.id, c.title);
-                    return;
-                }
-                if (e.target.closest(".btn-delete-conv")) {
-                    e.stopPropagation();
-                    deleteConversation(c.id);
-                    return;
-                }
-                switchConversation(c.id);
-            });
-            return item;
-        }
-
-        // 1. Phân mục Pinned Conversations (Đã ghim)
+        // 1. Phân mục Pinned Conversations (Đã ghim chuẩn Antigravity)
         if (pinned.length > 0) {
             const pinHeader = document.createElement("div");
             pinHeader.className = "sidebar-section-title";
-            pinHeader.innerHTML = `<span>PINNED CONVERSATIONS</span><span>${pinned.length}</span>`;
+            pinHeader.innerHTML = `<span>Pinned Conversations</span><span>${pinned.length}</span>`;
             list.appendChild(pinHeader);
 
             const pinGroup = document.createElement("div");
             pinGroup.className = "conv-group";
-            pinned.forEach(c => pinGroup.appendChild(renderConvItem(c)));
+            pinned.forEach(c => {
+                try { pinGroup.appendChild(renderPinnedItem(c)); } catch(err) { console.error(err); }
+            });
             list.appendChild(pinGroup);
         }
 
-        // 2. Phân mục Projects / Lịch sử gần đây
+        // 2. Phân mục Projects / Thư mục dự án chuẩn Antigravity
         const projHeader = document.createElement("div");
         projHeader.className = "sidebar-section-title";
-        projHeader.innerHTML = `<span>PROJECTS & RECENT</span><span>${unpinned.length}</span>`;
+        projHeader.innerHTML = `<span>Projects</span><span style="opacity:0.5; font-size:0.75rem;">☰ 📁+</span>`;
         list.appendChild(projHeader);
 
-        const projGroup = document.createElement("div");
-        projGroup.className = "conv-group";
-        unpinned.forEach(c => projGroup.appendChild(renderConvItem(c)));
-        list.appendChild(projGroup);
+        // Gom nhóm theo category (Thư mục dự án)
+        const categories = {};
+        unpinned.forEach(c => {
+            const cat = c.category || "haitruong";
+            if (!categories[cat]) categories[cat] = [];
+            categories[cat].push(c);
+        });
+
+        for (const [catName, convArray] of Object.entries(categories)) {
+            const folderTitle = document.createElement("div");
+            folderTitle.className = "project-folder-title";
+            folderTitle.innerHTML = `<span class="folder-icon">📁</span> <span class="folder-name">${escapeHtml(catName)}</span>`;
+            list.appendChild(folderTitle);
+
+            const folderGroup = document.createElement("div");
+            folderGroup.className = "project-folder-group";
+            convArray.forEach(c => {
+                try { folderGroup.appendChild(renderProjectItem(c)); } catch(err) { console.error(err); }
+            });
+            list.appendChild(folderGroup);
+        }
 
         // Tự động khôi phục phiên trò chuyện gần nhất khi mở trang hoặc F5
         if (autoRestore) {
-            const savedConvId = localStorage.getItem("kini_last_conv_id") || "conv_snake";
+            const savedConvId = localStorage.getItem("kini_last_conv_id") || (convs.length > 0 ? convs[0].id : "default");
             if (convs.some(c => c.id === savedConvId)) {
-                switchConversation(savedConvId);
+                await switchConversation(savedConvId);
             } else if (convs.length > 0) {
-                switchConversation(convs[0].id);
+                await switchConversation(convs[0].id);
             } else {
                 checkInitialHero();
             }
@@ -1167,6 +1220,91 @@ async function loadConversations(autoRestore = false) {
     } catch (e) {
         console.warn("Lỗi tải danh sách hội thoại:", e);
         if (autoRestore) checkInitialHero();
+    }
+}
+
+async function switchConversation(convId) {
+    if (!convId) return;
+    currentConvId = convId;
+    localStorage.setItem("kini_last_conv_id", convId);
+
+    // Cập nhật trạng thái active trong sidebar
+    document.querySelectorAll(".conv-item").forEach(item => {
+        if (item.dataset.id === convId) {
+            item.classList.add("active");
+        } else {
+            item.classList.remove("active");
+        }
+    });
+
+    const messagesContainer = document.getElementById("chat-messages");
+    if (!messagesContainer) return;
+
+    // Xóa tin nhắn cũ và hiện biểu tượng đang tải
+    messagesContainer.innerHTML = "";
+    const loadingId = appendLoadingMessage();
+
+    try {
+        const res = await fetch(`/api/conversations/${convId}/messages`);
+        const data = await res.json();
+        const messages = data.messages || [];
+
+        removeLoadingMessage(loadingId);
+        messagesContainer.innerHTML = "";
+
+        if (messages.length === 0) {
+            checkInitialHero();
+        } else {
+            const hero = document.getElementById("hero-section");
+            const viewport = document.getElementById("chat-viewport");
+            const quickPills = document.getElementById("quick-pills-bar");
+            if (hero) hero.style.display = "none";
+            if (viewport) viewport.style.display = "block";
+            if (quickPills) quickPills.style.display = "none";
+
+            for (const msg of messages) {
+                if (msg.role === "user") {
+                    appendUserMessage(msg.content);
+                } else {
+                    appendAssistantMessage(msg.content, msg.image_url || "");
+                }
+            }
+            scrollToBottom();
+        }
+    } catch (err) {
+        removeLoadingMessage(loadingId);
+        showToast("❌ Lỗi tải tin nhắn: " + err.message);
+        checkInitialHero();
+    }
+}
+
+async function startNewChat() {
+    try {
+        const res = await fetch("/api/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: "Cuộc trò chuyện mới" })
+        });
+        const data = await res.json();
+        const newConvId = data.id || ("conv_" + Date.now());
+
+        currentConvId = newConvId;
+        localStorage.setItem("kini_last_conv_id", newConvId);
+
+        const messagesContainer = document.getElementById("chat-messages");
+        if (messagesContainer) messagesContainer.innerHTML = "";
+        checkInitialHero();
+
+        await loadConversations(false);
+        showToast("💬 Đã tạo cuộc trò chuyện mới!");
+    } catch (e) {
+        const fallbackId = "conv_" + Date.now();
+        currentConvId = fallbackId;
+        localStorage.setItem("kini_last_conv_id", fallbackId);
+        const messagesContainer = document.getElementById("chat-messages");
+        if (messagesContainer) messagesContainer.innerHTML = "";
+        checkInitialHero();
+        await loadConversations(false);
     }
 }
 
@@ -1208,7 +1346,7 @@ async function deleteConversation(id) {
         await fetch(`/api/conversations/${id}`, { method: "DELETE" });
         showToast("🗑️ Đã xóa vĩnh viễn đoạn hội thoại!");
         if (currentConvId === id) {
-            startNewChat();
+            await startNewChat();
         } else {
             await loadConversations(false);
         }

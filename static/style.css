@@ -150,21 +150,41 @@ body::before {
 }
 
 .sidebar-section-title {
-    padding: 12px 16px 6px;
+    padding: 14px 12px 6px;
     font-size: 0.72rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: #64748b;
     letter-spacing: 0.05em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .conv-list {
     flex: 1;
     overflow-y: auto;
-    padding: 0 10px;
+    padding: 0 8px;
+    min-height: 200px;
 }
 
 .conv-group {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+}
+
+.project-folder-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 8px 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #94a3b8;
+    cursor: default;
+}
+
+.project-folder-group {
+    padding-left: 14px;
+    margin-bottom: 8px;
 }
 
 .conv-item {
@@ -190,6 +210,38 @@ body::before {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
     border-color: rgba(255, 255, 255, 0.08);
+}
+
+.conv-item.pinned-style {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 10px;
+    gap: 3px;
+}
+
+.conv-item.pinned-style .conv-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+}
+
+.conv-item.pinned-style .conv-meta-folder {
+    font-size: 0.72rem;
+    color: #64748b;
+    padding-left: 1px;
+}
+
+.conv-item.pinned-style:hover .conv-time {
+    display: none;
+}
+
+.conv-item.pinned-style:hover .conv-actions {
+    display: flex;
+}
+
+.conv-item.project-item {
+    padding: 6px 8px;
 }
 
 .conv-main {
