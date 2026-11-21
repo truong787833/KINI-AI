@@ -236,3 +236,14 @@
 - **5. Autonomous Task Cards (Steps & Progress)**:
   + Module `window.KiniTaskRunner` kết hợp CSS Glassmorphism cao cấp render thẻ tiến trình tác vụ tự hành nhiều bước theo thời gian thực (trạng thái: Chờ, Đang chạy, Hoàn thành, Thất bại kèm thanh tiến trình gradient).
 - **Kiểm thử nghiệm thu**: Cú pháp Javascript kiểm tra `node -c` không lỗi, kiểm thử render DOM qua Headless Chrome xác nhận đầy đủ 100% phần tử.
+
+
+### Mốc Nâng Cấp: Hệ Thống Đóng Gói Bản Portable Độc Lập Cho Người Dùng Mới (Bảo Mật 100% Dữ Liệu Tác Giả)
+- **Yêu cầu của anh Trường**: Chia sẻ KINI AI cho mọi người dùng độc lập trên mỗi máy, dùng API riêng, như chương trình mới tinh cho người dùng tự dạy; máy anh Trường phải giữ nguyên vẹn 100% dữ liệu.
+- **Triển khai kỹ thuật**:
+  1. Cập nhật start.bat dùng %~dp0 linh hoạt trên mọi máy tính, tự kiểm tra Python và tự cài dependencies.
+  2. Tạo file Chay_KINI_AI.bat tiện dụng 1 click.
+  3. Cập nhật static/app.js và static/index.html: Bổ sung đường link lấy API key miễn phí tại Google AI Studio và tự động mở bảng cài đặt trong lần đầu chạy nếu chưa có API key.
+  4. Xây dựng script đóng gói tự động 	ools/build_portable_release.py: Loại trừ triệt để kini_ai.db, .env, PROJECT_MEMORY.md, tạo gói zip phân phối sạch dist_release/KINI_AI_v4.2_Portable.zip.
+  5. Biên soạn file HUONG_DAN_SU_DUNG.txt chi tiết từng bước cho người mới (cách cài đặt, lấy key miễn phí, cách dùng trên PC và Mobile qua Wifi).
+  6. Xác nhận dữ liệu gốc của anh Trường tại H:\KINI_AI\kini_ai.db được bảo toàn nguyên vẹn 100%.

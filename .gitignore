@@ -3,5 +3,6 @@ __pycache__/
 *.db
 .env
 .venv/
+dist_release/
 generated_images/*
 !.gitkeep

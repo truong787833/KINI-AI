@@ -1251,6 +1251,14 @@ async function loadSettings() {
         if (data.custom_persona) {
             document.getElementById("setting-persona").value = data.custom_persona;
         }
+
+        // Tự động nhắc người dùng mới nhập API Key miễn phí trong lần đầu chạy
+        if (!data.has_api_key && !data.gemini_api_key && !localStorage.getItem("kini_onboarding_shown")) {
+            localStorage.setItem("kini_onboarding_shown", "1");
+            setTimeout(() => {
+                openModal("modal-settings");
+            }, 800);
+        }
     } catch (e) {}
 }
 
