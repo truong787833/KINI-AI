@@ -72,12 +72,41 @@ body::before {
    ============================================================ */
 .sidebar {
     width: 280px;
+    min-width: 170px;
+    max-width: 520px;
     background-color: var(--bg-surface);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    transition: transform 0.28s ease;
+    transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s ease;
     z-index: 100;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar.dragging {
+    transition: none !important;
+}
+
+.sidebar.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-right: none !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.sidebar.collapsed + #resizer-sidebar {
+    display: none !important;
+}
+
+.sidebar-header, .sidebar-actions, .conv-list, .sidebar-footer {
+    min-width: 170px;
 }
 
 .sidebar-header {
@@ -1266,6 +1295,9 @@ body::before {
     }
     .sidebar-overlay.open {
         display: block;
+    }
+    #resizer-sidebar {
+        display: none !important;
     }
     .hero-title {
         font-size: 1.8rem;

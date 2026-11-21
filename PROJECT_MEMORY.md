@@ -143,12 +143,16 @@
     + Cơ chế trích xuất ký ức sâu tự động (Background Memory Extractor) lưu các quy tắc, sở thích của anh Trường vào SQLite bảng `memories` và luôn ghi nhớ xuyên suốt.
     + Đã kiểm thử tự động toàn bộ endpoint: 100% trả về Status 200 OK, kiểm tra cú pháp JS không lỗi (`node -c`).
 
-- **2026-11-21 (Đại Nâng Cấp Hệ Thống Lịch Sử Hội Thoại Chuẩn 100% Google Antigravity & Fix Triệt Để Resizers / Close Panes)**:
+- **2026-11-21 (Đại Nâng Cấp Hệ Thống Lịch Sử Hội Thoại Chuẩn 100% Google Antigravity & Fix Triệt Để Resizers / Close Panes & Sidebar Kéo Dãn Ẩn Hiện)**:
   - Phân tách và khôi phục 100% toàn bộ 189 tin nhắn lịch sử từ trước đến giờ thành 10 phiên hội thoại thực tế có tiêu đề sắc bén, đầy đủ bối cảnh (Snake Game, Disk Analyzer, /plan, Luật Biên Phòng, Logo 3D, Thời tiết Cồn Cỏ, v.v.).
   - Giao diện Sidebar chuẩn Antigravity: Phân mục rõ ràng gồm `📌 Pinned Conversations` (hiển thị tiêu đề + relative time + thư mục) và `📁 Projects` (gom nhóm theo từng thư mục dự án `📁 3D MODEL`, `📁 haitruong`), hiển thị thời gian tương đối (`7m`, `9h`, `1d`, `1mo`), nút thao tác Ghim/Bỏ ghim (`📌`/`📍`), Đổi tên (`✏️`), Xóa vĩnh viễn (`🗑️`).
+  - **Sidebar Kéo Dãn, Thu Lại, Ẩn & Mở Lại Chuẩn 100% Google Antigravity (Cả 3 trạng thái)**:
+    + Thêm thanh kéo giãn `#resizer-sidebar` giữa Sidebar và Main Content, cho phép rê chuột kéo dãn/thu lại độ rộng tùy ý từ 160px đến 520px, tự động ghi nhớ kích thước vào `localStorage`.
+    + Nút thu gọn `◀` trên header sidebar và nút toggle trên top navbar cho phép ẩn sidebar mượt mà về 0px và mở lại tức thì.
+    + Hỗ trợ phím tắt toàn cục **Ctrl + B** để ẩn/hiện sidebar nhanh chóng chuẩn VS Code & Antigravity.
   - Khắc phục triệt để lỗi không hiển thị danh sách hội thoại: Loại bỏ lời gọi `initGallery()` chưa định nghĩa gây chặn đứng luồng `initApp()`, bọc an toàn `try...catch` cho từng phân hệ, bổ sung định nghĩa `switchConversation` (tải và render tin nhắn cũ theo ID hội thoại) và `startNewChat`.
   - Hoàn thiện 100% các thanh kéo giãn Resizers (`resizer-tree`, `resizer-terminal`, `resizer-chat`) với hit-zone rộng, dải kéo thoáng (Explorer 140px-600px, Chat 240px-800px, Terminal 30px-550px).
-  - Bổ sung nút đóng `✕` trực tiếp trên Header Workspace Explorer và Header Khung Chat, đi kèm nút `📁 Hiện Explorer` và `💬 Hiện Chat` để mở lại chỉ với 1 click. Cache buster nâng lên `v=20261121_0710`.
+  - Bổ sung nút đóng `✕` trực tiếp trên Header Workspace Explorer và Header Khung Chat, đi kèm nút `📁 Hiện Explorer` và `💬 Hiện Chat` để mở lại chỉ với 1 click. Cache buster nâng lên `v=20261121_0750`.
 
 ---
 

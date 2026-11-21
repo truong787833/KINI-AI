@@ -47,18 +47,72 @@ function initNavigationAndModals() {
     const toggleBtn = document.getElementById("btn-toggle-sidebar");
     const closeBtn = document.getElementById("btn-close-sidebar");
 
-    function openSidebar() {
-        sidebar.classList.add("open");
-        sidebarOverlay.classList.add("open");
-    }
-    function closeSidebar() {
-        sidebar.classList.remove("open");
-        sidebarOverlay.classList.remove("open");
+    // 1. Khôi phục chiều rộng & trạng thái Sidebar từ localStorage (chuẩn Google Antigravity)
+    if (sidebar && window.innerWidth > 768) {
+        const savedW = parseInt(localStorage.getItem("kini_sidebar_width"));
+        if (savedW && savedW >= 160 && savedW <= 520) {
+            sidebar.style.width = savedW + "px";
+        }
+        const isSavedCollapsed = localStorage.getItem("kini_sidebar_collapsed") === "1";
+        if (isSavedCollapsed) {
+            sidebar.classList.add("collapsed");
+        }
     }
 
-    if (toggleBtn) toggleBtn.addEventListener("click", openSidebar);
-    if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
-    if (sidebarOverlay) sidebarOverlay.addEventListener("click", closeSidebar);
+    // 2. Hàm Ẩn / Mở Sidebar
+    window.toggleSidebar = function(forceOpen = null) {
+        if (!sidebar) return;
+        const isMobile = window.innerWidth <= 768;
+
+        if (isMobile) {
+            const willOpen = forceOpen !== null ? forceOpen : !sidebar.classList.contains("open");
+            if (willOpen) {
+                sidebar.classList.add("open");
+                sidebarOverlay?.classList.add("open");
+            } else {
+                sidebar.classList.remove("open");
+                sidebarOverlay?.classList.remove("open");
+            }
+            return;
+        }
+
+        // Desktop: Kéo ra, thu lại, ẩn và mở lại
+        const willCollapse = forceOpen !== null ? !forceOpen : !sidebar.classList.contains("collapsed");
+        if (willCollapse) {
+            sidebar.classList.add("collapsed");
+            localStorage.setItem("kini_sidebar_collapsed", "1");
+            showToast("◀ Đã ẩn Sidebar (Bấm nút menu ở góc trên hoặc nhấn Ctrl+B để mở lại)");
+        } else {
+            sidebar.classList.remove("collapsed");
+            const w = parseInt(localStorage.getItem("kini_sidebar_width")) || 280;
+            sidebar.style.width = w + "px";
+            localStorage.setItem("kini_sidebar_collapsed", "0");
+        }
+        setTimeout(() => { if (ideCodeMirror) ideCodeMirror.refresh(); }, 250);
+    };
+
+    function openSidebar() {
+        window.toggleSidebar(true);
+    }
+    function closeSidebar() {
+        window.toggleSidebar(false);
+    }
+
+    if (toggleBtn) toggleBtn.addEventListener("click", () => window.toggleSidebar());
+    if (closeBtn) closeBtn.addEventListener("click", () => window.toggleSidebar(false));
+    if (sidebarOverlay) sidebarOverlay.addEventListener("click", () => window.toggleSidebar(false));
+
+    // 3. Kéo giãn Sidebar (#resizer-sidebar) chuẩn Google Antigravity
+    initSplitterDrag("resizer-sidebar", (deltaX) => {
+        if (sidebar && !sidebar.classList.contains("collapsed") && window.innerWidth > 768) {
+            sidebar.classList.add("dragging");
+            const currentW = sidebar.getBoundingClientRect().width;
+            const newW = Math.min(520, Math.max(160, currentW + deltaX));
+            sidebar.style.width = newW + "px";
+            localStorage.setItem("kini_sidebar_width", newW);
+            if (ideCodeMirror) ideCodeMirror.refresh();
+        }
+    });
 
     // Modal Triggers
     document.getElementById("btn-open-memory-modal")?.addEventListener("click", () => {
@@ -747,6 +801,11 @@ async function handleSpeakText(text, btnElement) {
 function initKeyboardShortcuts() {
     document.addEventListener("keydown", (e) => {
         const isInInput = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT";
+        // Ctrl+B = Ẩn / Hiện Sidebar (chuẩn VS Code & Google Antigravity)
+        if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B") && !isInInput) {
+            e.preventDefault();
+            if (window.toggleSidebar) window.toggleSidebar();
+        }
         // Ctrl+N = Đoạn chat mới (chỉ khi không trong input)
         if ((e.ctrlKey || e.metaKey) && e.key === "n" && !e.shiftKey && !isInInput) {
             e.preventDefault();
@@ -2362,6 +2421,7 @@ function initSplitterDrag(resizerId, onDragX, onDragY) {
     }
     function onMouseUp() {
         handle.classList.remove("dragging");
+        document.getElementById("sidebar")?.classList.remove("dragging");
         document.body.style.cursor = "default";
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);

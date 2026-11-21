@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261121_0710">
+    <link rel="stylesheet" href="/static/style.css?v=20261121_0750">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -45,7 +45,7 @@
                         <span class="brand-badge">PRO 4.0</span>
                     </div>
                 </div>
-                <button class="btn-icon" id="btn-close-sidebar" title="Đóng menu">✕</button>
+                <button class="btn-icon" id="btn-close-sidebar" title="Thu gọn / Ẩn Sidebar (Ctrl+B)">◀</button>
             </div>
 
             <div class="sidebar-actions">
@@ -79,6 +79,9 @@
             </div>
         </aside>
 
+        <!-- Thanh kéo giãn Sidebar (Horizontal Resizer chuẩn Antigravity) -->
+        <div class="ide-splitter-handle horizontal" id="resizer-sidebar" title="Kéo để chỉnh độ rộng Lịch sử"></div>
+
         <!-- Lớp phủ khi mở Sidebar trên Mobile -->
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
@@ -87,7 +90,7 @@
             <!-- Top Navbar Chuẩn Gemini -->
             <header class="top-nav">
                 <div class="nav-left">
-                    <button class="btn-icon" id="btn-toggle-sidebar" title="Mở danh sách chat">
+                    <button class="btn-icon" id="btn-toggle-sidebar" title="Hiện / Ẩn Sidebar (Ctrl+B)">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
                     <span class="app-title">KINI AI</span>
@@ -531,6 +534,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20261121_0710"></script>
+    <script src="/static/app.js?v=20261121_0750"></script>
 </body>
 </html>
