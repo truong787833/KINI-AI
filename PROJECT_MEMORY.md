@@ -257,3 +257,26 @@
   3. Tích hợp Cloudflare Tunnel chính hãng (cloudflared.exe) tạo đường link trực tuyến bảo mật HTTPS toàn cầu.
   4. Đường link trực tuyến đang hoạt động trực tiếp: https://nirvana-reunion-defend-reference.trycloudflare.com.
   5. Tạo file Mo_Link_Public_Online.bat để anh Trường bật/tắt link trực tuyến bất cứ lúc nào chỉ với 1 click.
+
+### Mốc Nâng Cấp: Thiết Kế Lại Giao Diện Chuẩn Google Gemini Mobile & Khắc Phục Triệt Để Kết Nối API Key
+- **Yêu cầu của anh Trường**:
+  1. Giao diện trên điện thoại không giống màn hình máy tính, phải dễ nhìn, dễ sử dụng tương tự như ứng dụng Google Gemini (tham chiếu ảnh mẫu).
+  2. Khắc phục lỗi chưa kết nối API dù đã dán mã key (lỗi "Unexpected token 'I', 'Internal S'... is not valid JSON").
+- **Triển khai kỹ thuật**:
+  1. **Khắc phục lỗi lưu API Key (HTTP 500 / SQLite UNIQUE constraint)**:
+     - Chuyển đổi bảng `settings` trong `kini_ai.db` sang khóa chính hỗn hợp `PRIMARY KEY (key, client_id)`.
+     - Kích hoạt chế độ SQLite WAL (`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 60000;`) và timeout kết nối 60.0s chống xung đột lock file.
+     - Cập nhật `database.set_setting` và `database.add_message` truyền chính xác `client_id` theo từng thiết bị kết nối.
+     - Phân vùng ký ức và persona độc lập: Master dùng persona đặc biệt của anh Hải Trường; khách vãng lai dùng persona chuẩn và chỉ thấy ký ức do họ tự dạy.
+  2. **Tái thiết kế toàn diện giao diện Mobile chuẩn Google Gemini (<= 768px)**:
+     - **Top Nav Mobile**: Ẩn các thanh breadcrumbs, tabs IDE cồng kềnh. Hiển thị thanh header 56px tinh gọn: bên trái nút `☰` (menu drawer), ở giữa là pill chọn model nổi bật `KINI Flash 3.1 ▾` (chạm để đổi nhanh mô hình), bên phải gồm nút tạo đoạn chat mới `+` và nút `⚙️` mở bảng Cài Đặt.
+     - **Hero Section**: Bổ sung biểu tượng ngôi sao 4 cánh phát sáng đa sắc (Google Gemini Sparkle Gradient) chuyển động nhẹ nhàng, tiêu đề "Tôi có thể giúp gì cho bạn?" kèm hoa văn cách điệu `꧁ KINI AI ꧂`.
+     - **Action Chips**: Thanh cuộn ngang các gợi ý thao tác nhanh dạng viên thuốc bo tròn ngay phía trên ô chat (`[💬 Cuộc trò chuyện] [🎮 Chơi Game] [🎨 Vẽ tranh 3D] [📋 Kế hoạch] [🤖 Agent Lập trình]`).
+     - **Bottom Prompt Capsule Bar**: Thanh nhập lệnh dạng viên thuốc bo tròn nổi khối (`border-radius: 32px`, nền sẫm `#181a26`, viền phản quang mờ), tích hợp nút đính kèm `+`, ô textarea tự dãn dòng, micro thu âm tiếng Việt `🎙️` và nút gửi tròn xanh đậm chất công nghệ `➤`.
+     - **Tối ưu trải nghiệm Modal**: Căn chỉnh chiều rộng 94%, kích thước chữ input 16px chống tự động zoom trên iOS Safari, giao diện nhập API key mượt mà.
+  3. **Kiểm thử nghiệm thu**:
+     - Kiểm tra cú pháp Javascript `node -c static/app.js` đạt 100%.
+     - Kiểm tra toàn bộ DOM element mobile hiển thị chính xác.
+     - Kiểm thử gửi tin nhắn chat từ thiết bị mobile qua API: phản hồi thành công 100%, không còn lỗi 500 JSON.
+     - Đường link Cloudflare Tunnel https://nirvana-reunion-defend-reference.trycloudflare.com phản hồi HTTP 200 OK toàn cầu.
+     - Dữ liệu 189 tin nhắn gốc và 7 cuộc trò chuyện của anh Trường trên máy tính được bảo toàn nguyên vẹn 100%.

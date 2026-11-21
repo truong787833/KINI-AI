@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261121_1100">
+    <link rel="stylesheet" href="/static/style.css?v=20261121_1250">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -101,6 +101,14 @@
                     </div>
                 </div>
 
+                <!-- Vùng chọn model trên Mobile (Hiển thị giữa top nav như Google Gemini) -->
+                <div class="nav-center-mobile" id="nav-center-mobile">
+                    <button class="mobile-model-pill" id="btn-mobile-model-pill" title="Đổi mô hình AI">
+                        <span class="model-name" id="mobile-model-label">KINI Flash 3.1</span>
+                        <span class="model-arrow">▾</span>
+                    </button>
+                </div>
+
                 <div class="nav-right">
                     <button class="btn-restart-update" id="btn-restart-update" style="display: none;" title="Có bản cập nhật mới! Bấm để nâng cấp ngay">
                         Restart to Update →
@@ -115,7 +123,10 @@
                     </div>
                     <button class="btn-nav-action" id="btn-top-new-chat" title="Bắt đầu hội thoại mới">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        <span>Đoạn chat mới</span>
+                        <span class="btn-text">Đoạn chat mới</span>
+                    </button>
+                    <button class="btn-icon mobile-settings-btn" id="btn-top-settings" title="Cài Đặt & API Key">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     </button>
                     <div class="user-pill" id="btn-user-profile" title="Tài khoản">
                         <span class="status-dot"></span>
@@ -258,8 +269,22 @@
                     <!-- Hero Section Chuẩn Gemini (Hiển thị ở màn hình khởi đầu) -->
                     <div class="hero-section" id="hero-section">
                         <div class="hero-content">
-                            <h1 class="hero-title">Chúng ta nên bắt đầu từ đâu nhỉ?</h1>
-                            <p class="hero-subtitle">Em đã sẵn sàng hỗ trợ anh Hải Trường: Viết báo cáo, phân tích tài liệu, vẽ tranh nghệ thuật & tư duy chiến lược.</p>
+                            <div class="gemini-sparkle-hero">
+                                <svg width="58" height="58" viewBox="0 0 48 48" fill="none">
+                                    <path d="M24 0C24 13.2548 13.2548 24 0 24C13.2548 24 24 34.7452 24 48C24 34.7452 34.7452 24 48 24C34.7452 24 24 13.2548 24 0Z" fill="url(#sparkleGradient)"/>
+                                    <defs>
+                                        <linearGradient id="sparkleGradient" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#ff7a00"/>
+                                            <stop offset="30%" stop-color="#ff017d"/>
+                                            <stop offset="65%" stop-color="#7000ff"/>
+                                            <stop offset="100%" stop-color="#00e5ff"/>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                            </div>
+                            <h1 class="hero-title" id="hero-title">Tôi có thể giúp gì cho bạn?</h1>
+                            <div class="hero-flourish">꧁ KINI AI ꧂</div>
+                            <p class="hero-subtitle" id="hero-subtitle">Sẵn sàng hỗ trợ: Trò chuyện, lập trình, giải toán, viết báo cáo & vẽ tranh nghệ thuật.</p>
                         </div>
                     </div>
 
@@ -434,20 +459,17 @@
                     <button class="quick-pill" data-action="chat">
                         <span>💬</span> Cuộc trò chuyện
                     </button>
-                    <button class="quick-pill" data-action="plan">
-                        <span>📋</span> Kế hoạch (/plan)
-                    </button>
-                    <button class="quick-pill" data-action="agent">
-                        <span>🤖</span> Agent Tự Hành
+                    <button class="quick-pill" data-action="game">
+                        <span>🎮</span> Chơi Game
                     </button>
                     <button class="quick-pill" data-action="draw">
                         <span>🎨</span> Vẽ tranh & Logo 3D
                     </button>
-                    <button class="quick-pill" data-action="document">
-                        <span>📂</span> Đọc hiểu & Sửa tài liệu
+                    <button class="quick-pill" data-action="plan">
+                        <span>📋</span> Kế hoạch (/plan)
                     </button>
-                    <button class="quick-pill" data-action="memory">
-                        <span>🧠</span> Bộ nhớ KINI
+                    <button class="quick-pill" data-action="agent">
+                        <span>🤖</span> Agent Lập trình
                     </button>
                 </div>
             </div>
@@ -644,6 +666,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20261121_1100"></script>
+    <script src="/static/app.js?v=20261121_1250"></script>
 </body>
 </html>

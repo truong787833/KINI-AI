@@ -73,8 +73,9 @@ def create_new_conversation(data: dict, request: Request):
     return {"id": conv_id, "title": title}
 
 @app.get("/api/conversations/{conv_id}/messages")
-def get_messages(conv_id: str):
-    messages = database.get_conversation_messages(conv_id)
+def get_messages(conv_id: str, request: Request):
+    cid = get_request_client_id(request)
+    messages = database.get_conversation_messages(conv_id, client_id=cid)
     return {"messages": messages}
 
 @app.delete("/api/conversations/{conv_id}")
@@ -212,7 +213,10 @@ async def chat_with_kini(
     files: Optional[List[UploadFile]] = File(None)
 ):
     cid = get_request_client_id(request)
-    api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id=cid)
+    if cid == "master":
+        api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+    else:
+        api_key = database.get_setting("gemini_api_key", "", client_id=cid)
     
     file_display_url = ""
     file_display_name = ""
@@ -272,7 +276,7 @@ async def chat_with_kini(
         raise HTTPException(status_code=400, detail="Vui lòng nhập câu hỏi hoặc gửi tệp.")
 
     # Lưu tin nhắn người dùng vào cơ sở dữ liệu
-    database.add_message(conv_id, "user", full_user_content, image_url=file_display_url)
+    database.add_message(conv_id, "user", full_user_content, image_url=file_display_url, client_id=cid)
 
     # Tự động cập nhật tiêu đề thông minh cho cuộc trò chuyện mới
     try:
@@ -396,7 +400,8 @@ async def chat_with_kini(
         api_key=api_key,
         image_base64=image_base64,
         image_mime=image_mime,
-        model_mode=model_mode
+        model_mode=model_mode,
+        client_id=cid
     )
 
     assistant_reply = res.get("reply", "Xin lỗi, đã xảy ra lỗi trong quá trình xử lý.")
@@ -421,7 +426,7 @@ async def chat_with_kini(
                 f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', tool_prompt)}`\n\n"
                 f"Anh có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu em chỉnh sửa thêm chi tiết nhé!"
             )
-            database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url)
+            database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url, client_id=cid)
             return {
                 "success": True,
                 "reply": assistant_reply,
@@ -435,7 +440,7 @@ async def chat_with_kini(
                 f"💡 *Mô tả ý tưởng:* \"{tool_prompt}\"\n\n"
                 f"Anh vui lòng bấm nút gửi lại hoặc mở mục **KINI Studio (Tạo Ảnh)** để thử ngay nhé!"
             )
-            database.add_message(conv_id, "assistant", assistant_reply)
+            database.add_message(conv_id, "assistant", assistant_reply, client_id=cid)
             return {
                 "success": True,
                 "reply": assistant_reply,
@@ -443,12 +448,12 @@ async def chat_with_kini(
                 "is_image_generated": False
             }
 
-    database.add_message(conv_id, "assistant", assistant_reply)
+    database.add_message(conv_id, "assistant", assistant_reply, client_id=cid)
 
-    # Tự động trích xuất ký ức ngầm trong background để KINI luôn ghi nhớ về anh Trường
+    # Tự động trích xuất ký ức ngầm trong background để KINI luôn ghi nhớ về anh Trường (nếu là master) hoặc người dùng
     threading.Thread(
         target=gemini_client.extract_and_save_memory_async, 
-        args=(message, api_key), 
+        args=(message, api_key, cid), 
         daemon=True
     ).start()
 
@@ -841,10 +846,11 @@ def get_quota_usage():
 def read_settings(request: Request):
     cid = get_request_client_id(request)
     api_k = database.get_setting("gemini_api_key", "", client_id=cid)
+    default_prompt = gemini_client.DEFAULT_SYSTEM_PROMPT if cid == "master" else gemini_client.VISITOR_DEFAULT_PROMPT
     return {
         "gemini_api_key": api_k,
         "has_api_key": bool(api_k or (cid == "master" and os.environ.get("GEMINI_API_KEY", ""))),
-        "custom_persona": database.get_setting("custom_persona", gemini_client.DEFAULT_SYSTEM_PROMPT, client_id=cid),
+        "custom_persona": database.get_setting("custom_persona", default_prompt, client_id=cid),
         "client_id": cid,
         "is_master": cid == "master"
     }

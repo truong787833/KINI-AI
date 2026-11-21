@@ -7,8 +7,11 @@ from typing import List, Dict, Any, Optional
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "kini_ai.db")
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=60.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA busy_timeout = 60000;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
     return conn
 
 def init_db():
@@ -55,8 +58,10 @@ def init_db():
     # Bảng cài đặt ứng dụng
     cur.execute("""
     CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        client_id TEXT NOT NULL DEFAULT 'master',
+        PRIMARY KEY (key, client_id)
     )
     """)
 
@@ -72,12 +77,23 @@ def init_db():
     )
     """)
 
+    cur.execute("PRAGMA table_info(conversations)")
+    existing_conv_cols = [row[1] for row in cur.fetchall()]
+    if "is_pinned" not in existing_conv_cols:
+        cur.execute("ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0")
+    if "category" not in existing_conv_cols:
+        cur.execute("ALTER TABLE conversations ADD COLUMN category TEXT DEFAULT 'haitruong'")
+    if "client_id" not in existing_conv_cols:
+        cur.execute("ALTER TABLE conversations ADD COLUMN client_id TEXT DEFAULT 'master'")
+
     cur.execute("PRAGMA table_info(memories)")
     existing_mem_cols = [row[1] for row in cur.fetchall()]
     if "key" not in existing_mem_cols:
         cur.execute("ALTER TABLE memories ADD COLUMN key TEXT DEFAULT ''")
     if "value" not in existing_mem_cols:
         cur.execute("ALTER TABLE memories ADD COLUMN value TEXT DEFAULT ''")
+    if "client_id" not in existing_mem_cols:
+        cur.execute("ALTER TABLE memories ADD COLUMN client_id TEXT DEFAULT 'master'")
 
     # Bảng giám sát Quota & Token chi tiết theo thời gian thực (Chuẩn Antigravity)
     cur.execute("""
@@ -123,10 +139,18 @@ def list_conversations(client_id: str = "master") -> List[Dict[str, Any]]:
     conn.close()
     return [dict(r) for r in rows]
 
-def get_conversation_messages(conv_id: str) -> List[Dict[str, Any]]:
+def get_conversation_messages(conv_id: str, client_id: str = "master") -> List[Dict[str, Any]]:
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM messages WHERE conv_id = ? ORDER BY id ASC", (conv_id,))
+    if client_id == "master":
+        cur.execute("SELECT * FROM messages WHERE conv_id = ? ORDER BY id ASC", (conv_id,))
+    else:
+        cur.execute("""
+            SELECT m.* FROM messages m 
+            JOIN conversations c ON m.conv_id = c.id 
+            WHERE m.conv_id = ? AND c.client_id = ?
+            ORDER BY m.id ASC
+        """, (conv_id, client_id))
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -163,7 +187,7 @@ def toggle_conversation_pin(conv_id: str) -> bool:
     conn.close()
     return bool(new_pinned)
 
-def add_message(conv_id: str, role: str, content: str, image_url: str = "") -> int:
+def add_message(conv_id: str, role: str, content: str, image_url: str = "", client_id: str = "master") -> int:
     now = datetime.now().isoformat()
     conn = get_connection()
     cur = conn.cursor()
@@ -177,8 +201,8 @@ def add_message(conv_id: str, role: str, content: str, image_url: str = "") -> i
         clean_title = first_line[:40] if role == "user" else "Đoạn chat mới"
         if not clean_title or len(clean_title) < 2:
             clean_title = "Đoạn chat mới"
-        cur.execute("INSERT INTO conversations (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-                    (conv_id, clean_title, now, now))
+        cur.execute("INSERT INTO conversations (id, title, created_at, updated_at, client_id) VALUES (?, ?, ?, ?, ?)",
+                    (conv_id, clean_title, now, now, client_id))
     else:
         # Nếu tiêu đề vẫn là mặc định mà người dùng gửi tin nhắn đầu tiên, cập nhật tiêu đề thông minh
         if role == "user" and conv["title"] in ["Đoạn chat mới", "Cuộc trò chuyện mới"]:
@@ -237,8 +261,7 @@ def get_setting(key: str, default: str = "", client_id: str = "master") -> str:
 def set_setting(key: str, value: str, client_id: str = "master"):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM settings WHERE key = ? AND client_id = ?", (key, client_id))
-    cur.execute("INSERT INTO settings (key, value, client_id) VALUES (?, ?, ?)", (key, value, client_id))
+    cur.execute("INSERT OR REPLACE INTO settings (key, value, client_id) VALUES (?, ?, ?)", (key, value, client_id))
     conn.commit()
     conn.close()
 

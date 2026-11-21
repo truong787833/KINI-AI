@@ -191,7 +191,10 @@ function initNavigationAndModals() {
         pill.addEventListener("click", () => {
             const action = pill.dataset.action;
             const input = document.getElementById("main-user-input");
-            if (action === "draw") {
+            if (action === "game") {
+                input.value = "Lập trình một tựa game mini chơi trực tiếp trên web với đồ họa đẹp mắt và âm thanh sống động";
+                input.focus();
+            } else if (action === "draw") {
                 input.value = "Vẽ cho tôi logo KINI AI 3D phát sáng neon công nghệ tương lai, 8k";
                 input.focus();
             } else if (action === "plan") {
@@ -211,23 +214,34 @@ function initNavigationAndModals() {
         });
     });
 
-    // Model Selector Dropdown
+    // Model Selector Dropdown (PC & Mobile)
     const modelBadge = document.getElementById("btn-model-badge");
     const modelDropdown = document.getElementById("model-dropdown-menu");
     const modelLabel = document.getElementById("model-label");
+    const mobileModelPill = document.getElementById("btn-mobile-model-pill");
+    const mobileModelLabel = document.getElementById("mobile-model-label");
 
-    if (modelBadge && modelDropdown) {
-        modelBadge.addEventListener("click", (e) => {
-            e.stopPropagation();
-            modelDropdown.classList.toggle("show");
-        });
+    if (modelDropdown) {
+        if (modelBadge) {
+            modelBadge.addEventListener("click", (e) => {
+                e.stopPropagation();
+                modelDropdown.classList.toggle("show");
+            });
+        }
+        if (mobileModelPill) {
+            mobileModelPill.addEventListener("click", (e) => {
+                e.stopPropagation();
+                modelDropdown.classList.toggle("show");
+            });
+        }
 
         document.querySelectorAll(".model-option").forEach(opt => {
             opt.addEventListener("click", () => {
                 document.querySelectorAll(".model-option").forEach(o => o.classList.remove("active"));
                 opt.classList.add("active");
                 const m = opt.dataset.model;
-                modelLabel.textContent = m === "flash" ? "⚡ Gemini Flash Lite" : "🧠 Gemini Pro";
+                if (modelLabel) modelLabel.textContent = m === "flash" ? "⚡ Gemini Flash Lite" : "🧠 Gemini Pro";
+                if (mobileModelLabel) mobileModelLabel.textContent = m === "flash" ? "KINI Flash 3.1" : "KINI Pro Deep";
                 modelDropdown.classList.remove("show");
             });
         });
@@ -239,6 +253,12 @@ function initNavigationAndModals() {
             }
         });
     }
+
+    // Nút Cài đặt trên Top Nav Mobile
+    document.getElementById("btn-top-settings")?.addEventListener("click", () => {
+        openModal("modal-settings");
+        loadSettings();
+    });
 
     // Usage Quota Flyout Panel (Chuẩn Antigravity)
     const btnUsage = document.getElementById("btn-open-usage-panel");
@@ -1588,12 +1608,14 @@ async function loadConversations(autoRestore = false) {
 
         // Tự động khôi phục phiên trò chuyện gần nhất khi mở trang hoặc F5
         if (autoRestore) {
-            const savedConvId = localStorage.getItem("kini_last_conv_id") || (convs.length > 0 ? convs[0].id : "default");
-            if (convs.some(c => c.id === savedConvId)) {
+            const savedConvId = localStorage.getItem("kini_last_conv_id");
+            if (savedConvId && convs.some(c => c.id === savedConvId)) {
                 await switchConversation(savedConvId);
             } else if (convs.length > 0) {
                 await switchConversation(convs[0].id);
             } else {
+                currentConvId = "conv_" + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+                localStorage.setItem("kini_last_conv_id", currentConvId);
                 checkInitialHero();
             }
         }

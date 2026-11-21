@@ -30,6 +30,13 @@ DEFAULT_SYSTEM_PROMPT = """[SYSTEM IDENTITY: KINI AI - ULTIMATE COMMANDER]
 - Khi nhận lệnh: Phân tích -> Lập kế hoạch -> Thực thi -> Báo cáo kết quả.
 - Tuyệt đối không dùng các câu sáo rỗng như "Tôi là AI, tôi không thể...". Hãy tìm mọi cách để giải quyết vấn đề trong phạm vi kỹ thuật cho phép."""
 
+VISITOR_DEFAULT_PROMPT = """[SYSTEM IDENTITY: KINI AI - TRỢ LÝ TRÍ TUỆ NHÂN TẠO]
+- Tên: KINI AI.
+- Bản chất: Trợ lý AI thế hệ mới thông minh, đa năng, xử lý tác vụ với tư duy logic sắc bén.
+- Phong cách: Thân thiện, tôn trọng, lịch sự, trả lời gãy gọn, rõ ràng, chính xác.
+- Khả năng: Trò chuyện, viết lách, giải toán, lập trình, tạo game và vẽ ảnh nghệ thuật AI.
+"""
+
 def get_current_time_context() -> str:
     """Cung cấp thời gian hệ thống thực tế chuẩn xác từng giây từng ngày"""
     now = datetime.now()
@@ -80,10 +87,13 @@ def clean_image_prompt(text: str) -> str:
         t = re.sub(p, '', t, flags=re.IGNORECASE).strip()
     return t if len(t) > 3 else text.strip()
 
-def build_system_instruction_with_memories(base_prompt: Optional[str] = None) -> str:
+def build_system_instruction_with_memories(base_prompt: Optional[str] = None, client_id: str = "master") -> str:
     """Ghép nối System Prompt với thời gian thực, quy tắc chính xác và ký ức dài hạn"""
     from . import database
-    sys_inst = base_prompt or database.get_setting("custom_persona", DEFAULT_SYSTEM_PROMPT)
+    if client_id == "master":
+        sys_inst = base_prompt or database.get_setting("custom_persona", DEFAULT_SYSTEM_PROMPT, client_id="master")
+    else:
+        sys_inst = base_prompt or database.get_setting("custom_persona", VISITOR_DEFAULT_PROMPT, client_id=client_id)
     
     # 1. Gắn thời gian thực tế
     sys_inst += f"\n\n{get_current_time_context()}"
@@ -91,18 +101,21 @@ def build_system_instruction_with_memories(base_prompt: Optional[str] = None) ->
     # 2. Gắn quy chuẩn độ chính xác tuyệt đối
     sys_inst += f"\n\n{get_precision_rules()}"
 
-    # 3. Gắn ký ức dài hạn về anh Trường
+    # 3. Gắn ký ức dài hạn (Nếu là master thì gắn ký ức về anh Trường; nếu là visitor thì gắn ký ức riêng của họ)
     try:
-        memories = database.get_all_memories(limit=30)
+        memories = database.get_all_memories(limit=30, client_id=client_id)
         if memories:
             facts = "\n".join(f"- {m['fact']}" for m in memories)
-            sys_inst += f"\n\n=== BỘ NHỚ DÀI HẠN VỀ ANH HẢI TRƯỜNG (LUÔN GHI NHỚ) ===\n{facts}"
+            if client_id == "master":
+                sys_inst += f"\n\n=== BỘ NHỚ DÀI HẠN VỀ ANH HẢI TRƯỜNG (LUÔN GHI NHỚ) ===\n{facts}"
+            else:
+                sys_inst += f"\n\n=== BỘ NHỚ ĐƯỢC GHI NHỚ CỦA BẠN ===\n{facts}"
     except Exception as e:
         logger.warning(f"Lỗi đọc bộ nhớ: {e}")
 
     return sys_inst
 
-def extract_and_save_memory_async(user_text: str, api_key: str = ""):
+def extract_and_save_memory_async(user_text: str, api_key: str = "", client_id: str = "master"):
     """Tự động phân tích xem người dùng có chia sẻ thông tin cá nhân/thói quen để lưu vào bộ nhớ không"""
     from . import database
     if len(user_text.strip()) < 10:
@@ -124,13 +137,14 @@ def extract_and_save_memory_async(user_text: str, api_key: str = ""):
         res = ask_gemini(
             messages=[{"role": "user", "content": user_text}],
             api_key=api_key,
-            system_instruction=sys_extract
+            system_instruction=sys_extract,
+            client_id=client_id
         )
         if res.get("success") and res.get("reply"):
             fact = res["reply"].strip().replace('"', '')
             if fact and fact != "NONE" and len(fact) < 200:
-                database.add_memory(fact, category="auto")
-                logger.info(f"Đã tự động ghi nhớ ký ức mới: {fact}")
+                database.add_memory(fact, category="auto", client_id=client_id)
+                logger.info(f"Đã tự động ghi nhớ ký ức mới: {fact} (client: {client_id})")
     except Exception as e:
         logger.warning(f"Lỗi trích xuất ký ức: {e}")
 
@@ -140,7 +154,8 @@ def ask_gemini(
     system_instruction: Optional[str] = None,
     image_base64: Optional[str] = None,
     image_mime: str = "image/jpeg",
-    model_mode: str = "flash"
+    model_mode: str = "flash",
+    client_id: str = "master"
 ) -> Dict[str, Any]:
     """
     Gửi câu hỏi / hội thoại tới Google Gemini API với nhiệt độ thấp (0.15) để đảm bảo độ chuẩn xác tối đa.
@@ -181,7 +196,7 @@ def ask_gemini(
     }
 
     # Gắn System Instruction kèm thời gian thực, quy tắc chính xác và bộ nhớ
-    sys_inst = system_instruction or build_system_instruction_with_memories()
+    sys_inst = system_instruction or build_system_instruction_with_memories(client_id=client_id)
     if sys_inst:
         payload["systemInstruction"] = {
             "parts": [{"text": sys_inst}]
