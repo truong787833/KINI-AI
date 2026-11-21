@@ -191,3 +191,9 @@
 - [x] **Chặn Triệt Để Rò Rỉ Mã Máy JSON Tool Call**: Bắt và render ảnh trực tiếp, không bao giờ xuất hiện chuỗi máy móc trong giao diện.
 - [x] **Cài Đặt & API Key**: Lưu trữ an toàn trong SQLite cục bộ.
 - [x] **Web App PWA & Mobile First**: Cài đặt vào màn hình điện thoại như App thực thụ.
+
+
+### Mốc Nâng Cấp: Loại Bỏ Vệt Trắng, Tinh Chỉnh Thanh Kéo Chuẩn Antigravity
+- Khắc phục các thanh kéo màu trắng thô cứng bằng bộ CSS custom scrollbar siêu mỏng 6px, trong suốt, tiệp 100% màu nền.
+- Bổ sung color-scheme: dark trên toàn trang.
+- Tinh chỉnh các thanh kéo giãn splitter tiệp màu nền tối và hover xanh Antigravity.
