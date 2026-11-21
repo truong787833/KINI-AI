@@ -64,11 +64,20 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS memories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT DEFAULT '',
+        value TEXT DEFAULT '',
         fact TEXT NOT NULL,
         category TEXT DEFAULT 'general',
         created_at TEXT NOT NULL
     )
     """)
+
+    cur.execute("PRAGMA table_info(memories)")
+    existing_mem_cols = [row[1] for row in cur.fetchall()]
+    if "key" not in existing_mem_cols:
+        cur.execute("ALTER TABLE memories ADD COLUMN key TEXT DEFAULT ''")
+    if "value" not in existing_mem_cols:
+        cur.execute("ALTER TABLE memories ADD COLUMN value TEXT DEFAULT ''")
 
     # Bảng giám sát Quota & Token chi tiết theo thời gian thực (Chuẩn Antigravity)
     cur.execute("""
@@ -232,26 +241,81 @@ def set_setting(key: str, value: str):
     conn.close()
 
 # --- QUẢN LÝ SIÊU BỘ NHỚ DÀI HẠN (LONG-TERM MEMORY) ---
-def add_memory(fact: str, category: str = "general") -> int:
+def add_memory(fact: str = "", category: str = "general", key: str = "", value: str = "") -> int:
     clean_fact = fact.strip()
+    clean_key = key.strip()
+    clean_value = value.strip()
+    clean_cat = category.strip() if category else "general"
+
     if not clean_fact:
+        if clean_key and clean_value:
+            clean_fact = f"{clean_key}: {clean_value}"
+        elif clean_value:
+            clean_fact = clean_value
+        elif clean_key:
+            clean_fact = clean_key
+
+    if not clean_key and not clean_value and clean_fact:
+        if ":" in clean_fact:
+            parts = clean_fact.split(":", 1)
+            clean_key = parts[0].strip()
+            clean_value = parts[1].strip()
+        else:
+            clean_key = clean_fact[:30]
+            clean_value = clean_fact
+
+    if not clean_fact and not clean_value:
         return 0
+
     now = datetime.now().isoformat()
     conn = get_connection()
     cur = conn.cursor()
     # Kiểm tra trùng lặp
-    cur.execute("SELECT id FROM memories WHERE fact = ?", (clean_fact,))
+    cur.execute("SELECT id FROM memories WHERE fact = ? OR (key != '' AND key = ? AND value = ?)", (clean_fact, clean_key, clean_value))
     existing = cur.fetchone()
     if existing:
         conn.close()
         return existing["id"]
         
-    cur.execute("INSERT INTO memories (fact, category, created_at) VALUES (?, ?, ?)",
-                (clean_fact, category, now))
+    cur.execute("INSERT INTO memories (key, value, fact, category, created_at) VALUES (?, ?, ?, ?, ?)",
+                (clean_key, clean_value, clean_fact, clean_cat, now))
     mem_id = cur.lastrowid
     conn.commit()
     conn.close()
     return mem_id
+
+def update_memory(memory_id: int, key: str = "", value: str = "", category: str = "", fact: str = "") -> bool:
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM memories WHERE id = ?", (memory_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return False
+    
+    r_dict = dict(row)
+    new_key = key.strip() if key != "" else r_dict.get("key", "")
+    new_value = value.strip() if value != "" else r_dict.get("value", "")
+    new_cat = category.strip() if category != "" else (r_dict.get("category") or "general")
+    
+    if fact:
+        new_fact = fact.strip()
+    else:
+        if new_key and new_value:
+            new_fact = f"{new_key}: {new_value}"
+        elif new_value:
+            new_fact = new_value
+        else:
+            new_fact = r_dict.get("fact", "")
+
+    cur.execute("""
+    UPDATE memories
+    SET key = ?, value = ?, fact = ?, category = ?
+    WHERE id = ?
+    """, (new_key, new_value, new_fact, new_cat, memory_id))
+    conn.commit()
+    conn.close()
+    return True
 
 def get_all_memories(limit: int = 100) -> List[Dict[str, Any]]:
     conn = get_connection()
@@ -259,7 +323,25 @@ def get_all_memories(limit: int = 100) -> List[Dict[str, Any]]:
     cur.execute("SELECT * FROM memories ORDER BY id DESC LIMIT ?", (limit,))
     rows = cur.fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    results = []
+    for r in rows:
+        item = dict(r)
+        f = item.get("fact", "")
+        k = item.get("key", "") or ""
+        v = item.get("value", "") or ""
+        if not k and not v and f:
+            if ":" in f:
+                parts = f.split(":", 1)
+                k = parts[0].strip()
+                v = parts[1].strip()
+            else:
+                k = f[:30]
+                v = f
+        item["key"] = k
+        item["value"] = v
+        item["fact"] = f or (f"{k}: {v}" if k and v else v or k)
+        results.append(item)
+    return results
 
 def delete_memory(memory_id: int):
     conn = get_connection()

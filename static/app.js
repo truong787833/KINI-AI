@@ -29,9 +29,11 @@ function initApp() {
     try { setupMarkdown(); } catch(e) { console.error("setupMarkdown:", e); }
     try { initNavigationAndModals(); } catch(e) { console.error("initNavigationAndModals:", e); }
     try { initChatCore(); } catch(e) { console.error("initChatCore:", e); }
+    try { initSlashCommands(); } catch(e) { console.error("initSlashCommands:", e); }
     try { initClipboardAndDragDrop(); } catch(e) { console.error("initClipboardAndDragDrop:", e); }
     try { initSpeechToText(); } catch(e) { console.error("initSpeechToText:", e); }
     try { initMemories(); } catch(e) { console.error("initMemories:", e); }
+    try { updateMemoryCountBadge(); } catch(e) { console.error("updateMemoryCountBadge:", e); }
     try { initSettings(); } catch(e) { console.error("initSettings:", e); }
     try { initKeyboardShortcuts(); } catch(e) { console.error("initKeyboardShortcuts:", e); }
     try { initAntigravityIDE(); } catch(e) { console.error("initAntigravityIDE:", e); }
@@ -473,12 +475,128 @@ function initChatCore() {
     // Nhấn Enter để gửi (Shift + Enter để xuống dòng)
     userInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
+            const menu = document.getElementById("slash-command-menu");
+            if (menu && menu.style.display !== "none") {
+                // Đang chọn slash command, không gửi message
+                return;
+            }
             e.preventDefault();
             sendMessage();
         }
     });
 
     sendBtn.addEventListener("click", sendMessage);
+}
+
+// ============================================================
+// 2.1. SLASH COMMAND POPUP MENU (/)
+// ============================================================
+function initSlashCommands() {
+    const userInput = document.getElementById("main-user-input");
+    const menu = document.getElementById("slash-command-menu");
+    if (!userInput || !menu) return;
+
+    const items = menu.querySelectorAll(".slash-item");
+
+    function getVisibleItems() {
+        return Array.from(items).filter(it => it.style.display !== "none");
+    }
+
+    function setActiveItem(idx) {
+        const visible = getVisibleItems();
+        if (visible.length === 0) return;
+        items.forEach(it => it.classList.remove("active"));
+        const safeIdx = (idx + visible.length) % visible.length;
+        visible[safeIdx].classList.add("active");
+    }
+
+    function selectCommand(cmd) {
+        menu.style.display = "none";
+        if (cmd === "/brain") {
+            userInput.value = "";
+            userInput.style.height = "auto";
+            openModal("modal-memory");
+            loadMemories();
+        } else {
+            userInput.value = cmd + " ";
+            userInput.focus();
+            userInput.style.height = "auto";
+            userInput.style.height = Math.min(userInput.scrollHeight, 150) + "px";
+        }
+    }
+
+    userInput.addEventListener("input", () => {
+        const val = userInput.value;
+        if (val.startsWith("/")) {
+            menu.style.display = "block";
+            const query = val.toLowerCase().trim();
+            let hasMatch = false;
+            items.forEach(it => {
+                const cmd = it.getAttribute("data-cmd") || "";
+                const desc = (it.getAttribute("data-desc") || "").toLowerCase();
+                if (cmd.startsWith(query) || query === "/" || desc.includes(query.replace("/", ""))) {
+                    it.style.display = "flex";
+                    hasMatch = true;
+                } else {
+                    it.style.display = "none";
+                }
+            });
+            if (hasMatch) {
+                const visible = getVisibleItems();
+                if (!visible.some(it => it.classList.contains("active"))) {
+                    setActiveItem(0);
+                }
+            } else {
+                menu.style.display = "none";
+            }
+        } else {
+            menu.style.display = "none";
+        }
+    });
+
+    userInput.addEventListener("keydown", (e) => {
+        if (menu.style.display !== "none") {
+            const visible = getVisibleItems();
+            const currentIdx = visible.findIndex(it => it.classList.contains("active"));
+
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveItem(currentIdx + 1);
+                return;
+            }
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveItem(currentIdx - 1);
+                return;
+            }
+            if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
+                if (currentIdx !== -1 && visible[currentIdx]) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const cmd = visible[currentIdx].getAttribute("data-cmd");
+                    selectCommand(cmd);
+                    return;
+                }
+            }
+            if (e.key === "Escape") {
+                menu.style.display = "none";
+                return;
+            }
+        }
+    });
+
+    items.forEach(it => {
+        it.addEventListener("click", () => {
+            const cmd = it.getAttribute("data-cmd");
+            selectCommand(cmd);
+        });
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!menu.contains(e.target) && e.target !== userInput) {
+            menu.style.display = "none";
+        }
+    });
 }
 
 function checkInitialHero() {
@@ -938,17 +1056,18 @@ async function exportExcelSheet(content) {
 async function loadMemories() {
     const list = document.getElementById("memory-list");
     if (!list) return;
-    list.innerHTML = "<p style='color:var(--text-muted);'>Đang tải danh sách ký ức...</p>";
+    list.innerHTML = "<p style='color:var(--text-muted); padding:10px;'>⏳ Đang tải danh sách ký ức...</p>";
 
     try {
         const res = await fetch("/api/memories");
         const data = await res.json();
         const memories = data.memories || [];
 
-        document.getElementById("memory-badge-count").textContent = memories.length;
+        const badge = document.getElementById("memory-badge-count");
+        if (badge) badge.textContent = memories.length;
 
         if (memories.length === 0) {
-            list.innerHTML = "<p style='color:var(--text-muted);'>Chưa có thông tin ghi nhớ nào. KINI sẽ tự động ghi nhớ thông tin khi bạn trò chuyện, hoặc bạn có thể tự thêm bên trên.</p>";
+            list.innerHTML = "<p style='color:var(--text-muted); padding:10px;'>Chưa có thông tin ghi nhớ nào. KINI sẽ tự động ghi nhớ thông tin khi bạn trò chuyện, hoặc bạn có thể tự thêm bên trên.</p>";
             return;
         }
 
@@ -956,15 +1075,46 @@ async function loadMemories() {
         memories.forEach(m => {
             const item = document.createElement("div");
             item.className = "memory-item";
+            const memText = m.value || m.fact || m.key || "";
+            const cat = m.category || "personal";
             item.innerHTML = `
-                <span>${escapeHtml(m.fact)}</span>
-                <button class="btn-delete-mem" data-id="${m.id}" title="Xóa ký ức này">✕</button>
+                <div class="memory-content-box">
+                    <span class="memory-key-tag">[${escapeHtml(cat)}]</span>
+                    <span class="memory-text">${escapeHtml(memText)}</span>
+                </div>
+                <div class="memory-actions">
+                    <button class="btn-edit-mem" title="Chỉnh sửa ký ức này">✏️ Sửa</button>
+                    <button class="btn-delete-mem" title="Xóa ký ức này">🗑️ Xóa</button>
+                </div>
             `;
+            item.querySelector(".btn-edit-mem").addEventListener("click", () => editMemory(m.id, memText, cat));
             item.querySelector(".btn-delete-mem").addEventListener("click", () => deleteMemory(m.id));
             list.appendChild(item);
         });
     } catch (e) {
-        list.innerHTML = "<p style='color:var(--danger);'>Không thể tải bộ nhớ.</p>";
+        list.innerHTML = "<p style='color:var(--danger); padding:10px;'>Không thể tải bộ nhớ: " + escapeHtml(e.message) + "</p>";
+    }
+}
+
+async function editMemory(id, oldText, category) {
+    const newText = prompt("✏️ Chỉnh sửa nội dung ký ức:", oldText);
+    if (!newText || newText.trim() === oldText) return;
+    try {
+        const res = await fetch(`/api/memories/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: newText.trim(), value: newText.trim(), fact: newText.trim(), category: category || "personal" })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast("✅ Đã cập nhật ký ức thành công!");
+            await loadMemories();
+            await updateMemoryCountBadge();
+        } else {
+            alert("Lỗi sửa ký ức: " + (data.detail || data.error || "Không thành công"));
+        }
+    } catch(e) {
+        alert("Lỗi kết nối: " + e.message);
     }
 }
 
@@ -980,16 +1130,23 @@ async function updateMemoryCountBadge() {
 function initMemories() {
     document.getElementById("btn-add-memory")?.addEventListener("click", async () => {
         const input = document.getElementById("input-new-memory");
-        const text = input.value.trim();
+        const text = input ? input.value.trim() : "";
         if (!text) return;
         try {
-            await fetch("/api/memories", {
+            const res = await fetch("/api/memories", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fact: text, category: "personal" })
+                body: JSON.stringify({ key: text, value: text, fact: text, category: "personal" })
             });
-            input.value = "";
-            loadMemories();
+            const data = await res.json();
+            if (data.success || data.id) {
+                input.value = "";
+                showToast("🧠 Đã thêm ký ức mới thành công!");
+                await loadMemories();
+                await updateMemoryCountBadge();
+            } else {
+                alert("Lỗi thêm ký ức: " + (data.detail || data.error));
+            }
         } catch (e) {
             alert("Lỗi thêm ký ức: " + e.message);
         }
@@ -999,7 +1156,9 @@ function initMemories() {
         if (!confirm("Anh có chắc chắn muốn xóa toàn bộ ký ức dài hạn của KINI không?")) return;
         try {
             await fetch("/api/memories", { method: "DELETE" });
-            loadMemories();
+            showToast("🗑️ Đã xóa toàn bộ ký ức!");
+            await loadMemories();
+            await updateMemoryCountBadge();
         } catch (e) {
             alert("Lỗi xóa ký ức: " + e.message);
         }
@@ -1007,9 +1166,15 @@ function initMemories() {
 }
 
 async function deleteMemory(id) {
+    if (!confirm("Anh có chắc muốn xóa ký ức này không?")) return;
     try {
-        await fetch(`/api/memories/${id}`, { method: "DELETE" });
-        loadMemories();
+        const res = await fetch(`/api/memories/${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.success) {
+            showToast("🗑️ Đã xóa ký ức!");
+            await loadMemories();
+            await updateMemoryCountBadge();
+        }
     } catch (e) {
         alert("Lỗi xóa: " + e.message);
     }
@@ -1553,6 +1718,52 @@ function escapeAttr(text) {
     return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+window.__KINI_ARTIFACTS = window.__KINI_ARTIFACTS || {};
+
+window.launchArtifactRunner = function(artifactIdOrBtn) {
+    let code = "";
+    let lang = "html";
+    if (typeof artifactIdOrBtn === "string" && window.__KINI_ARTIFACTS[artifactIdOrBtn]) {
+        code = window.__KINI_ARTIFACTS[artifactIdOrBtn].code;
+        lang = window.__KINI_ARTIFACTS[artifactIdOrBtn].lang || "html";
+    } else if (artifactIdOrBtn && artifactIdOrBtn.nodeType) {
+        const wrapper = artifactIdOrBtn.closest(".code-block-wrapper");
+        code = wrapper ? wrapper.querySelector("code")?.textContent || "" : "";
+        const label = wrapper ? wrapper.querySelector(".code-lang-label")?.textContent : "";
+        lang = label || "html";
+    }
+
+    if (!code) return;
+
+    switchViewMode("ide");
+    switchIdeEditorTab("preview");
+
+    const frame = document.getElementById("ide-preview-frame");
+    const previewTitle = document.getElementById("ide-preview-title");
+    const isJs = (lang && (lang.toLowerCase() === "js" || lang.toLowerCase() === "javascript")) || (!code.includes("<html") && !code.includes("<!DOCTYPE") && (code.includes("canvas") || code.includes("function") || code.includes("const ") || code.includes("let ")));
+
+    if (previewTitle) {
+        previewTitle.textContent = isJs ? "🎮 Game/Script Runner (Canvas JS)" : "🌐 Live Web App Artifact";
+    }
+
+    if (frame) {
+        if (isJs) {
+            frame.removeAttribute("src");
+            frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:12px;background:#0d1117;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:95vh;}canvas{background:#000;border:1px solid #334155;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:block;}</style></head><body><canvas id="canvas" width="600" height="400"></canvas><script>${code}<\/script></body></html>`;
+        } else {
+            frame.removeAttribute("src");
+            frame.srcdoc = code;
+        }
+    }
+    setIdeCode(code, isJs ? "javascript" : "htmlmixed");
+    const tabName = document.getElementById("ide-tab-name");
+    if (tabName) tabName.textContent = isJs ? "artifact_runner.js" : "artifact_runner.html";
+    const btnPrev = document.getElementById("ide-mode-preview");
+    if (btnPrev) btnPrev.style.display = "inline-block";
+    showToast("🎮 Đã nạp vào Live Web/Game Runner!");
+    appendTerminalLog("[RUNNER]: Khởi chạy Live Web/Game Runner từ tin nhắn chat.", "success");
+};
+
 function formatMarkdown(text) {
     if (!text) return "";
     
@@ -1578,10 +1789,20 @@ function formatMarkdown(text) {
                 }
                 const langLabel = lang ? `<span class="code-lang-label">${lang}</span>` : "";
                 const codeText = code;
+                const artifactId = "art_" + Math.random().toString(36).substring(2, 9);
+                window.__KINI_ARTIFACTS[artifactId] = { code, lang: lang || "html" };
+
+                const isRunnerCandidate = (lang && ['html', 'htm', 'xml', 'js', 'javascript', 'canvas'].includes(lang.toLowerCase())) ||
+                                          code.includes('<canvas') || code.includes('<!DOCTYPE') || code.includes('<html');
+                const runnerBtn = isRunnerCandidate ? `<button class="btn-run-artifact" onclick="launchArtifactRunner('${artifactId}')" title="Mở trực tiếp trên Web Preview & Game Runner">🎮 Mở Web/Game Runner</button>` : "";
+
                 return `<div class="code-block-wrapper">
                     <div class="code-block-header">
                         ${langLabel}
-                        <button class="btn-copy-code" onclick="copyCodeBlock(this, \`${escapeAttr(codeText)}\`)" title="Sao chép code">📋 Sao chép</button>
+                        <div style="display:flex;align-items:center;">
+                            ${runnerBtn}
+                            <button class="btn-copy-code" onclick="copyCodeBlock(this, \`${escapeAttr(codeText)}\`)" title="Sao chép code">📋 Sao chép</button>
+                        </div>
                     </div>
                     <pre><code class="hljs ${lang || ''}">${highlighted}</code></pre>
                 </div>`;
@@ -1597,7 +1818,21 @@ function formatMarkdown(text) {
     let html = escapeHtml(text);
     // Code blocks
     html = html.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function(match, lang, code) {
-        return `<pre><code>${code.trim()}</code></pre>`;
+        const artifactId = "art_" + Math.random().toString(36).substring(2, 9);
+        window.__KINI_ARTIFACTS[artifactId] = { code: code.trim(), lang: lang || "html" };
+        const isRunnerCandidate = (lang && ['html', 'htm', 'xml', 'js', 'javascript', 'canvas'].includes(lang.toLowerCase())) ||
+                                  code.includes('<canvas') || code.includes('<!DOCTYPE') || code.includes('<html');
+        const runnerBtn = isRunnerCandidate ? `<button class="btn-run-artifact" onclick="launchArtifactRunner('${artifactId}')" title="Mở trực tiếp trên Web Preview & Game Runner">🎮 Mở Web/Game Runner</button>` : "";
+        return `<div class="code-block-wrapper">
+            <div class="code-block-header">
+                <span class="code-lang-label">${lang || ''}</span>
+                <div style="display:flex;align-items:center;">
+                    ${runnerBtn}
+                    <button class="btn-copy-code" onclick="copyCodeBlock(this, \`${escapeAttr(code.trim())}\`)">📋 Sao chép</button>
+                </div>
+            </div>
+            <pre><code>${code.trim()}</code></pre>
+        </div>`;
     });
     // Inline code
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -1896,8 +2131,8 @@ function renderHierarchicalTree(nodes) {
             <span>📁</span>
             <span class="tree-item-name">${escapeHtml(folderName)}</span>
             <div class="tree-row-actions">
-                <button class="tree-act-btn btn-rename-folder" title="Đổi tên thư mục">✏️</button>
-                <button class="tree-act-btn delete btn-delete-folder" title="Xóa thư mục">🗑️</button>
+                <button class="tree-act-btn btn-rename-folder" title="Đổi tên thư mục">✏️ Đổi tên</button>
+                <button class="tree-act-btn delete btn-delete-folder" title="Xóa thư mục">🗑️ Xóa</button>
             </div>
         `;
 
@@ -1931,8 +2166,8 @@ function renderHierarchicalTree(nodes) {
                 <span>${icon}</span>
                 <span class="tree-item-name">${escapeHtml(shortName)}</span>
                 <div class="tree-row-actions">
-                    <button class="tree-act-btn btn-rename-file" title="Đổi tên file">✏️</button>
-                    <button class="tree-act-btn delete btn-delete-file" title="Xóa file">🗑️</button>
+                    <button class="tree-act-btn btn-rename-file" title="Đổi tên file">✏️ Đổi tên</button>
+                    <button class="tree-act-btn delete btn-delete-file" title="Xóa file">🗑️ Xóa</button>
                 </div>
             `;
 
@@ -1971,8 +2206,8 @@ function renderHierarchicalTree(nodes) {
             <span>${icon}</span>
             <span class="tree-item-name">${escapeHtml(fileNode.path)}</span>
             <div class="tree-row-actions">
-                <button class="tree-act-btn btn-rename-file" title="Đổi tên file">✏️</button>
-                <button class="tree-act-btn delete btn-delete-file" title="Xóa file">🗑️</button>
+                <button class="tree-act-btn btn-rename-file" title="Đổi tên file">✏️ Đổi tên</button>
+                <button class="tree-act-btn delete btn-delete-file" title="Xóa file">🗑️ Xóa</button>
             </div>
         `;
 
@@ -2068,7 +2303,12 @@ async function openIdeFile(relPath) {
             if (ext === ".html") {
                 if (btnPrev) btnPrev.style.display = "inline-block";
                 const frame = document.getElementById("ide-preview-frame");
-                if (frame) frame.src = `/api/agent/preview/${encodeURIComponent(relPath)}?t=${Date.now()}`;
+                const previewTitle = document.getElementById("ide-preview-title");
+                if (previewTitle) previewTitle.textContent = `🎮 Web Runner: ${relPath}`;
+                if (frame) {
+                    frame.removeAttribute("srcdoc");
+                    frame.src = `/api/workspace/raw?path=${encodeURIComponent(relPath)}&t=${Date.now()}`;
+                }
                 switchIdeEditorTab("code");
             } 
             // 3. Nếu là Báo cáo Markdown (.md)
@@ -2155,7 +2395,10 @@ async function saveIdeCurrentFile() {
             // Refresh Web Preview nếu là HTML
             if (ideActiveFilePath.endsWith(".html")) {
                 const frame = document.getElementById("ide-preview-frame");
-                if (frame) frame.src = `/api/agent/preview/${encodeURIComponent(ideActiveFilePath)}?t=${Date.now()}`;
+                if (frame) {
+                    frame.removeAttribute("srcdoc");
+                    frame.src = `/api/workspace/raw?path=${encodeURIComponent(ideActiveFilePath)}&t=${Date.now()}`;
+                }
             }
         } else {
             showToast(`⚠️ Không thể lưu: ${data.error}`);
@@ -2221,18 +2464,25 @@ async function createIdeNewFile() {
     const fileName = prompt("📄 Nhập tên/đường dẫn file mới trong workspace (ví dụ: my_script.py hoặc app/index.html):");
     if (!fileName || !fileName.trim()) return;
     try {
-        const res = await fetch("/api/agent/create_file", {
+        let res = await fetch("/api/workspace/create-file", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({path: fileName.trim(), content: ""})
         });
+        if (!res.ok && res.status === 404) {
+            res = await fetch("/api/agent/create_file", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({path: fileName.trim(), content: ""})
+            });
+        }
         const data = await res.json();
         if (data.success) {
             showToast(`✅ Đã tạo file: ${fileName.trim()}`);
             await loadIdeFileTree();
             openIdeFile(fileName.trim());
         } else {
-            showToast(`❌ Không thể tạo file: ${data.error}`);
+            showToast(`❌ Không thể tạo file: ${data.detail || data.error || 'Lỗi không xác định'}`);
         }
     } catch(e) {
         showToast(`❌ Lỗi: ${e.message}`);
@@ -2243,17 +2493,24 @@ async function createIdeNewFolder() {
     const folderName = prompt("📁 Nhập tên thư mục mới trong workspace (ví dụ: my_project hoặc games/flappy_bird):");
     if (!folderName || !folderName.trim()) return;
     try {
-        const res = await fetch("/api/agent/create_folder", {
+        let res = await fetch("/api/workspace/create-folder", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({path: folderName.trim()})
         });
+        if (!res.ok && res.status === 404) {
+            res = await fetch("/api/agent/create_folder", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({path: folderName.trim()})
+            });
+        }
         const data = await res.json();
         if (data.success) {
             showToast(`✅ Đã tạo thư mục: ${folderName.trim()}`);
             await loadIdeFileTree();
         } else {
-            showToast(`❌ Không thể tạo thư mục: ${data.error}`);
+            showToast(`❌ Không thể tạo thư mục: ${data.detail || data.error || 'Lỗi không xác định'}`);
         }
     } catch(e) {
         showToast(`❌ Lỗi: ${e.message}`);
@@ -2263,11 +2520,18 @@ async function createIdeNewFolder() {
 async function deleteIdePath(relPath) {
     if (!confirm(`⚠️ Anh Trường có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?`)) return;
     try {
-        const res = await fetch("/api/agent/delete", {
+        let res = await fetch("/api/workspace/delete", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({path: relPath})
         });
+        if (!res.ok && res.status === 404) {
+            res = await fetch("/api/agent/delete", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({path: relPath})
+            });
+        }
         const data = await res.json();
         if (data.success) {
             showToast(`🗑️ Đã xóa: ${relPath}`);
@@ -2277,7 +2541,7 @@ async function deleteIdePath(relPath) {
             }
             await loadIdeFileTree();
         } else {
-            showToast(`❌ Không thể xóa: ${data.error}`);
+            showToast(`❌ Không thể xóa: ${data.detail || data.error || 'Lỗi không xác định'}`);
         }
     } catch(e) {
         showToast(`❌ Lỗi: ${e.message}`);
@@ -2288,11 +2552,18 @@ async function renameIdePath(oldPath) {
     const newPath = prompt(`✏️ Đổi tên cho [${oldPath}]:`, oldPath);
     if (!newPath || newPath.trim() === oldPath) return;
     try {
-        const res = await fetch("/api/agent/rename", {
+        let res = await fetch("/api/workspace/rename", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({old_path: oldPath, new_path: newPath.trim()})
         });
+        if (!res.ok && res.status === 404) {
+            res = await fetch("/api/agent/rename", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({old_path: oldPath, new_path: newPath.trim()})
+            });
+        }
         const data = await res.json();
         if (data.success) {
             showToast(`✏️ Đã đổi tên thành: ${newPath.trim()}`);
@@ -2302,7 +2573,7 @@ async function renameIdePath(oldPath) {
             await loadIdeFileTree();
             openIdeFile(newPath.trim());
         } else {
-            showToast(`❌ Không thể đổi tên: ${data.error}`);
+            showToast(`❌ Không thể đổi tên: ${data.detail || data.error || 'Lỗi không xác định'}`);
         }
     } catch(e) {
         showToast(`❌ Lỗi: ${e.message}`);
@@ -2409,6 +2680,49 @@ function setupIdeEventListeners() {
     document.getElementById("ide-mode-md")?.addEventListener("click", () => switchIdeEditorTab("md"));
     document.getElementById("ide-mode-img")?.addEventListener("click", () => switchIdeEditorTab("img"));
     document.getElementById("ide-mode-data")?.addEventListener("click", () => switchIdeEditorTab("data"));
+
+    // Các nút thao tác Web & Game Runner Preview Toolbar
+    document.getElementById("btn-preview-reload")?.addEventListener("click", () => {
+        const frame = document.getElementById("ide-preview-frame");
+        if (!frame) return;
+        if (frame.srcdoc) {
+            const currentDoc = frame.srcdoc;
+            frame.srcdoc = "";
+            setTimeout(() => { frame.srcdoc = currentDoc; }, 50);
+        } else if (frame.src && frame.src !== "about:blank") {
+            const currentUrl = frame.src.split("?")[0];
+            frame.src = `${currentUrl}?t=${Date.now()}`;
+        }
+        showToast("🔄 Đã tải lại Web/Game Runner!");
+    });
+
+    document.getElementById("btn-preview-fullscreen")?.addEventListener("click", () => {
+        const wrapper = document.getElementById("ide-preview-wrapper");
+        if (!wrapper) return;
+        if (!document.fullscreenElement) {
+            wrapper.requestFullscreen().catch(() => {
+                showToast("⚠️ Không thể kích hoạt toàn màn hình");
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    });
+
+    document.getElementById("btn-preview-newtab")?.addEventListener("click", () => {
+        const frame = document.getElementById("ide-preview-frame");
+        if (!frame) return;
+        if (ideActiveFilePath && ideActiveFilePath.endsWith(".html")) {
+            window.open(`/api/workspace/raw?path=${encodeURIComponent(ideActiveFilePath)}`, "_blank");
+        } else if (frame.src && frame.src !== "about:blank") {
+            window.open(frame.src, "_blank");
+        } else if (frame.srcdoc) {
+            const blob = new Blob([frame.srcdoc], { type: "text/html;charset=utf-8" });
+            const blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, "_blank");
+        } else {
+            showToast("⚠️ Không có URL xem trước");
+        }
+    });
 
     // Nút tạo File mới & Thư mục mới trên Header Explorer
     document.getElementById("btn-ide-new-file")?.addEventListener("click", createIdeNewFile);
@@ -2560,3 +2874,87 @@ function initSplitterDrag(resizerId, onDragX, onDragY) {
         document.addEventListener("mouseup", onMouseUp);
     });
 }
+
+// ============================================================
+// 8. AUTONOMOUS TASK CARDS (STEPS & PROGRESS HELPER)
+// ============================================================
+window.KiniTaskRunner = {
+    cards: {},
+    createTaskCard({ id, title, steps, container = null }) {
+        const cardId = id || "task-card-" + Date.now();
+        const targetContainer = container || document.getElementById("chat-messages") || document.body;
+        
+        const cardEl = document.createElement("div");
+        cardEl.className = "kini-task-card";
+        cardEl.id = cardId;
+        
+        const stepsHtml = (steps || []).map((step, idx) => `
+            <div class="task-step-item ${idx === 0 ? 'running' : ''}" id="${cardId}-step-${idx}">
+                <div class="task-step-left">
+                    <span class="task-step-icon">${idx === 0 ? '⏳' : '⚪'}</span>
+                    <span class="task-step-desc">${escapeHtml(typeof step === 'string' ? step : (step.desc || step.title || ''))}</span>
+                </div>
+                <span class="task-step-badge">${idx === 0 ? 'Đang chạy' : 'Chờ xử lý'}</span>
+            </div>
+        `).join("");
+        
+        cardEl.innerHTML = `
+            <div class="task-card-header">
+                <div class="task-card-title">
+                    <span>🤖</span>
+                    <span>${escapeHtml(title || 'KINI Autonomous Agent Execution')}</span>
+                </div>
+                <span class="task-card-badge status-running" id="${cardId}-badge">ĐANG XỬ LÝ</span>
+            </div>
+            <div class="task-card-progress">
+                <div class="task-card-progress-bar" id="${cardId}-prog" style="width: 15%;"></div>
+            </div>
+            <div class="task-steps-list" id="${cardId}-steps">
+                ${stepsHtml}
+            </div>
+        `;
+        
+        targetContainer.appendChild(cardEl);
+        this.cards[cardId] = { el: cardEl, totalSteps: (steps || []).length, currentStep: 0 };
+        return cardId;
+    },
+    updateStep(cardId, stepIndex, status, details = "") {
+        const stepEl = document.getElementById(`${cardId}-step-${stepIndex}`);
+        const cardBadge = document.getElementById(`${cardId}-badge`);
+        const progBar = document.getElementById(`${cardId}-prog`);
+        const cardInfo = this.cards[cardId];
+        
+        if (stepEl) {
+            stepEl.className = `task-step-item ${status}`;
+            const iconSpan = stepEl.querySelector(".task-step-icon");
+            const badgeSpan = stepEl.querySelector(".task-step-badge");
+            if (status === "completed") {
+                if (iconSpan) iconSpan.textContent = "✅";
+                if (badgeSpan) badgeSpan.textContent = "Hoàn thành";
+            } else if (status === "failed") {
+                if (iconSpan) iconSpan.textContent = "❌";
+                if (badgeSpan) badgeSpan.textContent = "Thất bại";
+            } else if (status === "running") {
+                if (iconSpan) iconSpan.textContent = "⏳";
+                if (badgeSpan) badgeSpan.textContent = "Đang chạy";
+            }
+        }
+        
+        if (cardInfo && progBar) {
+            const total = cardInfo.totalSteps || 1;
+            const percent = Math.min(100, Math.round(((stepIndex + (status === "completed" ? 1 : 0.5)) / total) * 100));
+            progBar.style.width = `${percent}%`;
+            if (percent >= 100) {
+                if (cardBadge) {
+                    cardBadge.className = "task-card-badge status-completed";
+                    cardBadge.textContent = "HOÀN TẤT";
+                }
+            } else if (status === "failed") {
+                if (cardBadge) {
+                    cardBadge.className = "task-card-badge status-failed";
+                    cardBadge.textContent = "LỖI";
+                }
+            }
+        }
+    }
+};

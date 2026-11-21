@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261121_1040">
+    <link rel="stylesheet" href="/static/style.css?v=20261121_1100">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -132,9 +132,9 @@
                         <div class="ide-tree-header">
                             <span class="ide-header-title">WORKSPACE EXPLORER</span>
                             <div class="ide-header-btns">
-                                <button class="ide-mini-btn" id="btn-ide-new-file" title="Tạo tệp mới">+📄</button>
-                                <button class="ide-mini-btn" id="btn-ide-new-folder" title="Tạo thư mục mới">+📁</button>
-                                <button class="ide-mini-btn" id="btn-ide-refresh" title="Làm mới cây thư mục">🔄</button>
+                                <button class="ide-mini-btn" id="btn-ide-new-file" title="Tạo tệp mới">+ File</button>
+                                <button class="ide-mini-btn" id="btn-ide-new-folder" title="Tạo thư mục mới">+ Folder</button>
+                                <button class="ide-mini-btn" id="btn-ide-refresh" title="Làm mới cây thư mục">🔄 Làm mới</button>
                                 <button class="ide-mini-btn" id="btn-ide-open-explorer" title="Mở thư mục trên máy tính Windows">📂</button>
                                 <button class="ide-mini-btn btn-danger-hover" id="btn-collapse-tree" title="Ẩn Workspace Explorer (Đóng ô này)">✕</button>
                             </div>
@@ -179,9 +179,20 @@
                         <!-- Vùng CodeMirror Editor -->
                         <div class="ide-codemirror-wrapper" id="ide-codemirror-wrapper"></div>
 
-                        <!-- Vùng Web Preview Iframe -->
+                        <!-- Vùng Web Preview Iframe & Runner -->
                         <div class="ide-preview-wrapper" id="ide-preview-wrapper" style="display: none;">
-                            <iframe id="ide-preview-frame" class="ide-preview-iframe" src="about:blank"></iframe>
+                            <div class="ide-preview-toolbar" id="ide-preview-toolbar">
+                                <div class="ide-preview-status">
+                                    <span class="preview-pulse-dot"></span>
+                                    <span class="preview-title" id="ide-preview-title">🎮 Live Web App & Game Runner</span>
+                                </div>
+                                <div class="ide-preview-actions">
+                                    <button class="ide-action-btn" id="btn-preview-reload" title="Chạy lại ứng dụng">▶️ Chạy lại</button>
+                                    <button class="ide-action-btn" id="btn-preview-fullscreen" title="Toàn màn hình">⛶ Toàn màn hình</button>
+                                    <button class="ide-action-btn" id="btn-preview-newtab" title="Mở trong tab trình duyệt mới">🔗 Mở tab mới</button>
+                                </div>
+                            </div>
+                            <iframe id="ide-preview-frame" class="ide-preview-iframe" src="about:blank" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
                         </div>
 
                         <!-- Vùng Markdown Viewer -->
@@ -263,6 +274,31 @@
                         <span class="attach-icon" id="attach-icon">📎</span>
                         <span class="attach-name" id="attach-name">filename.pdf</span>
                         <button class="btn-remove-attach" id="btn-remove-attach" title="Gỡ tệp">✕</button>
+                    </div>
+                </div>
+
+                <!-- Slash Command Popup Menu (/) -->
+                <div class="slash-command-menu" id="slash-command-menu" style="display: none;">
+                    <div class="slash-menu-header">⚡ LỆNH NHANH (SLASH COMMANDS)</div>
+                    <div class="slash-item active" data-cmd="/game" data-desc="Lập trình Game tương tác (Snake, Flappy, Pong...)">
+                        <span class="slash-cmd-badge">/game</span>
+                        <span class="slash-cmd-desc">🎮 Lập trình Game tương tác (Snake, Flappy, Pong...)</span>
+                    </div>
+                    <div class="slash-item" data-cmd="/web" data-desc="Thiết kế Web App & Dashboard">
+                        <span class="slash-cmd-badge">/web</span>
+                        <span class="slash-cmd-desc">🌐 Thiết kế Web App & Dashboard</span>
+                    </div>
+                    <div class="slash-item" data-cmd="/plan" data-desc="Lập kế hoạch kiến trúc đa bước">
+                        <span class="slash-cmd-badge">/plan</span>
+                        <span class="slash-cmd-desc">📋 Lập kế hoạch kiến trúc đa bước</span>
+                    </div>
+                    <div class="slash-item" data-cmd="/fix" data-desc="Tự động rà soát và sửa lỗi code">
+                        <span class="slash-cmd-badge">/fix</span>
+                        <span class="slash-cmd-desc">🛠️ Tự động rà soát và sửa lỗi code</span>
+                    </div>
+                    <div class="slash-item" data-cmd="/brain" data-desc="Mở Bộ nhớ KINI">
+                        <span class="slash-cmd-badge">/brain</span>
+                        <span class="slash-cmd-desc">🧠 Mở Bộ nhớ KINI</span>
                     </div>
                 </div>
 
@@ -603,6 +639,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20261121_0800"></script>
+    <script src="/static/app.js?v=20261121_1100"></script>
 </body>
 </html>

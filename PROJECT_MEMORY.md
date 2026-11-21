@@ -204,3 +204,35 @@
 - Tăng chiều cao lớp phủ .prompt-bottom-shade lên 190px, với 55% đáy (tương đương 105px) hoàn toàn đặc đen (100% solid).
 - Phần đỉnh trên thanh chat (từ 105px đến 190px) được vuốt dải màu chuyển mượt (smooth gradient fade), giúp dòng chữ tan biến êm mắt trước khi chạm tới khung nhập lệnh.
 - Đảm bảo 100% không bao giờ bị lộ chữ hay xuyên thấu ở đáy màn hình cả trên PC lẫn Mobile.
+
+### Mốc Nâng Cấp: Triển Khai Bộ API Workspace File Manager & Memory Manager Mở Rộng
+- **Workspace File Manager APIs**:
+  + `POST /api/workspace/create-file` (json: `{path, content}`): Tạo hoặc cập nhật tệp trong workspace.
+  + `POST /api/workspace/create-folder` (json: `{path}`): Tạo thư mục mới trong workspace.
+  + `POST /api/workspace/rename` (json: `{old_path, new_path}`): Đổi tên/di chuyển tệp hoặc thư mục.
+  + `POST /api/workspace/delete` (json: `{path}`): Xóa tệp hoặc thư mục an toàn.
+  + `GET /api/workspace/raw` (query param: `path`): Phục vụ nội dung tệp thô chuẩn MIME type (text/html, css, js, json, svg, images, audio/video) kèm no-cache và CORS headers hỗ trợ Iframe Live Preview 100% không bị chặn.
+- **Memory Manager APIs**:
+  + Mở rộng bảng `memories` trong SQLite hỗ trợ các cột `key`, `value`, `fact`, `category`.
+  + `GET /api/memories`: Trả về danh sách ký ức đầy đủ `id`, `key`, `value`, `fact`, `category`, `created_at`.
+  + `POST /api/memories` (json: `{key, value, category}` hoặc `{fact, category}`): Tạo mới ký ức.
+  + `PUT /api/memories/{id}` (json: `{key, value, category}` hoặc `{fact, category}`): Cập nhật ký ức linh hoạt.
+  + `DELETE /api/memories/{id}`: Xóa bản ghi ký ức theo ID.
+- Kiểm thử toàn diện qua `FastAPI TestClient`: 100% endpoints trả về HTTP 200 OK, tương thích ngược toàn bộ mã nguồn cũ.
+
+### Mốc Nâng Cấp: Hoàn Thiện Frontend KINI AI OS Chuẩn Antigravity & Claude Artifacts
+- **1. Live Web App & Game Runner (Artifacts)**:
+  + Tích hợp thanh công cụ điều khiển trên tab Web Preview: `▶️ Chạy lại` (`#btn-preview-reload`), `⛶ Toàn màn hình` (`#btn-preview-fullscreen`), `🔗 Mở tab mới` (`#btn-preview-newtab`).
+  + Nút `🎮 Mở Web/Game Runner` tự động gắn vào các khối mã HTML/JS trong tin nhắn chat, click một chạm nạp ngay vào Studio Preview Iframe qua Blob/srcdoc & CodeMirror.
+- **2. Workspace Explorer Toolbar & Inline Actions**:
+  + Header Explorer bổ sung cụm nút: `+ File` (`#btn-ide-new-file`), `+ Folder` (`#btn-ide-new-folder`), `🔄 Làm mới` (`#btn-ide-refresh`).
+  + Các item file và folder trên cây thư mục tích hợp cụm nút thao tác trực tiếp: `✏️ Đổi tên` và `🗑️ Xóa` gọi API `/api/workspace/...`.
+- **3. Slash Command Popup Menu (/)**:
+  + Menu lệnh nhanh hiển thị khi gõ `/` trong ô nhập lệnh với các lệnh: `/game`, `/web`, `/plan`, `/fix`, `/brain`.
+  + Hỗ trợ phím mũi tên Lên/Xuống, Enter/Tab chọn lệnh, Escape đóng menu, tự động mở Siêu Bộ Nhớ với `/brain`.
+- **4. Memory Manager Modal**:
+  + Giao diện quản lý Siêu Bộ Nhớ KINI AI hiển thị danh sách ký ức trực quan, gắn thẻ `[category]`, hỗ trợ nút `✏️ Sửa` (gọi `PUT /api/memories/{id}`) và `🗑️ Xóa` (gọi `DELETE /api/memories/{id}`).
+  + Tự động đồng bộ số lượng ký ức lên badge `#memory-badge-count`.
+- **5. Autonomous Task Cards (Steps & Progress)**:
+  + Module `window.KiniTaskRunner` kết hợp CSS Glassmorphism cao cấp render thẻ tiến trình tác vụ tự hành nhiều bước theo thời gian thực (trạng thái: Chờ, Đang chạy, Hoàn thành, Thất bại kèm thanh tiến trình gradient).
+- **Kiểm thử nghiệm thu**: Cú pháp Javascript kiểm tra `node -c` không lỗi, kiểm thử render DOM qua Headless Chrome xác nhận đầy đủ 100% phần tử.

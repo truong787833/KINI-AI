@@ -4,6 +4,7 @@ import json
 import uuid
 import base64
 import threading
+import mimetypes
 from typing import Optional, List
 from datetime import datetime
 
@@ -479,17 +480,59 @@ def list_memories():
 
 @app.post("/api/memories")
 def create_memory(data: dict):
+    key = data.get("key", "").strip()
+    value = data.get("value", "").strip()
     fact = data.get("fact", "").strip()
-    category = data.get("category", "personal")
-    if not fact:
+    category = data.get("category", "personal").strip() or "personal"
+
+    if not fact and (key or value):
+        if key and value:
+            fact = f"{key}: {value}"
+        else:
+            fact = key or value
+
+    if not fact and not value:
         raise HTTPException(status_code=400, detail="Nội dung ký ức không được rỗng.")
-    mem_id = database.add_memory(fact, category=category)
-    return {"success": True, "id": mem_id, "fact": fact}
+
+    mem_id = database.add_memory(fact=fact, category=category, key=key, value=value)
+    return {
+        "success": True,
+        "id": mem_id,
+        "key": key,
+        "value": value,
+        "fact": fact,
+        "category": category
+    }
+
+@app.put("/api/memories/{memory_id}")
+def update_memory_route(memory_id: int, data: dict):
+    key = data.get("key", "").strip()
+    value = data.get("value", "").strip()
+    fact = data.get("fact", "").strip()
+    category = data.get("category", "").strip()
+
+    if not fact and (key or value):
+        if key and value:
+            fact = f"{key}: {value}"
+        else:
+            fact = key or value
+
+    success = database.update_memory(memory_id, key=key, value=value, category=category, fact=fact)
+    if not success:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ký ức để cập nhật.")
+    return {
+        "success": True,
+        "id": memory_id,
+        "key": key,
+        "value": value,
+        "category": category,
+        "fact": fact
+    }
 
 @app.delete("/api/memories/{memory_id}")
 def delete_single_memory(memory_id: int):
     database.delete_memory(memory_id)
-    return {"success": True}
+    return {"success": True, "id": memory_id}
 
 @app.delete("/api/memories")
 def clear_all_memories():
@@ -668,6 +711,112 @@ def serve_agent_preview(filepath: str):
     if os.path.exists(full_path) and os.path.isfile(full_path):
         return FileResponse(full_path)
     raise HTTPException(status_code=404, detail="Không tìm thấy tệp xem trước")
+
+# ============================================================
+# 5.2. WORKSPACE FILE MANAGER (CHUẨN STUDIO IDE & IFRAME PREVIEW)
+# ============================================================
+@app.post("/api/workspace/create-file")
+@app.post("/api/workspace/create_file")
+def workspace_create_file(data: dict):
+    path = data.get("path", "").strip()
+    content = data.get("content", "")
+    if not path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn file")
+    res = agent_engine.tool_write_file(path, content)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Lỗi tạo file"))
+    return res
+
+@app.post("/api/workspace/create-folder")
+@app.post("/api/workspace/create_folder")
+def workspace_create_folder(data: dict):
+    path = data.get("path", "").strip()
+    if not path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn thư mục")
+    res = agent_engine.tool_create_folder(path)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Lỗi tạo thư mục"))
+    return res
+
+@app.post("/api/workspace/rename")
+def workspace_rename_item(data: dict):
+    old_path = data.get("old_path", "").strip()
+    new_path = data.get("new_path", "").strip()
+    if not old_path or not new_path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn cũ hoặc mới")
+    res = agent_engine.tool_rename_path(old_path, new_path)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Lỗi đổi tên"))
+    return res
+
+@app.post("/api/workspace/delete")
+def workspace_delete_item(data: dict):
+    path = data.get("path", "").strip()
+    if not path:
+        raise HTTPException(status_code=400, detail="Thiếu đường dẫn cần xóa")
+    res = agent_engine.tool_delete_path(path)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Lỗi xóa tệp/thư mục"))
+    return res
+
+@app.get("/api/workspace/raw")
+def serve_workspace_raw(path: str = ""):
+    if not path:
+        raise HTTPException(status_code=400, detail="Thiếu tham số path")
+    clean_path = os.path.normpath(path).lstrip("\\/.")
+    full_path = os.path.join(agent_engine.WORKSPACE_DIR, clean_path)
+
+    # Đảm bảo đường dẫn nằm trong thư mục workspace an toàn
+    real_workspace = os.path.realpath(agent_engine.WORKSPACE_DIR)
+    real_target = os.path.realpath(full_path)
+    if not (real_target == real_workspace or real_target.startswith(real_workspace + os.sep)):
+        raise HTTPException(status_code=403, detail="Đường dẫn không hợp lệ ngoài workspace")
+
+    if not os.path.exists(full_path) or not os.path.isfile(full_path):
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp")
+
+    mime_type, _ = mimetypes.guess_type(full_path)
+    ext = os.path.splitext(full_path)[1].lower()
+
+    if ext in [".html", ".htm"]:
+        mime_type = "text/html; charset=utf-8"
+    elif ext in [".js", ".mjs"]:
+        mime_type = "application/javascript; charset=utf-8"
+    elif ext in [".css"]:
+        mime_type = "text/css; charset=utf-8"
+    elif ext in [".json"]:
+        mime_type = "application/json; charset=utf-8"
+    elif ext in [".svg"]:
+        mime_type = "image/svg+xml"
+    elif ext in [".png"]:
+        mime_type = "image/png"
+    elif ext in [".jpg", ".jpeg"]:
+        mime_type = "image/jpeg"
+    elif ext in [".gif"]:
+        mime_type = "image/gif"
+    elif ext in [".webp"]:
+        mime_type = "image/webp"
+    elif ext in [".ico"]:
+        mime_type = "image/x-icon"
+    elif ext in [".mp3"]:
+        mime_type = "audio/mpeg"
+    elif ext in [".wav"]:
+        mime_type = "audio/wav"
+    elif ext in [".mp4"]:
+        mime_type = "video/mp4"
+    elif ext in [".txt", ".md", ".py"]:
+        mime_type = "text/plain; charset=utf-8"
+    elif not mime_type:
+        mime_type = "application/octet-stream"
+
+    return FileResponse(
+        path=full_path,
+        media_type=mime_type,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
 
 @app.get("/api/usage")
 def get_quota_usage():
