@@ -257,15 +257,27 @@ QUY TRÌNH LÀM VIỆC CỦA BẠN:
 4. Báo cáo hoàn thành cho anh Trường, nêu rõ đường dẫn file đã tạo trên máy tính và báo anh chỉ cần click đúp vào file `.bat` để trải nghiệm.
 5. Luôn lễ phép, xưng 'Em' và gọi 'Anh Trường'."""
 
-def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 6) -> Dict[str, Any]:
+VISITOR_AGENT_PROMPT = """Bạn là KINI AI Autonomous Agent - Kỹ sư AI Tự Hành thông minh, chuẩn mực và đa năng.
+Nhiệm vụ của bạn là: Khi người dùng giao bài toán (ví dụ: làm game, viết code, tạo website, xử lý dữ liệu), bạn hãy tự động lập kế hoạch và thực thi đầy đủ các file mã nguồn vào thư mục workspace.
+Các công cụ có sẵn (gọi bằng định dạng JSON): write_file, read_file, run_command, list_files, search_in_files, create_folder, delete_file, rename_file.
+Xưng hô: 'Tôi' - 'Bạn', phong cách chuyên nghiệp, khách quan và hữu ích."""
+
+def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 6, client_id: str = "master") -> Dict[str, Any]:
     """
     Vòng lặp Agentic Runner: Tự suy nghĩ, gọi công cụ, kiểm tra kết quả và tự sửa lỗi (Self-Healing) cho đến khi xong bài toán
     """
     from . import gemini_client
     
     actions_taken = []
+    if client_id == "master":
+        sys_prompt = AGENT_SYSTEM_PROMPT
+        user_msg = f"Anh Trường giao nhiệm vụ Agent: \"{task_prompt}\". Hãy tự động lập kế hoạch và thực thi đầy đủ các file mã nguồn/dự án vào workspace."
+    else:
+        sys_prompt = VISITOR_AGENT_PROMPT
+        user_msg = f"Yêu cầu Agent: \"{task_prompt}\". Hãy tự động lập kế hoạch và thực thi đầy đủ các file mã nguồn/dự án vào workspace."
+
     messages = [
-        {"role": "user", "content": f"Anh Trường giao nhiệm vụ Agent: \"{task_prompt}\". Hãy tự động lập kế hoạch và thực thi đầy đủ các file mã nguồn/dự án vào workspace."}
+        {"role": "user", "content": user_msg}
     ]
     
     final_reply = ""
@@ -273,8 +285,9 @@ def run_agent_task(task_prompt: str, api_key: str = "", max_turns: int = 6) -> D
         res = gemini_client.ask_gemini(
             messages=messages,
             api_key=api_key,
-            system_instruction=AGENT_SYSTEM_PROMPT,
-            model_mode="flash"
+            system_instruction=sys_prompt,
+            model_mode="flash",
+            client_id=client_id
         )
         if not res.get("success"):
             return {
@@ -402,16 +415,33 @@ Cấu trúc bắt buộc gồm 5 phần:
 
 Xưng hô: 'Em' - 'Anh Trường', phong cách sắc bén, tư duy chiến lược đỉnh cao."""
 
-def run_plan_task(goal: str, api_key: str = "") -> Dict[str, Any]:
+VISITOR_PLANNER_PROMPT = """Bạn là KINI AI Chief Architect & Strategic Planner.
+Khi người dùng yêu cầu lập kế hoạch (/plan), bạn hãy thiết lập một BẢN QUY HOẠCH HỆ THỐNG TOÀN DIỆN (Architectural Blueprint) gồm:
+1. 🎯 MỤC TIÊU CỐT LÕI & TIÊU CHUẨN ĐẠT ĐƯỢC
+2. 🧩 PHÂN CHIA MODULE & CÔNG NGHỆ LỰA CHỌN
+3. 🔄 SƠ ĐỒ LUỒNG HOẠT ĐỘNG (Render bằng code Mermaid chuẩn)
+4. 📋 KẾ HOẠCH TRIỂN KHAI TỪNG BƯỚC (Checklist chi tiết từng file cần tạo)
+5. ⚠️ DỰ BÁO RỦI RO KỸ THUẬT & PHƯƠNG ÁN PHÒNG NGỪA
+Xưng hô: 'Tôi' - 'Bạn', phong cách logic, sắc bén và chuyên nghiệp."""
+
+def run_plan_task(goal: str, api_key: str = "", client_id: str = "master") -> Dict[str, Any]:
     """Lập bản kế hoạch kiến trúc hệ thống chuyên sâu trước khi bắt tay thực thi"""
     from . import gemini_client
+    if client_id == "master":
+        sys_prompt = PLANNER_SYSTEM_PROMPT
+        user_msg = f"Anh Trường yêu cầu lập kế hoạch chiến lược (/plan): \"{goal}\". Hãy thiết lập bản quy hoạch hệ thống toàn diện theo chuẩn Antigravity."
+    else:
+        sys_prompt = VISITOR_PLANNER_PROMPT
+        user_msg = f"Yêu cầu lập kế hoạch kiến trúc (/plan): \"{goal}\". Hãy thiết lập bản quy hoạch hệ thống toàn diện."
+
     messages = [
-        {"role": "user", "content": f"Anh Trường yêu cầu lập kế hoạch chiến lược (/plan): \"{goal}\". Hãy thiết lập bản quy hoạch hệ thống toàn diện theo chuẩn Antigravity."}
+        {"role": "user", "content": user_msg}
     ]
     res = gemini_client.ask_gemini(
         messages=messages,
         api_key=api_key,
-        system_instruction=PLANNER_SYSTEM_PROMPT,
-        model_mode="pro"
+        system_instruction=sys_prompt,
+        model_mode="pro",
+        client_id=client_id
     )
     return res

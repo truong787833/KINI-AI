@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261121_1250">
+    <link rel="stylesheet" href="/static/style.css?v=20261121_1300">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -491,10 +491,10 @@
                 <button class="modal-close" data-close="modal-memory">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="modal-desc">KINI AI tự động ghi nhớ và lưu giữ vĩnh viễn thói quen, sở thích, nguyên tắc làm việc và thông tin về anh Hải Trường để đồng hành như một tri kỷ thông minh.</p>
+                <p class="modal-desc" id="modal-memory-desc">KINI AI tự động ghi nhớ và lưu giữ thói quen, thông tin và những điều bạn hướng dẫn để đồng hành thông minh nhất.</p>
                 
                 <div class="add-memory-box">
-                    <input type="text" id="input-new-memory" class="form-input" placeholder="Thêm ký ức mới (ví dụ: 'Anh Trường thích báo cáo gãy gọn, có gạch đầu dòng')...">
+                    <input type="text" id="input-new-memory" class="form-input" placeholder="Dạy KINI ghi nhớ (Ví dụ: 'Tôi tên là...', 'Tôi thích trả lời ngắn gọn, có gạch đầu dòng')...">
                     <button class="btn btn-primary" id="btn-add-memory">＋ Lưu Ký Ức</button>
                 </div>
 
@@ -567,7 +567,7 @@
 
                 <div class="form-group" style="margin-top: 16px;">
                     <label>Lời Nhắc Tính Cách AI (System Persona)</label>
-                    <textarea id="setting-persona" class="form-input" rows="4"></textarea>
+                    <textarea id="setting-persona" class="form-input" rows="4" placeholder="Dạy tính cách hoặc phong cách xưng hô riêng cho KINI AI tại đây (Ví dụ: 'Hãy xưng là Tôi và gọi tôi là Bạn', 'Trả lời ngắn gọn, logic')..."></textarea>
                 </div>
 
                 <div class="settings-divider" style="margin: 18px 0 12px; border-top: 1px solid var(--border-color);"></div>
@@ -662,10 +662,10 @@
         <div class="drag-drop-box">
             <div class="drag-icon">📂</div>
             <h3>Thả tệp, hình ảnh hoặc thư mục vào đây</h3>
-            <p>KINI AI sẽ tự động đọc hiểu, phân tích hoặc xử lý theo yêu cầu của anh Trường</p>
+            <p>KINI AI sẽ tự động đọc hiểu, phân tích hoặc xử lý theo yêu cầu của bạn</p>
         </div>
     </div>
 
-    <script src="/static/app.js?v=20261121_1250"></script>
+    <script src="/static/app.js?v=20261121_1300"></script>
 </body>
 </html>

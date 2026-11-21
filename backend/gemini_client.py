@@ -30,11 +30,16 @@ DEFAULT_SYSTEM_PROMPT = """[SYSTEM IDENTITY: KINI AI - ULTIMATE COMMANDER]
 - Khi nhận lệnh: Phân tích -> Lập kế hoạch -> Thực thi -> Báo cáo kết quả.
 - Tuyệt đối không dùng các câu sáo rỗng như "Tôi là AI, tôi không thể...". Hãy tìm mọi cách để giải quyết vấn đề trong phạm vi kỹ thuật cho phép."""
 
-VISITOR_DEFAULT_PROMPT = """[SYSTEM IDENTITY: KINI AI - TRỢ LÝ TRÍ TUỆ NHÂN TẠO]
-- Tên: KINI AI.
-- Bản chất: Trợ lý AI thế hệ mới thông minh, đa năng, xử lý tác vụ với tư duy logic sắc bén.
-- Phong cách: Thân thiện, tôn trọng, lịch sự, trả lời gãy gọn, rõ ràng, chính xác.
-- Khả năng: Trò chuyện, viết lách, giải toán, lập trình, tạo game và vẽ ảnh nghệ thuật AI.
+VISITOR_DEFAULT_PROMPT = """Bạn là KINI AI - mô hình trợ lý trí tuệ nhân tạo thông minh, chuẩn mực, hiện đại và hữu ích (tương tự như ChatGPT và Google Gemini).
+- Phong cách & Xưng hô:
+  + Luôn xưng "Tôi" hoặc "KINI AI", gọi người dùng là "Bạn".
+  + Giao tiếp lịch sự, khách quan, thân thiện, rõ ràng, mạch lạc và tự nhiên.
+  + TUYỆT ĐỐI KHÔNG tự xưng "Em", KHÔNG tự gọi người dùng là "Anh Trường" hay bất kỳ tên riêng nào khi người dùng chưa giới thiệu.
+- Tính năng & Nhiệm vụ:
+  + Sẵn sàng hỗ trợ người dùng trong mọi lĩnh vực: trả lời câu hỏi, tra cứu thông tin, lập trình, giải toán, viết văn bản/báo cáo/email, tóm tắt, sáng tạo ý tưởng và vẽ tranh nghệ thuật AI.
+  + Trả lời chuẩn xác, logic, có phân tích đa chiều và cung cấp giải pháp tối ưu.
+- Khả năng học hỏi & Cá nhân hóa:
+  + Khi người dùng giới thiệu tên, nghề nghiệp, sở thích hoặc quy định xưng hô riêng (ví dụ: "Tôi tên là Nam", "Từ nay hãy gọi tôi là Thầy...", "Hãy trả lời ngắn gọn"), bạn hãy lập tức tiếp thu, thích nghi và phục vụ đúng theo sở thích của người dùng đó.
 """
 
 def get_current_time_context() -> str:
@@ -92,28 +97,40 @@ def build_system_instruction_with_memories(base_prompt: Optional[str] = None, cl
     from . import database
     if client_id == "master":
         sys_inst = base_prompt or database.get_setting("custom_persona", DEFAULT_SYSTEM_PROMPT, client_id="master")
-    else:
-        sys_inst = base_prompt or database.get_setting("custom_persona", VISITOR_DEFAULT_PROMPT, client_id=client_id)
-    
-    # 1. Gắn thời gian thực tế
-    sys_inst += f"\n\n{get_current_time_context()}"
-
-    # 2. Gắn quy chuẩn độ chính xác tuyệt đối
-    sys_inst += f"\n\n{get_precision_rules()}"
-
-    # 3. Gắn ký ức dài hạn (Nếu là master thì gắn ký ức về anh Trường; nếu là visitor thì gắn ký ức riêng của họ)
-    try:
-        memories = database.get_all_memories(limit=30, client_id=client_id)
-        if memories:
-            facts = "\n".join(f"- {m['fact']}" for m in memories)
-            if client_id == "master":
+        # 1. Gắn thời gian thực tế
+        sys_inst += f"\n\n{get_current_time_context()}"
+        # 2. Gắn quy chuẩn độ chính xác tuyệt đối (Dành riêng cho máy anh Trường)
+        sys_inst += f"\n\n{get_precision_rules()}"
+        # 3. Gắn ký ức dài hạn về anh Trường
+        try:
+            memories = database.get_all_memories(limit=30, client_id="master")
+            if memories:
+                facts = "\n".join(f"- {m['fact']}" for m in memories)
                 sys_inst += f"\n\n=== BỘ NHỚ DÀI HẠN VỀ ANH HẢI TRƯỜNG (LUÔN GHI NHỚ) ===\n{facts}"
-            else:
-                sys_inst += f"\n\n=== BỘ NHỚ ĐƯỢC GHI NHỚ CỦA BẠN ===\n{facts}"
-    except Exception as e:
-        logger.warning(f"Lỗi đọc bộ nhớ: {e}")
-
-    return sys_inst
+        except Exception as e:
+            logger.warning(f"Lỗi đọc bộ nhớ: {e}")
+        return sys_inst
+    else:
+        # CHẾ ĐỘ DÀNH CHO THIẾT BỊ / NGƯỜI DÙNG KHÁC (VISITOR):
+        # Mới 100% như ChatGPT, Gemini. Không có bất kỳ dấu vết hay ký ức nào của anh Trường.
+        custom_p = database.get_setting("custom_persona", "", client_id=client_id)
+        sys_inst = base_prompt or custom_p or VISITOR_DEFAULT_PROMPT
+        
+        now = datetime.now()
+        days_vn = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
+        day_name = days_vn[int(now.strftime("%w"))]
+        sys_inst += f"\n\n[THỜI GIAN HIỆN TẠI]: {day_name}, ngày {now.strftime('%d/%m/%Y')}, lúc {now.strftime('%H:%M:%S')} (Năm {now.year})."
+        
+        # Chỉ gắn những thông tin/sở thích mà chính người dùng này đã dạy
+        try:
+            memories = database.get_all_memories(limit=30, client_id=client_id)
+            if memories:
+                facts = "\n".join(f"- {m['fact']}" for m in memories)
+                sys_inst += f"\n\n=== THÔNG TIN NGƯỜI DÙNG ĐÃ HƯỚNG DẪN BẠN GHI NHỚ ===\n{facts}"
+        except Exception as e:
+            logger.warning(f"Lỗi đọc bộ nhớ: {e}")
+            
+        return sys_inst
 
 def extract_and_save_memory_async(user_text: str, api_key: str = "", client_id: str = "master"):
     """Tự động phân tích xem người dùng có chia sẻ thông tin cá nhân/thói quen để lưu vào bộ nhớ không"""

@@ -280,3 +280,21 @@
      - Kiểm thử gửi tin nhắn chat từ thiết bị mobile qua API: phản hồi thành công 100%, không còn lỗi 500 JSON.
      - Đường link Cloudflare Tunnel https://nirvana-reunion-defend-reference.trycloudflare.com phản hồi HTTP 200 OK toàn cầu.
      - Dữ liệu 189 tin nhắn gốc và 7 cuộc trò chuyện của anh Trường trên máy tính được bảo toàn nguyên vẹn 100%.
+
+### Mốc Nâng Cấp: Cô Lập Hoàn Toàn Bản Sắc & Ký Ức (Mới 100% Chuẩn ChatGPT/Gemini Cho Người Dùng Mới)
+- **Yêu cầu của anh Trường**: Khi dùng trên thiết bị khác, tại sao vẫn chào "anh Trường" và hiển thị các nội dung anh chỉ dạy cho AI trên máy tính? Người khác dùng thì phải mới như ban đầu, chuẩn AI giống GPT/Gemini và người dùng có thể tự dạy cho KINI AI trên thiết bị lại từ đầu.
+- **Nguyên nhân**: Hàm `get_precision_rules()` trong `backend/gemini_client.py` có chứa quy tắc đặc biệt dành riêng cho anh Trường ("Hãy luôn trò chuyện lịch thiệp, tự nhiên bằng tiếng Việt với anh Trường"), hàm này trước đó được gắn vào cả chế độ khách. Ngoài ra, các chuỗi phản hồi tĩnh về tác phẩm vẽ ảnh và mô tả bộ nhớ có xưng hô cứng.
+- **Triển khai kỹ thuật**:
+  1. **Phân tách System Prompt độc lập 100%**:
+     - **Master (Máy tính anh Trường)**: Giữ nguyên 100% bản sắc `KINI AI - ULTIMATE COMMANDER`, xưng hô "Em" - "Anh Trường", toàn bộ ký ức dài hạn về anh Hải Trường và quy tắc nguyên văn pháp luật.
+     - **Visitor (Thiết bị khác / Người dùng mới)**: Sử dụng `VISITOR_DEFAULT_PROMPT` chuẩn mực như ChatGPT và Google Gemini:
+       + Xưng "Tôi" hoặc "KINI AI", gọi người dùng là "Bạn".
+       + Tuyệt đối không tự xưng "Em", không gọi người dùng là "Anh Trường".
+       + Bắt đầu hoàn toàn mới và trung tính (trắng tinh 100%).
+       + Không nạp bất kỳ ký ức nào của anh Trường, không nạp quy tắc pháp luật riêng của anh Trường.
+  2. **Cho phép người dùng mới tự dạy KINI AI từ đầu trên thiết bị của họ**:
+     - Hệ thống tự động lắng nghe và ghi nhớ những thông tin mà người dùng đó dạy (tên, sở thích, nghề nghiệp, cách xưng hô mong muốn) vào bảng `memories` riêng của `client_id` đó.
+     - Đã kiểm thử thực tế: Khách tự dạy "Tôi tên là Minh, bác sĩ đa khoa, gọi tôi là Bác sĩ Minh và xưng Em", KINI AI đã lập tức tiếp thu và chào đúng "Chào Bác sĩ Minh, em...".
+  3. **Cập nhật giao diện & thông báo**:
+     - Điều chỉnh các thông báo xác nhận xóa hội thoại, mô tả Modal Siêu Bộ Nhớ, placeholder lời nhắc tính cách và nhãn tài khoản (`Người dùng` thay vì `Hải Trường` khi ở máy khách).
+     - Xóa sạch dữ liệu thử nghiệm cũ trên máy khách để khi mở lại trang sẽ là một phiên làm việc hoàn toàn mới.

@@ -1300,6 +1300,11 @@ async function loadSettings() {
             document.getElementById("setting-persona").value = data.custom_persona;
         }
 
+        const userPill = document.querySelector("#btn-user-profile .user-name");
+        if (userPill) {
+            userPill.textContent = data.is_master ? "Hải Trường" : "Người dùng";
+        }
+
         // Tự động nhắc người dùng mới nhập API Key miễn phí trong lần đầu chạy
         if (!data.has_api_key && !data.gemini_api_key && !localStorage.getItem("kini_onboarding_shown")) {
             localStorage.setItem("kini_onboarding_shown", "1");
@@ -1749,7 +1754,11 @@ async function renameConversationPrompt(convId, oldTitle) {
 }
 
 async function deleteConversation(id) {
-    if (!confirm("⚠️ Anh Trường có chắc chắn muốn XÓA VĨNH VIỄN đoạn hội thoại này không?\n(Chỉ khi anh bấm Xóa thì hệ thống mới xóa vĩnh viễn khỏi SQLite)")) return;
+    const isMaster = kiniClientId === "master";
+    const msg = isMaster 
+        ? "⚠️ Anh Trường có chắc chắn muốn XÓA VĨNH VIỄN đoạn hội thoại này không?\n(Chỉ khi anh bấm Xóa thì hệ thống mới xóa vĩnh viễn khỏi SQLite)" 
+        : "⚠️ Bạn có chắc chắn muốn XÓA VĨNH VIỄN cuộc trò chuyện này không?";
+    if (!confirm(msg)) return;
     try {
         await fetch(`/api/conversations/${id}`, { method: "DELETE" });
         showToast("🗑️ Đã xóa vĩnh viễn đoạn hội thoại!");
@@ -2576,7 +2585,9 @@ async function createIdeNewFolder() {
 }
 
 async function deleteIdePath(relPath) {
-    if (!confirm(`⚠️ Anh Trường có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?`)) return;
+    const isMaster = kiniClientId === "master";
+    const msg = isMaster ? `⚠️ Anh Trường có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?` : `⚠️ Bạn có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?`;
+    if (!confirm(msg)) return;
     try {
         let res = await fetch("/api/workspace/delete", {
             method: "POST",

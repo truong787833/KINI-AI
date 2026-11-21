@@ -305,13 +305,21 @@ async def chat_with_kini(
                 width=img_result.get("width", 1024),
                 height=img_result.get("height", 1024)
             )
-            assistant_reply = (
-                f"🎨 **Tác phẩm do KINI AI tạo ra cho anh Trường:**\n\n"
-                f"*Mô tả gốc:* \"{clean_prompt}\"\n\n"
-                f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', clean_prompt)}`\n\n"
-                f"Anh có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu em chỉnh sửa thêm chi tiết nhé!"
-            )
-            database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url)
+            if cid == "master":
+                assistant_reply = (
+                    f"🎨 **Tác phẩm do KINI AI tạo ra cho anh Trường:**\n\n"
+                    f"*Mô tả gốc:* \"{clean_prompt}\"\n\n"
+                    f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', clean_prompt)}`\n\n"
+                    f"Anh có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu em chỉnh sửa thêm chi tiết nhé!"
+                )
+            else:
+                assistant_reply = (
+                    f"🎨 **Tác phẩm do KINI AI tạo ra:**\n\n"
+                    f"*Mô tả gốc:* \"{clean_prompt}\"\n\n"
+                    f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', clean_prompt)}`\n\n"
+                    f"Bạn có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu điều chỉnh thêm chi tiết nhé!"
+                )
+            database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url, client_id=cid)
             return {
                 "success": True,
                 "reply": assistant_reply,
@@ -319,8 +327,11 @@ async def chat_with_kini(
                 "is_image_generated": True
             }
         else:
-            fail_reply = f"⚠️ Dạ thưa anh Trường, hệ thống vẽ ảnh đang bận hoặc quá tải tạm thời: {img_result.get('error', 'Không phản hồi')}. Anh vui lòng bấm gửi lại giúp em nhé!"
-            database.add_message(conv_id, "assistant", fail_reply)
+            if cid == "master":
+                fail_reply = f"⚠️ Dạ thưa anh Trường, hệ thống vẽ ảnh đang bận hoặc quá tải tạm thời: {img_result.get('error', 'Không phản hồi')}. Anh vui lòng bấm gửi lại giúp em nhé!"
+            else:
+                fail_reply = f"⚠️ Hệ thống tạo ảnh đang bận hoặc quá tải tạm thời: {img_result.get('error', 'Không phản hồi')}. Bạn vui lòng bấm gửi lại nhé!"
+            database.add_message(conv_id, "assistant", fail_reply, client_id=cid)
             return {
                 "success": True,
                 "reply": fail_reply,
@@ -331,9 +342,9 @@ async def chat_with_kini(
     # 3.0. KIỂM TRA LỆNH LẬP KẾ HOẠCH KIẾN TRÚC HỆ THỐNG (/plan) CHUẨN ANTIGRAVITY
     if message.strip().startswith("/plan"):
         clean_goal = message.replace("/plan", "").strip()
-        plan_res = agent_engine.run_plan_task(clean_goal, api_key=api_key)
+        plan_res = agent_engine.run_plan_task(clean_goal, api_key=api_key, client_id=cid)
         reply = plan_res.get("reply", "Không thể lập kế hoạch.")
-        database.add_message(conv_id, "assistant", reply)
+        database.add_message(conv_id, "assistant", reply, client_id=cid)
         return {
             "success": True,
             "reply": reply,
@@ -348,19 +359,19 @@ async def chat_with_kini(
     )
     if is_agent_cmd:
         clean_task = message.replace("/agent", "").strip()
-        agent_res = agent_engine.run_agent_task(clean_task, api_key=api_key)
+        agent_res = agent_engine.run_agent_task(clean_task, api_key=api_key, client_id=cid)
         if agent_res.get("success"):
             assistant_reply = agent_res.get("reply", "")
             actions = agent_res.get("actions", [])
             if actions:
-                summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi vào máy tính:**"]
+                summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi:**"]
                 for a in actions:
                     if a["tool"] == "write_file":
-                        summary_lines.append(f"- 📝 Đã tạo file: `H:\\KINI_AI\\workspace\\{a.get('path')}`")
+                        summary_lines.append(f"- 📝 Đã tạo file: `workspace/{a.get('path')}`")
                     elif a["tool"] == "run_command":
                         summary_lines.append(f"- ⚡ Đã chạy lệnh: `{a.get('command')}` (Mã: {a.get('returncode')})")
                 assistant_reply += "\n" + "\n".join(summary_lines)
-            database.add_message(conv_id, "assistant", assistant_reply)
+            database.add_message(conv_id, "assistant", assistant_reply, client_id=cid)
             return {
                 "success": True,
                 "reply": assistant_reply,
@@ -420,12 +431,20 @@ async def chat_with_kini(
                 width=img_result.get("width", 1024),
                 height=img_result.get("height", 1024)
             )
-            assistant_reply = (
-                f"🎨 **Tác phẩm do KINI AI tạo ra cho anh Trường:**\n\n"
-                f"*Mô tả gốc:* \"{message}\"\n\n"
-                f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', tool_prompt)}`\n\n"
-                f"Anh có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu em chỉnh sửa thêm chi tiết nhé!"
-            )
+            if cid == "master":
+                assistant_reply = (
+                    f"🎨 **Tác phẩm do KINI AI tạo ra cho anh Trường:**\n\n"
+                    f"*Mô tả gốc:* \"{message}\"\n\n"
+                    f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', tool_prompt)}`\n\n"
+                    f"Anh có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu em chỉnh sửa thêm chi tiết nhé!"
+                )
+            else:
+                assistant_reply = (
+                    f"🎨 **Tác phẩm do KINI AI tạo ra:**\n\n"
+                    f"*Mô tả gốc:* \"{message}\"\n\n"
+                    f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', tool_prompt)}`\n\n"
+                    f"Bạn có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu điều chỉnh thêm chi tiết nhé!"
+                )
             database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url, client_id=cid)
             return {
                 "success": True,
@@ -434,12 +453,20 @@ async def chat_with_kini(
                 "is_image_generated": True
             }
         else:
-            assistant_reply = (
-                f"🎨 **KINI AI đã sẵn sàng phác thảo tác phẩm cho anh Trường:**\n\n"
-                f"Dạ thưa anh, cổng tạo ảnh nghệ thuật đang có độ trễ tạm thời: {img_result.get('error', 'Máy chủ bận')}.\n\n"
-                f"💡 *Mô tả ý tưởng:* \"{tool_prompt}\"\n\n"
-                f"Anh vui lòng bấm nút gửi lại hoặc mở mục **KINI Studio (Tạo Ảnh)** để thử ngay nhé!"
-            )
+            if cid == "master":
+                assistant_reply = (
+                    f"🎨 **KINI AI đã sẵn sàng phác thảo tác phẩm cho anh Trường:**\n\n"
+                    f"Dạ thưa anh, cổng tạo ảnh nghệ thuật đang có độ trễ tạm thời: {img_result.get('error', 'Máy chủ bận')}.\n\n"
+                    f"💡 *Mô tả ý tưởng:* \"{tool_prompt}\"\n\n"
+                    f"Anh vui lòng bấm nút gửi lại hoặc mở mục **KINI Studio (Tạo Ảnh)** để thử ngay nhé!"
+                )
+            else:
+                assistant_reply = (
+                    f"🎨 **KINI AI đã sẵn sàng phác thảo tác phẩm:**\n\n"
+                    f"Cổng tạo ảnh nghệ thuật đang có độ trễ tạm thời: {img_result.get('error', 'Máy chủ bận')}.\n\n"
+                    f"💡 *Mô tả ý tưởng:* \"{tool_prompt}\"\n\n"
+                    f"Bạn vui lòng bấm nút gửi lại để thử lại nhé!"
+                )
             database.add_message(conv_id, "assistant", assistant_reply, client_id=cid)
             return {
                 "success": True,
@@ -846,11 +873,12 @@ def get_quota_usage():
 def read_settings(request: Request):
     cid = get_request_client_id(request)
     api_k = database.get_setting("gemini_api_key", "", client_id=cid)
-    default_prompt = gemini_client.DEFAULT_SYSTEM_PROMPT if cid == "master" else gemini_client.VISITOR_DEFAULT_PROMPT
+    saved_persona = database.get_setting("custom_persona", "", client_id=cid)
+    persona = saved_persona if saved_persona else (gemini_client.DEFAULT_SYSTEM_PROMPT if cid == "master" else "")
     return {
         "gemini_api_key": api_k,
         "has_api_key": bool(api_k or (cid == "master" and os.environ.get("GEMINI_API_KEY", ""))),
-        "custom_persona": database.get_setting("custom_persona", default_prompt, client_id=cid),
+        "custom_persona": persona,
         "client_id": cid,
         "is_master": cid == "master"
     }
