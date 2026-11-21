@@ -197,3 +197,10 @@
 - Khắc phục các thanh kéo màu trắng thô cứng bằng bộ CSS custom scrollbar siêu mỏng 6px, trong suốt, tiệp 100% màu nền.
 - Bổ sung color-scheme: dark trên toàn trang.
 - Tinh chỉnh các thanh kéo giãn splitter tiệp màu nền tối và hover xanh Antigravity.
+
+
+### Mốc Nâng Cấp: Chặn Tràn Chữ Dưới Đáy Khung Chat & Hiệu Ứng Mờ Dần Chuẩn Gemini
+- Khắc phục lỗi chữ bị trôi xuống dưới viên thuốc nhập lệnh khi cuộn tin nhắn.
+- Tăng chiều cao lớp phủ .prompt-bottom-shade lên 190px, với 55% đáy (tương đương 105px) hoàn toàn đặc đen (100% solid).
+- Phần đỉnh trên thanh chat (từ 105px đến 190px) được vuốt dải màu chuyển mượt (smooth gradient fade), giúp dòng chữ tan biến êm mắt trước khi chạm tới khung nhập lệnh.
+- Đảm bảo 100% không bao giờ bị lộ chữ hay xuyên thấu ở đáy màn hình cả trên PC lẫn Mobile.
