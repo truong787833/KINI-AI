@@ -239,20 +239,20 @@ def ask_gemini(
     # Lựa chọn danh sách mô hình dựa trên model_mode
     if model_mode == "pro":
         models_to_try = [
+            "gemini-3.5-flash",         # Thế hệ mới, suy luận phân tích đa chiều
             "gemini-3.1-flash-lite",    # Siêu tốc, thông minh, phản hồi ngay
+            "gemini-3.8-flash",         # Mô hình 3.8 Flash mới nhất của Google
             "gemini-flash-lite-latest",
-            "gemini-3.5-flash-lite",
-            "gemini-3-flash-preview",
-            "gemini-3.5-flash"
+            "gemini-3.5-flash-lite"
         ]
     else:
-        # Flash mode: siêu tốc < 1s, cực kỳ ổn định, chính xác cao
+        # Flash mode: siêu tốc < 1.5s, cực kỳ ổn định, chính xác cao
         models_to_try = [
-            "gemini-3.1-flash-lite",    # Siêu tốc 0.9s, hoạt động 100%
+            "gemini-3.1-flash-lite",    # Siêu tốc ~1.1s, hoạt động 100%
+            "gemini-3.5-flash",         # Thông minh cao cấp 1.8s
+            "gemini-3.8-flash",         # Mô hình 3.8 Flash mới nhất
             "gemini-flash-lite-latest", # Fallback chuẩn
-            "gemini-3.5-flash-lite",
-            "gemini-3-flash-preview",
-            "gemini-3.5-flash"
+            "gemini-3.5-flash-lite"
         ]
     
     last_error = ""
