@@ -963,7 +963,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
                 <div class="msg-image-wrapper">
                     <img src="${imageUrl}" class="msg-inline-image" alt="Artwork" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" loading="lazy">
                     <div class="msg-image-overlay-badge">
-                        <span>✨ AI Art (FLUX.1 Pro)</span>
+                        <span>✨ KINI AI Art Studio</span>
                     </div>
                 </div>
                 <div class="msg-image-actions">

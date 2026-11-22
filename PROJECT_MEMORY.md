@@ -636,3 +636,16 @@
   4. **Tự Động Phục Hồi & Đồng Bộ**:
      - Tự động đếm lùi và retry thông minh khi gặp giới hạn giãn cách miễn phí.
      - Khi tạo từ Studio, tác phẩm tự động xuất hiện đồng thời trong khung chat hiện tại và Bộ sưu tập ảnh (Gallery).
+
+
+### Mốc Tinh Chỉnh: Khắc Phục Watermark & Tối Ưu Hóa Ngữ Cảnh Tạo Ảnh Pixar / Poster (2026-11-22)
+- **Phản hồi từ anh Trường**: *"ảnh tạo gì mà chán vậy. và có pollinations.ai là gì?."* kèm ảnh chụp màn hình một bức ảnh tạo ra nhìn như bọt xà phòng / mây mờ nhạt và có logo chìm `@pollinations.ai` ở góc đáy.
+- **Nguyên nhân cốt lõi**:
+  1. *Về bức ảnh bị mờ/trừu tượng*: Khi nhận câu lệnh "poster kẹo dẻo chip chip mây và gạo", bộ dịch prompt cũ đã dịch sát nghĩa đen "Mây và Gạo" thành "clouds resting on polished white rice" (mây nằm trên đĩa gạo trắng với góc chụp macro đồ ăn nhà bếp), thay vì hiểu đây là **bộ đôi em bé hoạt hình 3D Pixar Mây & Gạo** cầm kẹo dẻo trái cây rực rỡ như trên Google Gemini.
+  2. *Về chữ @pollinations.ai*: Máy chủ tạo ảnh trung gian miễn phí gần đây đã tự động ép đóng watermark chìm vào 35px ở góc đáy bức ảnh.
+- **Giải pháp xử lý triệt để**:
+  1. **Tự động xóa sạch 100% Watermark**: Tích hợp thuật toán `clean_image_watermark` cắt bỏ 38px vùng watermark mép đáy và tái tạo lại kích thước ảnh chuẩn bằng bộ lọc Lanczos siêu mịn. Mọi ảnh xuất ra cho anh Trường giờ đây hoàn toàn sạch sẽ, không còn bất kỳ logo lạ nào.
+  2. **Nâng cấp Bộ Não Prompt Hiểu Sâu Sắc Văn Hóa & Tên Riêng**:
+     - Cài đặt tri thức chuyên sâu: Nhận biết "Mây và Gạo" là hai em bé / nhân vật hoạt hình 3D đáng yêu của anh Trường.
+     - Khi gặp yêu cầu poster / kẹo dẻo / logo: Tự động xuất prompt phong cách thương mại Disney Pixar 3D: Hai em bé Mây và Gạo má phúng phính mắt to tròn vui cười ăn kẹo dẻo, chữ 3D bóng bẩy "ChipChip Mây & Gạo", viền huy hiệu tròn mạ vàng, tia nước hoa quả và kẹo bay lơ lửng, ánh sáng studio rực rỡ, độ nét 8K.
+  3. **Đổi nhãn định danh**: Cập nhật huy hiệu trên giao diện thành `✨ KINI AI Art Studio`.

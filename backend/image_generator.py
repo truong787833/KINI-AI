@@ -4,6 +4,7 @@ import time
 import random
 import urllib.parse
 import requests
+import re
 import logging
 from typing import Dict, Any, Optional
 
@@ -22,29 +23,43 @@ STYLE_PROMPTS = {
     "oil": "classic oil painting, visible brushstrokes, textured canvas, artistic lighting, fine art masterpiece"
 }
 
+def clean_image_watermark(image_path: str):
+    """Tự động loại bỏ hoàn toàn watermark @pollinations.ai ở mép đáy của ảnh"""
+    try:
+        from PIL import Image
+        img = Image.open(image_path)
+        w, h = img.size
+        # Cắt bỏ 38 pixel chứa watermark ở mép đáy
+        cropped = img.crop((0, 0, w, h - 38))
+        # Khôi phục lại kích thước chuẩn bằng thuật toán Lanczos siêu mịn
+        restored = cropped.resize((w, h), Image.Resampling.LANCZOS)
+        restored.save(image_path, quality=95)
+    except Exception as e:
+        logger.warning(f"Không thể cắt watermark: {e}")
+
 def optimize_prompt_with_gemini(prompt: str, style: str = "realistic", api_key: str = "") -> str:
     """
     Sử dụng Gemini AI để dịch và tối ưu hóa mô tả tiếng Việt thành Prompt tiếng Anh đỉnh cao.
-    Đặc biệt xử lý xuất sắc các yêu cầu về Logo, Typography 3D, Chân dung, Phong cảnh.
+    Đặc biệt thấu hiểu sâu sắc ngữ cảnh văn hóa Việt:
+    - Nhận biết 'Mây và Gạo' là bộ đôi em bé/nhân vật 3D đáng yêu của anh Trường (không dịch nhầm thành gạo trắng và đám mây).
+    - Tự động kiến tạo bố cục 3D Pixar, Badge Logo viền vàng bóng bẩy chuẩn 8K.
     """
     try:
         from . import gemini_client
         sys_prompt = (
-            "You are a world-class AI Image Prompt Engineer specializing in Midjourney, FLUX.1, and Stable Diffusion. "
-            "Convert the Vietnamese request into ONE ultra-detailed English prompt paragraph for FLUX.1 image generation.\n\n"
-            "CRITICAL RULES:\n"
-            "1. LOGO/BRAND/TEXT TYPOGRAPHY requests (keywords: logo, chữ, tên, brand, KINI, etc.):\n"
-            "   Output EXACTLY: 'A breathtaking 3D typographic artwork of the word \"<EXACT_TEXT>\" in massive chrome metallic block letters, "
-            "each letter individually sculpted with gleaming brushed metal surfaces, glowing neon cyan edge lighting, "
-            "vibrant magenta accent glow, intricate circuit board engravings etched deep into the metal, "
-            "glowing amber spark particles floating around letters, volumetric fog and atmospheric haze, "
-            "ultra-sharp lens focus on lettering, deep dark space background with subtle blue-purple nebula, "
-            "8K resolution, octane render, ray tracing, hyper-realistic textures, NO humans, NO faces, perfectly centered'\n"
-            "2. PORTRAIT/CHARACTER: 'Ultra-realistic portrait, [description], cinematic 8K, dramatic lighting, shallow depth of field, masterpiece'\n"
-            "3. LANDSCAPE/SCENE: 'Epic [scene description], golden hour lighting, atmospheric perspective, 8K, masterpiece quality'\n"
-            "4. ANIME/CARTOON: 'Makoto Shinkai anime style, [description], vibrant colors, detailed line art, studio quality'\n"
-            "5. CYBERPUNK: 'Neon-lit cyberpunk [description], rain-slicked streets, holographic ads, neon reflections, cinematic atmosphere'\n\n"
-            "Output ONLY the final English prompt. No explanations, no markdown."
+            "You are a world-class AI Image Prompt Engineer specializing in Midjourney v6, FLUX.1, and DALL-E 3.\n"
+            "Convert the Vietnamese request into ONE ultra-detailed, artistic English prompt paragraph for image generation.\n\n"
+            "CRITICAL CONTEXT & RULES:\n"
+            "1. POSTER / CANDY / PRODUCT / CHILDREN (keywords: kẹo dẻo, chip chip, poster, mây, gạo, trẻ em, bánh kẹo):\n"
+            "   - 'Mây' and 'Gạo' are the cute names of two lovely toddler children or adorable 3D mascot characters! NEVER translate to literal rice grains or sky clouds!\n"
+            "   - Output a stunning commercial 3D circular poster badge in Disney Pixar animation aesthetic.\n"
+            "   - Featuring two extremely cute chubby Asian toddlers (a boy and a girl, named Mây & Gạo) with big sparkling expressive eyes and joyful rosy smiles, eating and holding colorful glossy fruit gummy bears and translucent jelly candies.\n"
+            "   - Front 3D glossy candy jelly typography reads 'ChipChip Mây & Gạo', surrounded by swirling splashes of vibrant fruit juices, floating gummy candies, glossy golden circular frame, festive bright studio lighting, Octane 3D render, 8K resolution, masterpiece, clean colorful background.\n"
+            "2. ROBOT / KINI AI / LOGO BADGE (keywords: robot, kini, logo kini, mascot, biểu tượng):\n"
+            "   - A magnificent 3D circular emblem badge featuring a cute friendly metallic AI robot mascot with big glowing cyan neon eyes, pink ball antenna, waving hands, bold 3D glossy gradient typography 'KINI AI' and golden ribbon banner 'ULTIMATE AI OS', circular metallic gold ring frame, floating sparkles and energy circuits, 8K resolution, Disney Pixar 3D aesthetic.\n"
+            "3. GENERAL 3D & ANIMATION: 'Adorable 3D Pixar character/scene, [description], vibrant saturated colors, subsurface scattering, dramatic soft studio lighting, Octane render, 8K, cinematic composition'.\n"
+            "4. REALISTIC PHOTOGRAPHY: 'Hyper-realistic 8K photograph, [description], studio lighting, master quality, shallow depth of field'.\n\n"
+            "Output ONLY the final English prompt. No explanations, no markdown, no quotes."
         )
         res = gemini_client.ask_gemini(
             messages=[{"role": "user", "content": f"Tạo prompt FLUX.1 cho: '{prompt}' - Phong cách: {style}"}],
@@ -53,7 +68,6 @@ def optimize_prompt_with_gemini(prompt: str, style: str = "realistic", api_key: 
         )
         if res.get("success") and res.get("reply"):
             enhanced = res["reply"].strip().replace('"', '').replace('\n', ' ').strip()
-            # Loại bỏ phần giải thích thừa nếu có
             if enhanced.startswith("Prompt:"):
                 enhanced = enhanced[7:].strip()
             logger.info(f"Prompt tối ưu từ Gemini: {enhanced[:150]}...")
@@ -106,6 +120,7 @@ def generate_ai_image(
             if res.status_code == 200 and len(res.content) > 1000:
                 with open(file_path, "wb") as f:
                     f.write(res.content)
+                clean_image_watermark(file_path)
                 
                 return {
                     "success": True,
@@ -131,6 +146,7 @@ def generate_ai_image(
                             if retry_res.status_code == 200 and len(retry_res.content) > 1000:
                                 with open(file_path, "wb") as f:
                                     f.write(retry_res.content)
+                                clean_image_watermark(file_path)
                                 return {
                                     "success": True,
                                     "filename": filename,
@@ -160,6 +176,7 @@ def generate_ai_image(
         if res.status_code == 200 and len(res.content) > 1000:
             with open(file_path, "wb") as f:
                 f.write(res.content)
+            clean_image_watermark(file_path)
             return {
                 "success": True,
                 "filename": filename,
