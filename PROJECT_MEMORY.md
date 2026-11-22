@@ -591,3 +591,20 @@
   3. **Kiểm Thử Nghiệm Thu**:
      - Thiết bị Anh Trường: Xưng "Em", gọi "Anh Trường", nạp ký ức dài hạn.
      - Thiết bị Khách (`usr_friend_device` với tên Tuấn): KINI AI trả lời: *"Chào anh Tuấn, em chào anh ạ! Rất vui được hỗ trợ anh..."* - 100% chuẩn xác.
+
+
+### Mốc Cập Nhật: Thay Thế Logo Thương Hiệu Chính Thức KINI AI (2026-11-22)
+- **Yêu cầu của anh Trường**: Thay thế toàn bộ logo cũ bằng logo huy hiệu Robot 3D kim loại ("KINI AI - ULTIMATE AI OS").
+- **Xử lý đồ họa**:
+  - Tách nền checkerboard giả lập thành định dạng PNG trong suốt (Alpha channel) siêu nét, bảo toàn 100% chi tiết viền vàng, ăng-ten ngọc hồng, các vì sao phát sáng và dải ruy băng hoàng gia.
+  - Tạo các biến thể kích thước chuẩn:
+    + `static/kini_logo.png`: Bản gốc độ phân giải cao (1024x1024).
+    + `static/icon-192.png`: 192x192 cho PWA Mobile.
+    + `static/icon-512.png`: 512x512 cho PWA Splash Screen.
+    + `static/favicon.ico`: Favicon đa kích thước cho tab trình duyệt.
+- **Tích hợp vào giao diện**:
+  1. **Sidebar Header**: Logo robot kim loại thay thế cho ô vuông chữ 'K'.
+  2. **Top Navigation Bar**: Logo hiển thị trang nhã cạnh tên ứng dụng KINI AI.
+  3. **Tin nhắn KINI AI trong khung Chat**: Avatar của KINI AI trong mọi câu trả lời hiển thị robot KINI AI với hiệu ứng đổ bóng phát sáng neon.
+  4. **Hero Welcome Screen**: Logo huy hiệu lớn 110px bay lượn nhẹ nhàng (hero floating) kèm hiệu ứng phát sáng đa sắc.
+  5. **Cache busting**: Cập nhật `v=20261122_1945` để tải tức thì không bị lưu cache cũ.

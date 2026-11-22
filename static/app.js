@@ -836,7 +836,7 @@ function createStreamingAssistantRow() {
     const row = document.createElement("div");
     row.className = "message-row assistant";
     row.innerHTML = `
-        <div class="message-avatar">K</div>
+        <div class="message-avatar"><img src="/static/kini_logo.png" alt="KINI" class="msg-avatar-img"></div>
         <div class="message-body">
             <div class="message-bubble">
                 <span class="streaming-text"></span><span class="streaming-cursor">▍</span>
@@ -932,7 +932,7 @@ function appendLoadingMessage() {
     row.id = id;
     row.className = "message-row assistant";
     row.innerHTML = `
-        <div class="message-avatar">K</div>
+        <div class="message-avatar"><img src="/static/kini_logo.png" alt="KINI" class="msg-avatar-img"></div>
         <div class="message-body">
             <div class="message-bubble kini-thinking">
                 <div class="thinking-dots"><span></span><span></span><span></span></div>
@@ -1064,7 +1064,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
     }
 
     row.innerHTML = `
-        <div class="message-avatar">K</div>
+        <div class="message-avatar"><img src="/static/kini_logo.png" alt="KINI" class="msg-avatar-img"></div>
         <div class="message-body">
             <div class="message-bubble">
                 ${renderedHtml}

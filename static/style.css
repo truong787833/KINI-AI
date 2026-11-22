@@ -161,17 +161,35 @@ body::before {
 }
 
 .brand-avatar {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    border-radius: var(--radius-sm);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: #fff;
-    box-shadow: 0 0 16px var(--primary-glow);
+    background: transparent;
+    filter: drop-shadow(0 0 12px rgba(78, 128, 238, 0.5));
+    flex-shrink: 0;
+}
+
+.brand-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+}
+
+.app-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.topbar-logo-img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.4));
 }
 
 .brand-name {
@@ -507,7 +525,19 @@ body::before {
     justify-content: center;
     align-items: center;
     margin-bottom: 20px;
-    animation: pulseSparkle 3.5s infinite ease-in-out;
+}
+
+.hero-logo-badge {
+    width: 110px;
+    height: 110px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 20px rgba(78, 128, 238, 0.6)) drop-shadow(0 0 35px rgba(0, 229, 255, 0.35));
+    animation: heroLogoFloat 4s ease-in-out infinite alternate;
+}
+
+@keyframes heroLogoFloat {
+    0% { transform: translateY(0px) scale(1); }
+    100% { transform: translateY(-6px) scale(1.03); }
 }
 
 .hero-flourish {
@@ -780,9 +810,9 @@ body::before {
 }
 
 .message-avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: var(--radius-sm);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -792,9 +822,16 @@ body::before {
 }
 
 .message-row.assistant .message-avatar {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    color: #fff;
-    box-shadow: 0 0 12px var(--primary-glow);
+    background: transparent;
+    box-shadow: none;
+    filter: drop-shadow(0 0 10px rgba(78, 128, 238, 0.45));
+}
+
+.msg-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
 }
 
 .message-body {

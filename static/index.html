@@ -9,13 +9,14 @@
     
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/png" href="/static/icon-192.png">
+    <link rel="shortcut icon" href="/static/favicon.ico">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
 
     <!-- Fonts Google Inter & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261121_1300">
+    <link rel="stylesheet" href="/static/style.css?v=20261122_1945">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -39,7 +40,9 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="brand">
-                    <div class="brand-avatar">K</div>
+                    <div class="brand-avatar">
+                        <img src="/static/kini_logo.png" alt="KINI AI Logo" class="brand-logo-img">
+                    </div>
                     <div class="brand-info">
                         <span class="brand-name">KINI AI</span>
                         <span class="brand-badge">PRO 4.0</span>
@@ -93,7 +96,10 @@
                     <button class="btn-icon" id="btn-toggle-sidebar" title="Hiện / Ẩn Sidebar (Ctrl+B)">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
-                    <span class="app-title">KINI AI</span>
+                    <div class="app-title-wrap">
+                        <img src="/static/kini_logo.png" alt="KINI AI" class="topbar-logo-img">
+                        <span class="app-title">KINI AI</span>
+                    </div>
                     <div class="nav-breadcrumb" id="nav-breadcrumb">
                         <span class="crumb-project">haitruong</span>
                         <span class="crumb-sep">/</span>
@@ -332,18 +338,8 @@
                     <!-- Hero Section Chuẩn Gemini (Hiển thị ở màn hình khởi đầu) -->
                     <div class="hero-section" id="hero-section">
                         <div class="hero-content">
-                            <div class="gemini-sparkle-hero">
-                                <svg width="58" height="58" viewBox="0 0 48 48" fill="none">
-                                    <path d="M24 0C24 13.2548 13.2548 24 0 24C13.2548 24 24 34.7452 24 48C24 34.7452 34.7452 24 48 24C34.7452 24 24 13.2548 24 0Z" fill="url(#sparkleGradient)"/>
-                                    <defs>
-                                        <linearGradient id="sparkleGradient" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-                                            <stop offset="0%" stop-color="#ff7a00"/>
-                                            <stop offset="30%" stop-color="#ff017d"/>
-                                            <stop offset="65%" stop-color="#7000ff"/>
-                                            <stop offset="100%" stop-color="#00e5ff"/>
-                                        </linearGradient>
-                                    </defs>
-                                </svg>
+                            <div class="gemini-sparkle-hero hero-logo-container">
+                                <img src="/static/kini_logo.png" alt="KINI AI - Ultimate AI OS" class="hero-logo-badge">
                             </div>
                             <h1 class="hero-title" id="hero-title">Tôi có thể giúp gì cho bạn?</h1>
                             <div class="hero-flourish">꧁ KINI AI ꧂</div>
@@ -860,6 +856,6 @@
     </div>
 
     <script src="/static/chart.min.js"></script>
-    <script src="/static/app.js?v=20261121_1300"></script>
+    <script src="/static/app.js?v=20261122_1945"></script>
 </body>
 </html>
