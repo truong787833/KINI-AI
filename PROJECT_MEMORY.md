@@ -298,3 +298,22 @@
   3. **Cập nhật giao diện & thông báo**:
      - Điều chỉnh các thông báo xác nhận xóa hội thoại, mô tả Modal Siêu Bộ Nhớ, placeholder lời nhắc tính cách và nhãn tài khoản (`Người dùng` thay vì `Hải Trường` khi ở máy khách).
      - Xóa sạch dữ liệu thử nghiệm cũ trên máy khách để khi mở lại trang sẽ là một phiên làm việc hoàn toàn mới.
+
+
+### Mốc Nâng Cấp: Dịch Vụ Giám Sát Tự Phục Hồi 24/24 & Khắc Phục Lỗi DNS_PROBE_FINISHED_NXDOMAIN
+- **Hiện tượng**: Người dùng truy cập đường link cũ báo lỗi `DNS_PROBE_FINISHED_NXDOMAIN` do phiên chạy nền trước đó bị dừng khi máy tính ngủ hoặc khởi động lại.
+- **Yêu cầu của anh Trường**: KINI AI phải luôn chạy 24/24 liên tục.
+- **Giải pháp kỹ thuật đã triển khai**:
+  1. **Khởi động ngay lập tức hệ sinh thái KINI AI Online**:
+     - Đường link trực tuyến mới nhất đã kích hoạt và kiểm thử thành công: `https://broadway-endif-sell-street.trycloudflare.com` (HTTP 200 OK).
+  2. **Dịch vụ Giám sát & Tự động phục hồi (`tools/service_24_7.py`)**:
+     - Chạy ngầm đa tiến trình quản lý đồng thời Backend FastAPI và Cloudflare Tunnel.
+     - Vòng lặp giám sát 3 giây/lần: Nếu Backend hoặc Cloudflare Tunnel bị rớt kết nối hoặc crash, dịch vụ tự động bật lại ngay lập tức mà không cần can thiệp thủ công.
+     - Tự động trích xuất link HTTPS online và ghi vào file `active_online_url.txt` để người dùng và các công cụ dễ dàng tra cứu.
+  3. **Bộ công cụ điều khiển tiện ích**:
+     - `Chay_Ngam_24_7.vbs`: Khởi chạy dịch vụ 24/24 hoàn toàn ẩn dưới nền (zero-console, không hiện cửa sổ đen).
+     - `Dung_KINI_AI.bat`: Dừng nhanh tất cả tiến trình KINI AI khi cần.
+     - `Xem_Link_Online.bat`: Bật lên là thấy ngay đường link trực tuyến đang chạy.
+     - `Cai_Dat_Tu_Khoi_Dong_Cung_Windows.bat`: Tạo lối tắt tự chạy ngầm cùng Windows khi mở máy.
+  4. **Tư vấn giải pháp Cloud 24/24 Vĩnh Viễn**:
+     - Tư vấn phương án đưa KINI AI lên Cloud (Render.com / Hugging Face Spaces) miễn phí để chạy 24/24 vĩnh viễn với 1 tên miền cố định mà không cần phụ thuộc vào máy tính bật hay tắt.
