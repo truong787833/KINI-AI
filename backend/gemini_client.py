@@ -233,26 +233,25 @@ def ask_gemini(
             "parts": [{"text": sys_inst}]
         }
 
-    # Lựa chọn danh sách mô hình dựa trên model_mode (Hỗ trợ toàn bộ thế hệ Gemini 4 và Flash)
+    # Lựa chọn danh sách mô hình dựa trên model_mode (Ưu tiên thế hệ 3.5 và Flash cao cấp)
     if model_mode == "pro":
         models_to_try = [
-            "gemini-4-hydrogen",
-            "gemini-4-neon",
-            "gemini-4-argon",
+            "gemini-3.5-flash",         # Mô hình trí tuệ đỉnh cao, suy luận sâu sắc
+            "gemini-3.5-flash-lite",    # Phân tích nhanh, thông minh vượt trội
             "gemini-4-carbon",
             "gemini-3.1-pro-preview",
             "gemini-pro-latest",
-            "gemini-3.1-flash-lite",    # Cực mạnh, phản hồi tức thì < 1s
+            "gemini-3.1-flash-lite",
             "gemini-flash-lite-latest"
         ]
     else:
-        # Flash mode: siêu tốc, chính xác cao, 0.99s
+        # Flash mode: Flagship 3.5, thông minh như GPT/Gemini Pro, phản hồi siêu tốc
         models_to_try = [
-            "gemini-3.1-flash-lite",    # Đạt 0.99s benchmark, hoạt động 100%
+            "gemini-3.5-flash",         # Flagship thế hệ mới nhất
+            "gemini-3.5-flash-lite",    # Tốc độ cao, suy luận chính xác
+            "gemini-3.1-flash-lite",    # Ổn định
             "gemini-flash-lite-latest", # Fallback chuẩn
-            "gemini-3-flash-preview", 
-            "gemini-3.5-flash-lite",
-            "gemini-flash-latest"
+            "gemini-3-flash-preview"
         ]
     
     last_error = ""

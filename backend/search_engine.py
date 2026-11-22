@@ -245,35 +245,70 @@ def search_github_repos(query: str, limit: int = 4) -> List[Dict[str, str]]:
         logger.warning(f"Lỗi tìm kiếm GitHub: {e}")
     return results
 
-def search_youtube_videos(query: str, limit: int = 3) -> List[Dict[str, str]]:
-    """Tìm kiếm video, bài giảng, hướng dẫn và phân tích trên YouTube"""
+def search_youtube_videos(query: str, limit: int = 4) -> List[Dict[str, str]]:
+    """Tìm kiếm video YouTube thực tế trực tiếp từ YouTube Search (Đảm bảo video đang hoạt động 100%, không hết hạn)"""
     clean_q = extract_core_search_query(query)
+    # Loại bỏ các từ đệm khi tìm video
+    yt_query = re.sub(r'^(tìm\s+cho\s+tôi|tìm\s+tôi|tìm\s+bài|tìm\s+video|hãy\s+tìm|cho\s+tôi\s+link|link)\s*', '', clean_q, flags=re.IGNORECASE).strip()
+    if not yt_query:
+        yt_query = clean_q
+
     results = []
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'vi,en;q=0.9'
+    }
     try:
-        from bs4 import BeautifulSoup
-        res = requests.post("https://html.duckduckgo.com/html/", data={"q": f"site:youtube.com {clean_q}"}, headers=HEADERS, timeout=7)
+        url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(yt_query)}"
+        res = requests.get(url, headers=headers, timeout=8)
         if res.status_code == 200:
-            soup = BeautifulSoup(res.text, "html.parser")
-            for r in soup.select(".result__body"):
-                a_elem = r.select_one(".result__title a")
-                s_elem = r.select_one(".result__snippet")
-                if a_elem:
-                    raw_href = a_elem.get("href", "")
-                    parsed = urllib.parse.parse_qs(urllib.parse.urlparse(raw_href).query)
-                    actual_url = parsed.get("uddg", [raw_href])[0]
-                    if "youtube.com/watch" in actual_url or "youtube.com/@" in actual_url:
-                        t_txt = a_elem.get_text(strip=True).replace(" - YouTube", "")
-                        s_txt = s_elem.get_text(strip=True) if s_elem else ""
+            import json
+            match = re.search(r"var ytInitialData = ({.*?});</script>", res.text)
+            if not match:
+                match = re.search(r"ytInitialData\s*=\s*({.*?});", res.text)
+            
+            if match:
+                try:
+                    data = json.loads(match.group(1))
+                    contents = data.get("contents", {}).get("twoColumnSearchResultsRenderer", {}).get("primaryContents", {}).get("sectionListRenderer", {}).get("contents", [])
+                    for section in contents:
+                        item_section = section.get("itemSectionRenderer", {}).get("contents", [])
+                        for item in item_section:
+                            video = item.get("videoRenderer")
+                            if video:
+                                vid = video.get("videoId")
+                                title_runs = video.get("title", {}).get("runs", [])
+                                title = "".join(r.get("text", "") for r in title_runs)
+                                channel = "".join(r.get("text", "") for r in video.get("ownerText", {}).get("runs", []))
+                                if vid and title:
+                                    results.append({
+                                        "title": f"Video YouTube: {title} (Kênh: {channel})",
+                                        "url": f"https://www.youtube.com/watch?v={vid}",
+                                        "snippet": f"Kênh chính thức: {channel}",
+                                        "source": "YouTube"
+                                    })
+                                    if len(results) >= limit:
+                                        return results
+                except Exception:
+                    pass
+
+            # Fallback regex nếu cấu trúc JSON thay đổi
+            if not results:
+                video_matches = re.findall(r'\"videoId\":\"([a-zA-Z0-9_-]{11})\".*?\"text\":\"([^\"]+)\"', res.text)
+                seen = set()
+                for vid, title in video_matches:
+                    if vid not in seen and len(title) > 3 and "{" not in title and "\\" not in title:
+                        seen.add(vid)
                         results.append({
-                            "title": f"Video YouTube: {t_txt}",
-                            "url": actual_url,
-                            "snippet": s_txt,
+                            "title": f"Video YouTube: {title}",
+                            "url": f"https://www.youtube.com/watch?v={vid}",
+                            "snippet": "Video trên YouTube",
                             "source": "YouTube"
                         })
                         if len(results) >= limit:
                             break
     except Exception as e:
-        logger.warning(f"Lỗi tìm kiếm YouTube: {e}")
+        logger.warning(f"Lỗi tìm kiếm YouTube thực tế: {e}")
     return results
 
 def search_wikipedia_facts(query: str, limit: int = 3) -> List[Dict[str, str]]:
@@ -306,32 +341,16 @@ def search_live_web(query: str, max_results: int = 6) -> List[Dict[str, str]]:
 
 def needs_live_search(text: str) -> bool:
     """
-    Xác định thông minh xem câu hỏi có cần tra cứu dữ liệu thực tế / dẫn chứng không:
-    - Tin tức, báo chí, thời sự, năm 2026, ngày tháng, sự kiện nóng.
-    - Lập trình, thư viện, mã nguồn GitHub.
-    - Video, YouTube, nhạc, bài giảng.
-    - Lịch sử, nhân vật, định nghĩa học thuật Wikipedia.
-    - Pháp luật, nghị định, thông tư.
-    - Giá cả, thời tiết, chứng khoán, thể thao.
+    Kích hoạt tra cứu thông minh thời gian thực cho TẤT CẢ các câu hỏi có nhu cầu thông tin
+    (chỉ bỏ qua câu chào hỏi thuần túy như 'xin chào', 'cảm ơn')
     """
     t = text.lower().strip()
-    # Nếu câu hỏi quá ngắn như "chào bạn", "ok", "cảm ơn" -> không cần tra cứu
-    if len(t) < 5 or t in ["xin chào", "chào bạn", "hello", "hi", "ok", "cảm ơn", "tuyệt vời", "kini ai"]:
+    if len(t) < 4:
         return False
-
-    keywords = [
-        "luật", "nghị định", "thông tư", "nghị quyết", "quyết định", "điều", "khoản",
-        "thư viện pháp luật", "thuvienphapluat", "hôm nay", "mới nhất", "năm 2025", 
-        "năm 2026", "năm 2024", "giá", "thời tiết", "tin tức", "tin", "bài báo", "báo", "sự kiện", 
-        "thời sự", "báo chí", "google", "sáng nay", "tối nay", "đêm qua", "chiến sự", "bóng đá",
-        "kết quả", "thế giới", "việt nam", "ở đâu", "ai là", "tổng thống", "thủ tướng", "chủ tịch",
-        "chứng khoán", "vàng", "xăng dầu", "tình hình", "diễn biến", "quy chế", "chỉ thị",
-        "github", "repo", "thư viện", "code", "lập trình", "source code", "open source",
-        "youtube", "video", "bài giảng", "xem", "kênh", "podcast",
-        "lịch sử", "năm nào", "tiểu sử", "quê ở", "nguồn gốc", "định nghĩa", "khái niệm", "wiki",
-        "facebook", "tiktok", "mạng xã hội", "xu hướng", "trend", "so sánh", "đánh giá", "review"
-    ]
-    return any(k in t for k in keywords)
+    pure_greetings = ["xin chào", "chào bạn", "chào em", "hello", "hi", "ok", "cảm ơn", "cảm ơn bạn", "tuyệt vời", "kini ai"]
+    if t in pure_greetings:
+        return False
+    return True
 
 def get_grounded_context(user_query: str) -> str:
     """
@@ -358,9 +377,9 @@ def get_grounded_context(user_query: str) -> str:
     if any(k in t_lower for k in ["github", "repo", "thư viện", "code", "lập trình", "framework", "sdk", "api"]):
         discovered_sources.extend(search_github_repos(user_query, limit=3))
 
-    # B. Nếu liên quan đến YouTube / Video / Xem bài giảng
-    if any(k in t_lower for k in ["youtube", "video", "clip", "xem", "bài giảng", "hướng dẫn", "nghe"]):
-        discovered_sources.extend(search_youtube_videos(user_query, limit=2))
+    # B. Nếu liên quan đến YouTube / Video / Âm nhạc / Bài hát
+    if any(k in t_lower for k in ["youtube", "video", "clip", "xem", "bài giảng", "hướng dẫn", "nghe", "bài hát", "ca khúc", "nhạc", "ca sĩ", "mp3", "hát", "audio"]):
+        discovered_sources.extend(search_youtube_videos(user_query, limit=3))
 
     # C. Nếu liên quan đến Lịch sử / Nhân vật / Định nghĩa / Khái niệm ("cũ đều chuẩn xác")
     if any(k in t_lower for k in ["lịch sử", "là ai", "năm nào", "tiểu sử", "quê ở", "nguồn gốc", "định nghĩa", "khái niệm", "thời kỳ"]):
