@@ -456,6 +456,9 @@
 
                 <!-- Action Suggestion Pills (Thanh tác vụ gợi ý chuẩn Gemini dưới ô nhập) -->
                 <div class="quick-pills-bar" id="quick-pills-bar">
+                    <button class="quick-pill turbo-pill" id="btn-agent-mode" title="Chế độ Agent: An toàn (Hỏi trước) hoặc Tự hành Turbo">
+                        <span id="agent-mode-icon">🛡️</span> <span id="agent-mode-label">Hỏi trước (Safe)</span>
+                    </button>
                     <button class="quick-pill" data-action="chat">
                         <span>💬</span> Cuộc trò chuyện
                     </button>
@@ -563,6 +566,17 @@
                         <option value="female">Nữ - Hoài My (Ngọt ngào, tự nhiên, truyền cảm)</option>
                         <option value="male">Nam - Nam Minh (Trầm ấm, chững chạc, phát thanh viên)</option>
                     </select>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Chế Độ AI Agent Tự Hành (Kiến trúc Antigravity)</label>
+                    <select id="setting-agent-mode" class="form-input">
+                        <option value="safe">🛡️ Safe Mode (Hỏi trước & đề xuất kế hoạch trước khi tạo thư mục/file)</option>
+                        <option value="turbo">⚡ Turbo Mode (Tự động tạo thư mục, tệp và chạy lệnh không cần hỏi lại)</option>
+                    </select>
+                    <small style="color: #94a3b8; font-size: 0.75rem; display: block; margin-top: 4px;">
+                        Chuẩn Antigravity: Chế độ Safe bảo vệ an toàn cho máy tính, liệt kê rõ các thư mục và tệp dự kiến trước khi thực thi.
+                    </small>
                 </div>
 
                 <div class="form-group" style="margin-top: 16px;">

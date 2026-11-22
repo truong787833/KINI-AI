@@ -3407,3 +3407,197 @@ body::before {
     background: rgba(239, 68, 68, 0.06);
 }
 
+/* ============================================================
+   ANTIGRAVITY AGENT CONFIRMATION CARD & TURBO MODE STYLES
+   ============================================================ */
+
+/* Nút Chuyển Chế Độ Agent (Hỏi trước hoặc Tự hành Turbo) */
+.quick-pill.turbo-pill {
+    border-color: rgba(56, 189, 248, 0.3);
+    background: rgba(56, 189, 248, 0.06);
+    color: #38bdf8;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    font-weight: 500;
+}
+
+.quick-pill.turbo-pill:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: #38bdf8;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+}
+
+.quick-pill.turbo-pill.turbo-active {
+    border-color: rgba(245, 158, 11, 0.5);
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
+}
+
+.quick-pill.turbo-pill.turbo-active:hover {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: #fbbf24;
+}
+
+/* Thẻ Đề Xuất Kế Hoạch Chuẩn Antigravity (Proposed Action Card) */
+.antigravity-proposal-card {
+    margin-top: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 24px rgba(56, 189, 248, 0.12);
+    animation: fadeInSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.proposal-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.proposal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.proposal-shield-icon {
+    font-size: 1.4rem;
+    animation: pulseShield 2s infinite ease-in-out;
+}
+
+@keyframes pulseShield {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.4)); }
+    50% { transform: scale(1.08); filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.7)); }
+}
+
+.proposal-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #38bdf8;
+    letter-spacing: 0.03em;
+}
+
+.proposal-subtitle {
+    font-size: 0.76rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.proposal-mode-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 12px;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #7dd3fc;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.proposal-actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: 12px 0 16px;
+}
+
+.proposal-action-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: #e2e8f0;
+    transition: all 0.2s;
+}
+
+.proposal-action-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.proposal-action-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.proposal-action-text {
+    flex-grow: 1;
+    word-break: break-all;
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+}
+
+.proposal-card-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    padding-top: 4px;
+}
+
+.btn-proposal-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    border: none;
+}
+
+.btn-proposal-btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-proposal-btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary-confirm {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+}
+
+.btn-primary-confirm:hover {
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+    box-shadow: 0 6px 18px rgba(14, 165, 233, 0.5);
+}
+
+.btn-turbo-confirm {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #fbbf24;
+}
+
+.btn-turbo-confirm:hover {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: #fbbf24;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+}
+
+.btn-edit-confirm {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+}
+
+.btn-edit-confirm:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+

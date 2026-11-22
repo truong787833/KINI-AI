@@ -209,6 +209,9 @@ async def chat_with_kini(
     conv_id: str = Form("default"),
     message: str = Form(""),
     model_mode: str = Form("flash"),
+    agent_mode: Optional[str] = Form(None),
+    confirm_agent: Optional[str] = Form("no"),
+    task_prompt: Optional[str] = Form(""),
     file: Optional[UploadFile] = File(None),
     files: Optional[List[UploadFile]] = File(None)
 ):
@@ -352,7 +355,7 @@ async def chat_with_kini(
             "model_used": plan_res.get("model_used", "gemini-3.1-pro-preview")
         }
 
-    # 3. KIỂM TRA Ý ĐỊNH AGENT TỰ HÀNH CHUẨN ANTIGRAVITY (Tự động tạo thư mục, tạo dự án, viết code file vào máy tính)
+    # 3. KIỂM TRA Ý ĐỊNH AGENT TỰ HÀNH CHUẨN ANTIGRAVITY (Hỏi trước hoặc Tự hành Turbo)
     msg_low = message.lower().strip()
     agent_keywords = [
         "tạo thư mục", "tạo folder", "lập thư mục", "tạo cho tôi thư mục", "tạo tệp", "tạo file", 
@@ -364,9 +367,32 @@ async def chat_with_kini(
         msg_low.startswith("/agent") or 
         any(k in msg_low for k in agent_keywords)
     )
-    if is_agent_cmd:
-        clean_task = re.sub(r'^/agent\s*', '', message, flags=re.IGNORECASE).strip()
-        agent_res = agent_engine.run_agent_task(clean_task, api_key=api_key, client_id=cid)
+
+    # Lấy chế độ Agent: "safe" (Hỏi trước - mặc định) hoặc "turbo" (Tự hành không cần hỏi)
+    active_agent_mode = (agent_mode.strip().lower() if agent_mode else "") or database.get_setting("agent_mode", "safe", client_id=cid)
+    if active_agent_mode not in ["safe", "turbo"]:
+        active_agent_mode = "safe"
+
+    # Kiểm tra xem người dùng có đang gõ câu xác nhận phê duyệt tác vụ vừa đề xuất không
+    approval_phrases = [
+        "chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay", 
+        "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn"
+    ]
+    is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in approval_phrases)
+    pending_task_from_history = ""
+    if is_chat_approval:
+        past_check = database.get_conversation_messages(conv_id)[-4:]
+        for pm in reversed(past_check):
+            if pm.get("role") == "user" and any(k in pm.get("content", "").lower() for k in agent_keywords):
+                pending_task_from_history = pm.get("content", "").strip()
+                break
+
+    is_confirmed_execution = (confirm_agent == "yes") or bool(pending_task_from_history)
+    task_to_run = task_prompt.strip() or pending_task_from_history or re.sub(r'^/agent\s*', '', message, flags=re.IGNORECASE).strip()
+
+    # TRƯỜNG HỢP A: THỰC THI NGAY (Khi người dùng đã duyệt HOẶC đang ở chế độ Turbo)
+    if (is_agent_cmd and active_agent_mode == "turbo") or (is_confirmed_execution and task_to_run):
+        agent_res = agent_engine.run_agent_task(task_to_run, api_key=api_key, client_id=cid)
         if agent_res.get("success"):
             assistant_reply = agent_res.get("reply", "")
             actions = agent_res.get("actions", [])
@@ -389,8 +415,32 @@ async def chat_with_kini(
                 "success": True,
                 "reply": assistant_reply,
                 "is_agent": True,
-                "actions": actions
+                "actions": actions,
+                "agent_mode": active_agent_mode
             }
+        else:
+            err_reply = agent_res.get("error", "Lỗi thực thi tác vụ.")
+            database.add_message(conv_id, "assistant", err_reply, client_id=cid)
+            return {
+                "success": False,
+                "reply": err_reply,
+                "is_agent": True
+            }
+
+    # TRƯỜNG HỢP B: CHẾ ĐỘ AN TOÀN CHUẨN ANTIGRAVITY (Đề xuất kế hoạch & hỏi xác nhận trước khi làm)
+    elif is_agent_cmd and active_agent_mode == "safe":
+        proposal = agent_engine.generate_agent_proposal(task_to_run, api_key=api_key, client_id=cid)
+        reply = proposal.get("reply", "")
+        proposed_actions = proposal.get("proposed_actions", [])
+        database.add_message(conv_id, "assistant", reply, client_id=cid)
+        return {
+            "success": True,
+            "reply": reply,
+            "is_agent_proposal": True,
+            "proposed_actions": proposed_actions,
+            "task_prompt": task_to_run,
+            "agent_mode": "safe"
+        }
 
     # 4. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
     # Tra cứu Internet trực tuyến nếu câu hỏi liên quan đến báo chí, tin tức, thời sự, năm 2026, luật pháp, thông tin mới
@@ -907,10 +957,12 @@ def read_settings(request: Request):
     api_k = database.get_setting("gemini_api_key", "", client_id=cid)
     saved_persona = database.get_setting("custom_persona", "", client_id=cid)
     persona = saved_persona if saved_persona else (gemini_client.DEFAULT_SYSTEM_PROMPT if cid == "master" else "")
+    agent_mode = database.get_setting("agent_mode", "safe", client_id=cid)
     return {
         "gemini_api_key": api_k,
         "has_api_key": bool(api_k or (cid == "master" and os.environ.get("GEMINI_API_KEY", ""))),
         "custom_persona": persona,
+        "agent_mode": agent_mode,
         "client_id": cid,
         "is_master": cid == "master"
     }
@@ -922,4 +974,23 @@ def save_settings(data: dict, request: Request):
         database.set_setting("gemini_api_key", data["gemini_api_key"].strip(), client_id=cid)
     if "custom_persona" in data:
         database.set_setting("custom_persona", data["custom_persona"].strip(), client_id=cid)
+    if "agent_mode" in data:
+        m = data["agent_mode"].strip().lower()
+        if m in ["safe", "turbo"]:
+            database.set_setting("agent_mode", m, client_id=cid)
     return {"success": True, "message": "Đã lưu cài đặt thành công!"}
+
+@app.get("/api/system/agent-mode")
+def get_agent_mode(request: Request):
+    cid = get_request_client_id(request)
+    mode = database.get_setting("agent_mode", "safe", client_id=cid)
+    return {"success": True, "agent_mode": mode}
+
+@app.post("/api/system/agent-mode")
+def set_agent_mode(data: dict, request: Request):
+    cid = get_request_client_id(request)
+    mode = data.get("agent_mode", "safe").strip().lower()
+    if mode not in ["safe", "turbo"]:
+        mode = "safe"
+    database.set_setting("agent_mode", mode, client_id=cid)
+    return {"success": True, "agent_mode": mode}

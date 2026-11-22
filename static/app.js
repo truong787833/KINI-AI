@@ -700,6 +700,7 @@ async function sendMessage() {
         formData.append("conv_id", currentConvId);
         formData.append("message", message);
         formData.append("model_mode", document.querySelector(".model-option.active")?.dataset.model || "flash");
+        formData.append("agent_mode", currentAgentMode);
         
         if (filesToSend.length === 1) {
             formData.append("file", filesToSend[0]);
@@ -718,7 +719,10 @@ async function sendMessage() {
         removeLoadingMessage(loadingId);
 
         if (data.reply) {
-            appendAssistantMessage(data.reply, data.image_url, data.is_image_generated, data.model_used);
+            appendAssistantMessage(data.reply, data.image_url, data.is_image_generated, data.model_used, data);
+            if (data.is_agent && typeof refreshFileTree === "function") {
+                refreshFileTree();
+            }
             // Cập nhật số lượng ký ức
             updateMemoryCountBadge();
             // Cập nhật danh sách hội thoại bên sidebar ngay khi có tin nhắn mới
@@ -808,7 +812,7 @@ function removeLoadingMessage(id) {
     if (el) el.remove();
 }
 
-function appendAssistantMessage(content, imageUrl = "", isImageGen = false, modelUsed = "") {
+function appendAssistantMessage(content, imageUrl = "", isImageGen = false, modelUsed = "", extraData = null) {
     const container = document.getElementById("chat-messages");
     const row = document.createElement("div");
     row.className = "message-row assistant";
@@ -832,6 +836,63 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
 
     const renderedHtml = formatMarkdown(content);
     const displayModel = modelUsed || "gemini-3.1-flash-lite";
+
+    // Thẻ Đề Xuất Kế Hoạch Antigravity (Nếu là Agent Proposal)
+    let proposalCardHtml = "";
+    if (extraData && extraData.is_agent_proposal) {
+        const taskPrompt = extraData.task_prompt || "";
+        const actions = extraData.proposed_actions || [];
+        let itemsHtml = "";
+        if (actions.length > 0) {
+            for (const act of actions) {
+                const actType = act.type || "file";
+                const icon = actType === "folder" ? "📁" : (actType === "command" ? "⚡" : "📄");
+                const label = actType === "folder" ? "Tạo thư mục" : (actType === "command" ? "Chạy lệnh" : "Tạo tệp");
+                itemsHtml += `
+                    <div class="proposal-action-item">
+                        <span class="proposal-action-icon">${icon}</span>
+                        <span class="proposal-action-text"><b>${label}:</b> ${escapeHtml(act.path || act.command || "")}</span>
+                    </div>
+                `;
+            }
+        } else {
+            itemsHtml = `
+                <div class="proposal-action-item">
+                    <span class="proposal-action-icon">📁</span>
+                    <span class="proposal-action-text">KINI Agent sẽ tự động tạo thư mục và các tệp mã nguồn cần thiết cho: <i>"${escapeHtml(taskPrompt)}"</i></span>
+                </div>
+            `;
+        }
+
+        proposalCardHtml = `
+            <div class="antigravity-proposal-card">
+                <div class="proposal-card-header">
+                    <div class="proposal-header-left">
+                        <span class="proposal-shield-icon">🛡️</span>
+                        <div>
+                            <div class="proposal-title">KẾ HOẠCH HÀNH ĐỘNG AGENT (ĐANG CHỜ BẠN DUYỆT)</div>
+                            <div class="proposal-subtitle">KINI Agent đã sẵn sàng tác động vào máy tính, hãy phê duyệt để bắt đầu:</div>
+                        </div>
+                    </div>
+                    <span class="proposal-mode-badge">Safe Mode</span>
+                </div>
+                <div class="proposal-actions-list">
+                    ${itemsHtml}
+                </div>
+                <div class="proposal-card-buttons">
+                    <button class="btn-proposal-btn btn-primary-confirm" onclick="confirmAndRunAgent('${escapeAttr(taskPrompt)}')">
+                        <span>▶️</span> Chấp nhận (Chạy ngay)
+                    </button>
+                    <button class="btn-proposal-btn btn-turbo-confirm" onclick="confirmWithTurbo('${escapeAttr(taskPrompt)}')">
+                        <span>⚡</span> Duyệt & Bật Turbo
+                    </button>
+                    <button class="btn-proposal-btn btn-edit-confirm" onclick="editAgentProposal('${escapeAttr(taskPrompt)}')">
+                        <span>✏️</span> Chỉnh sửa yêu cầu
+                    </button>
+                </div>
+            </div>
+        `;
+    }
 
     // Nhận diện nếu có sản phẩm do KINI Agent tạo ra trong workspace
     let agentActionsHtml = "";
@@ -865,6 +926,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
             <div class="message-bubble">
                 ${renderedHtml}
                 ${imgBlock}
+                ${proposalCardHtml}
             </div>
             <div class="msg-actions">
                 <span class="msg-model-badge" title="Mô hình thực tế từ Google API">⚡ ${escapeHtml(displayModel)}</span>
@@ -910,6 +972,110 @@ function scrollToBottom() {
     const viewport = document.getElementById("chat-viewport");
     if (viewport) {
         viewport.scrollTop = viewport.scrollHeight;
+    }
+}
+
+// ============================================================
+// 2.1. HỆ THỐNG AGENT CONFIRMATION & TURBO MODE (CHUẨN ANTIGRAVITY)
+// ============================================================
+let currentAgentMode = localStorage.getItem("kini_agent_mode") || "safe";
+
+function updateAgentModeUI(mode) {
+    currentAgentMode = mode;
+    localStorage.setItem("kini_agent_mode", mode);
+    const icon = document.getElementById("agent-mode-icon");
+    const label = document.getElementById("agent-mode-label");
+    const btn = document.getElementById("btn-agent-mode");
+    const sel = document.getElementById("setting-agent-mode");
+
+    if (mode === "turbo") {
+        if (icon) icon.textContent = "⚡";
+        if (label) label.textContent = "Turbo (Tự hành)";
+        if (btn) {
+            btn.classList.add("turbo-active");
+            btn.title = "Chế độ: ⚡ Tự hành Turbo (Bấm để chuyển sang Hỏi trước)";
+        }
+        if (sel) sel.value = "turbo";
+    } else {
+        if (icon) icon.textContent = "🛡️";
+        if (label) label.textContent = "Hỏi trước (Safe)";
+        if (btn) {
+            btn.classList.remove("turbo-active");
+            btn.title = "Chế độ: 🛡️ Hỏi trước Safe Mode (Bấm để chuyển sang Tự hành Turbo)";
+        }
+        if (sel) sel.value = "safe";
+    }
+}
+
+async function setAgentMode(mode) {
+    updateAgentModeUI(mode);
+    try {
+        await fetch("/api/system/agent-mode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agent_mode: mode })
+        });
+    } catch (e) {
+        console.warn("Lỗi đồng bộ agent mode:", e);
+    }
+}
+
+async function toggleAgentMode() {
+    const nextMode = currentAgentMode === "safe" ? "turbo" : "safe";
+    await setAgentMode(nextMode);
+    showToast(nextMode === "turbo" ? "⚡ Đã bật Chế độ Tự hành Turbo (Chạy ngay không cần hỏi lại)" : "🛡️ Đã bật Chế độ An toàn (Hỏi trước & đề xuất kế hoạch)");
+}
+
+function initAgentModeSystem() {
+    document.getElementById("btn-agent-mode")?.addEventListener("click", toggleAgentMode);
+    document.getElementById("setting-agent-mode")?.addEventListener("change", (e) => {
+        setAgentMode(e.target.value);
+    });
+    updateAgentModeUI(currentAgentMode);
+}
+
+async function confirmAndRunAgent(taskPrompt) {
+    if (!taskPrompt) return;
+    const loadingId = appendLoadingMessage();
+    try {
+        const formData = new FormData();
+        formData.append("conv_id", currentConvId);
+        formData.append("message", "Chấp nhận thực thi: " + taskPrompt);
+        formData.append("confirm_agent", "yes");
+        formData.append("task_prompt", taskPrompt);
+        formData.append("model_mode", document.querySelector(".model-option.active")?.dataset.model || "flash");
+        formData.append("agent_mode", currentAgentMode);
+
+        const res = await fetch("/api/chat", {
+            method: "POST",
+            body: formData
+        });
+        const data = await res.json();
+        removeLoadingMessage(loadingId);
+        if (data.reply) {
+            appendAssistantMessage(data.reply, data.image_url, data.is_image_generated, data.model_used, data);
+            if (typeof refreshFileTree === "function") refreshFileTree();
+            showToast("✅ KINI Agent đã hoàn thành tác vụ!");
+        } else {
+            appendAssistantMessage("⚠️ Không thể hoàn thành tác vụ: " + (data.error || "Không có phản hồi."));
+        }
+    } catch (err) {
+        removeLoadingMessage(loadingId);
+        appendAssistantMessage("❌ Lỗi thực thi tác vụ: " + err.message);
+    }
+}
+
+async function confirmWithTurbo(taskPrompt) {
+    await setAgentMode("turbo");
+    await confirmAndRunAgent(taskPrompt);
+}
+
+function editAgentProposal(taskPrompt) {
+    const textarea = document.getElementById("main-user-input");
+    if (textarea) {
+        textarea.value = taskPrompt;
+        textarea.focus();
+        showToast("Đã đưa yêu cầu vào ô nhập, bạn có thể chỉnh sửa rồi nhấn Gửi.");
     }
 }
 
@@ -1299,6 +1465,11 @@ async function loadSettings() {
         if (data.custom_persona) {
             document.getElementById("setting-persona").value = data.custom_persona;
         }
+        if (data.agent_mode) {
+            updateAgentModeUI(data.agent_mode);
+        } else {
+            updateAgentModeUI(currentAgentMode);
+        }
 
         const userPill = document.querySelector("#btn-user-profile .user-name");
         if (userPill) {
@@ -1316,15 +1487,22 @@ async function loadSettings() {
 }
 
 function initSettings() {
+    initAgentModeSystem();
     document.getElementById("btn-save-settings")?.addEventListener("click", async () => {
         const key = document.getElementById("setting-gemini-key").value.trim();
         const persona = document.getElementById("setting-persona").value.trim();
+        const agentModeVal = document.getElementById("setting-agent-mode")?.value || currentAgentMode;
         try {
             await fetch("/api/settings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ gemini_api_key: key, custom_persona: persona })
+                body: JSON.stringify({ 
+                    gemini_api_key: key, 
+                    custom_persona: persona,
+                    agent_mode: agentModeVal
+                })
             });
+            updateAgentModeUI(agentModeVal);
             alert("Đã lưu cài đặt KINI AI thành công!");
             closeModal("modal-settings");
         } catch (e) {

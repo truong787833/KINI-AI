@@ -454,3 +454,75 @@ def run_plan_task(goal: str, api_key: str = "", client_id: str = "master") -> Di
         client_id=client_id
     )
     return res
+
+PROPOSAL_SYSTEM_PROMPT = """Bạn là KINI AI Agent Planner (theo chuẩn kiến trúc Antigravity).
+Khi nhận một yêu cầu tác vụ Agent (tạo thư mục, tạo file, làm game, viết code, chạy lệnh...), bạn KHÔNG ĐƯỢC CHẠY NGAY mà bạn hãy:
+1. Trình bày ngắn gọn Kế Hoạch Đề Xuất (Proposed Plan) và liệt kê rõ ràng các hành động dự kiến thực thi trên máy tính:
+   - 📁 Thư mục sẽ tạo (ví dụ: `workspace/ten_du_an`)
+   - 📝 Tệp tin sẽ viết (ví dụ: `workspace/ten_du_an/main.py`, `workspace/ten_du_an/run.bat`)
+   - ⚡ Lệnh kiểm thử nếu có
+2. Xuất một khối JSON cuối cùng để hệ thống tạo Thẻ Phê Duyệt Tương Tác:
+```json
+{
+  "task": "tóm tắt ngắn gọn",
+  "proposed_actions": [
+    {"type": "folder", "path": "workspace/ten_thu_muc"},
+    {"type": "file", "path": "workspace/ten_thu_muc/main.py"}
+  ]
+}
+```
+3. Lễ phép hỏi người dùng: "Anh/Bạn có chấp nhận để KINI Agent thực thi kế hoạch này không, hoặc muốn chỉnh sửa gì thêm trước khi bắt đầu?"
+Xưng hô phù hợp: "Em" - "Anh Trường" nếu master; "Tôi" - "Bạn" nếu visitor."""
+
+def generate_agent_proposal(task_prompt: str, api_key: str = "", client_id: str = "master") -> Dict[str, Any]:
+    """Tạo bản đề xuất kế hoạch và danh sách hành động dự kiến trước khi thực thi (Chế độ An Toàn / Confirmation)"""
+    from . import gemini_client
+    sys_prompt = PROPOSAL_SYSTEM_PROMPT
+    if client_id == "master":
+        user_msg = f"Anh Trường yêu cầu tác vụ: \"{task_prompt}\". Hãy lập bản đề xuất kế hoạch và liệt kê các hành động dự kiến (tạo thư mục, file) để anh duyệt trước."
+    else:
+        user_msg = f"Yêu cầu tác vụ: \"{task_prompt}\". Hãy lập bản đề xuất kế hoạch và liệt kê các hành động dự kiến (tạo thư mục, file) để người dùng duyệt trước."
+
+    res = gemini_client.ask_gemini(
+        messages=[{"role": "user", "content": user_msg}],
+        api_key=api_key,
+        system_instruction=sys_prompt,
+        model_mode="flash",
+        client_id=client_id
+    )
+    reply = res.get("reply", "")
+    
+    proposed_actions = []
+    json_match = re.search(r'```json\s*(\{[\s\S]*?\})\s*```', reply)
+    if json_match:
+        try:
+            data = json.loads(json_match.group(1))
+            proposed_actions = data.get("proposed_actions", [])
+        except Exception:
+            pass
+
+    # Fallback trích xuất nếu Gemini trả về dạng danh sách gạch đầu dòng
+    if not proposed_actions:
+        folder_matches = re.findall(r'(?:thư mục|folder)[\s:`"]+([a-zA-Z0-9_\-\.\/\\]+)', reply, re.IGNORECASE)
+        for fm in folder_matches:
+            clean_p = fm.strip().strip('`"\'.,;').replace("\\", "/")
+            if ("/" in clean_p or "workspace" in clean_p.lower() or len(clean_p) >= 3) and not any(a.get("path") == clean_p for a in proposed_actions):
+                proposed_actions.append({"type": "folder", "path": clean_p})
+        
+        file_matches = re.findall(r'(?:file|tệp)[\s:`"]+([a-zA-Z0-9_\-\.\/\\]+\.[a-zA-Z0-9]+)', reply, re.IGNORECASE)
+        for fm in file_matches:
+            clean_p = fm.strip().strip('`"\'.,;').replace("\\", "/")
+            if not any(a.get("path") == clean_p for a in proposed_actions):
+                proposed_actions.append({"type": "file", "path": clean_p})
+
+    if not proposed_actions:
+        m = re.search(r'(?:thư mục|folder)\s+([a-zA-Z0-9_\-]+)', task_prompt, re.IGNORECASE)
+        if m:
+            proposed_actions.append({"type": "folder", "path": f"workspace/{m.group(1)}"})
+
+    return {
+        "success": res.get("success", True),
+        "reply": reply,
+        "proposed_actions": proposed_actions,
+        "task_prompt": task_prompt
+    }

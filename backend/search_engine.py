@@ -341,16 +341,57 @@ def search_live_web(query: str, max_results: int = 6) -> List[Dict[str, str]]:
 
 def needs_live_search(text: str) -> bool:
     """
-    Kích hoạt tra cứu thông minh thời gian thực cho TẤT CẢ các câu hỏi có nhu cầu thông tin
-    (chỉ bỏ qua câu chào hỏi thuần túy như 'xin chào', 'cảm ơn')
+    Kích hoạt tra cứu thông minh thời gian thực ĐÚNG LÚC - ĐÚNG CHỖ:
+    - Chỉ tra cứu khi câu hỏi liên quan đến thời sự, tin tức, hôm nay, báo chí, video YouTube, GitHub, giá cả, thời tiết hoặc yêu cầu đường dẫn/nguồn.
+    - TUYỆT ĐỐI KHÔNG tra cứu trên các câu hỏi chào hỏi, lập trình, giải toán, viết văn, triết học, tạo thư mục/file hoặc trò chuyện thông thường.
     """
     t = text.lower().strip()
-    if len(t) < 4:
+    if len(t) < 3:
         return False
-    pure_greetings = ["xin chào", "chào bạn", "chào em", "hello", "hi", "ok", "cảm ơn", "cảm ơn bạn", "tuyệt vời", "kini ai"]
-    if t in pure_greetings:
+
+    # Bỏ qua các lệnh Agent tự hành (tạo file, folder, chạy lệnh)
+    agent_words = ["tạo thư mục", "tạo folder", "tạo file", "viết file", "làm game", "tạo game", "chạy lệnh", "agent"]
+    if any(aw in t for aw in agent_words):
         return False
-    return True
+
+    # Bỏ qua câu chào hỏi, cảm ơn, khen ngợi, câu hỏi năng lực
+    skip_phrases = [
+        "xin chào", "chào bạn", "chào em", "hello", "hi", "ok", "cảm ơn", "cảm ơn bạn", 
+        "tuyệt vời", "bạn làm được những gì", "bạn là ai", "giới thiệu bản thân", "giúp gì",
+        "kini ai là gì", "chào anh trường", "bạn khỏe không", "tạm biệt", "hẹn gặp lại"
+    ]
+    if any(t == sp or t.startswith(sp + " ") for sp in skip_phrases):
+        return False
+
+    # 1. Người dùng yêu cầu link / nguồn / dẫn chứng cụ thể
+    source_triggers = ["cho tôi link", "tìm link", "xin link", "dẫn chứng", "nguồn ở đâu", "bài viết nào", "link gốc", "nguồn nào", "ở đâu nói", "trang web nào"]
+    if any(st in t for st in source_triggers):
+        return True
+
+    # 2. Tin tức thời sự, sự kiện, thời tiết, giá cả, hôm nay
+    news_triggers = [
+        "hôm nay", "mới nhất", "tin tức", "tin mới", "thời sự", "bài báo", "báo đài", 
+        "tin nóng", "tin trong ngày", "giá vàng", "giá xăng", "giá dầu", "thời tiết", 
+        "chứng khoán", "tỷ giá", "chiến sự", "bầu cử", "vừa xảy ra", "2026"
+    ]
+    if any(nt in t for nt in news_triggers):
+        return True
+
+    # 3. Yêu cầu tìm kiếm video, bài hát, YouTube
+    media_triggers = ["youtube", "video", "clip", "bài hát", "ca khúc", "nghe bài", "xem clip", "mp3"]
+    if any(mt in t for mt in media_triggers):
+        return True
+
+    # 4. Yêu cầu tìm kiếm GitHub / Thư viện mã nguồn mở
+    code_triggers = ["github", "repo", "kho mã", "mã nguồn mở", "thư viện npm", "thư viện pypi"]
+    if any(ct in t for ct in code_triggers):
+        return True
+
+    # 5. Tra cứu điều khoản pháp luật cụ thể
+    if re.search(r'(điều\s+\d+|khoản\s+\d+|nghị\s+định|thông\s+tư|nghị\s+quyết\s+\d+|luật\s+[\w\d]+)', t):
+        return True
+
+    return False
 
 def get_grounded_context(user_query: str) -> str:
     """
@@ -425,16 +466,15 @@ def get_grounded_context(user_query: str) -> str:
 
     lines.append(
         "\n=== CHỈ DẪN TRẢ LỜI ĐẲNG CẤP CHUẨN SIÊU TRÍ TUỆ NHÂN TẠO (KINI AI) ===\n"
-        "1. HIỂU BIẾT SÂU RỘNG & PHÂN TÍCH ĐA CHIỀU (NHƯ GPT, GEMINI, CLAUDE):\n"
-        "   - Phân tích bản chất câu hỏi, diễn giải sâu sắc, mạch lạc, có cấu trúc rõ ràng (Mở đầu -> Phân tích chi tiết -> Đánh giá & Khuyến nghị).\n"
+        "1. HIỂU BIẾT SÂU RỘNG & PHÂN TÍCH ĐA CHIỀU (CHUẨN ANTIGRAVITY, GPT, CLAUDE):\n"
+        "   - Phân tích bản chất câu hỏi, diễn giải sâu sắc, mạch lạc, có tư duy kiến trúc và cấu trúc rõ ràng.\n"
         "2. ĐỘ CHÍNH XÁC TUYỆT ĐỐI (CẢ THÔNG TIN CŨ VÀ MỚI):\n"
         "   - Thông tin lịch sử, khoa học, định nghĩa học thuật (cũ) phải chuẩn xác 100% theo căn cứ Wikipedia / Bách khoa thư.\n"
         "   - Thông tin thời sự, công nghệ, giá cả, thời tiết (mới) phải chuẩn xác theo dữ liệu báo chí và Google năm 2026.\n"
-        "3. BẮT BUỘC ĐÍNH KÈM ĐƯỜNG DẪN CHỨNG CHUẨN XÁC (WORKING CITATIONS):\n"
-        "   - Ở cuối câu trả lời, LUÔN CÓ MỤC:\n"
-        "     ### 🌐 Nguồn Dẫn Chứng & Tham Khảo\n"
-        "     - [Tên nguồn/Tiêu đề bài viết](URL) - Đơn vị xuất bản (Thời gian)\n"
-        "   - Sử dụng ĐÚNG các đường link thực tế ở danh sách trên, TUYỆT ĐỐI KHÔNG TỰ BỊA ĐẶT LINK KHÔNG CÓ THẬT."
+        "3. NGUYÊN TẮC ĐƯỜNG DẪN CHỨNG & LIÊN KẾT (TÙY NHU CẦU - KHÔNG CHÈN MÁY MÓC):\n"
+        "   - CHỈ đính kèm mục '### 🌐 Nguồn Dẫn Chứng & Tham Khảo' khi người dùng HỎI hoặc YÊU CẦU ĐƯỜNG DẪN/NGUỒN (ví dụ hỏi link video YouTube, link bài hát, link bài báo, link repo GitHub, hoặc tra cứu nguồn luật).\n"
+        "   - ĐỐI VỚI CÂU HỎI THÔNG THƯỜNG / GIẢI THÍCH / SUY LUẬN: TUYỆT ĐỐI KHÔNG tự ý chèn danh sách liên kết thừa thãi ở cuối bài nếu người dùng không yêu cầu. Hãy sử dụng thông tin tra cứu để trả lời thật sâu sắc, tinh tế, sạch đẹp như Antigravity.\n"
+        "   - NẾU trích dẫn đường link, TUYỆT ĐỐI CHỈ DÙNG các link thực tế trong danh sách trên, KHÔNG BỊA ĐẶT LINK ẢO."
     )
 
     return "\n".join(lines)

@@ -403,3 +403,30 @@
      - Khẳng định bản sắc KINI AI là Siêu Trí tuệ & AI Agent tự hành có đầy đủ công cụ tác động trực tiếp vào hệ thống file. Nghiêm cấm câu trả lời *"Tôi là AI không thể can thiệp máy tính"*.
   4. **Kiểm thử nghiệm thu**:
      - Thử nghiệm câu lệnh *"tạo cho tôi thư mục du_an_kini_test"*: KINI AI Agent đã tự động tạo thư mục, tự viết file `main.py`, tự tạo file `run.bat` một chạm và báo cáo đường dẫn hoàn thành trên máy tính.
+
+### Mốc Nâng Cấp: Kiến Trúc Antigravity Action Confirmation, Turbo Mode & Trích Dẫn Nguồn Thông Minh
+- **Yêu cầu của anh Trường**:
+  1. *"sao cứ mỗi lần hỏi là có nguồn?. tùy lúc người dùng cần hoặc không chứ. phải lúc nào cũng nguồn đâu"*.
+  2. *"Nhưng hãy thêm vào như antigravity là mỗi lần làm gì liên quan đến Agent thì phải hỏi lại có chấp nhận hoặc chỉnh sửa gì không chứ?. người dùng có thể cài turbo hoặc mỗi việc phải hỏi lại chứ?"*.
+  3. *"Nói chung a muốn e làm sao hiểu biết, và thông minh như em (Antigravity) ấy. toàn bộ đều biết như e"*.
+- **Giải pháp kỹ thuật đã triển khai**:
+  1. **Hệ Thống Phê Duyệt Kế Hoạch Agent Chuẩn Google Antigravity (Action Confirmation Card)**:
+     - **Chế độ An toàn (Safe Mode - Mặc định)**: Khi nhận lệnh tác vụ Agent (tạo thư mục, tạo tệp tin, viết code, chạy lệnh), KINI AI lập tức phân tích và đưa ra **Thẻ Đề Xuất Kế Hoạch (Proposed Action Card)** với danh sách các thư mục, tệp và lệnh dự kiến thực thi.
+     - Thẻ tích hợp 3 nút tương tác thông minh:
+       + `▶️ Chấp nhận (Chạy ngay)`: Thực thi kế hoạch đã duyệt.
+       + `⚡ Duyệt & Bật Turbo`: Bật chế độ Turbo và chạy ngay.
+       + `✏️ Chỉnh sửa yêu cầu`: Đưa nội dung vào khung nhập để người dùng tùy chỉnh.
+     - Hỗ trợ phê duyệt tự nhiên bằng câu chat: Khi người dùng chat "chấp nhận", "đồng ý", "làm đi", "ok", "tiến hành", KINI Agent tự động phát hiện và thực thi ngay tác vụ vừa đề xuất.
+  2. **Chế Độ Tự Hành Siêu Tốc (Turbo Mode)**:
+     - Khi bật Turbo, KINI AI Agent sẽ tự động lập kế hoạch và thực thi trực tiếp trên máy tính mà không cần dừng lại hỏi xác nhận.
+     - Nút chuyển chế độ tức thì trên thanh Quick Pills (`🛡️ Hỏi trước (Safe)` / `⚡ Turbo (Tự hành)`) và trong Cài Đặt Hệ Thống.
+     - Lưu trạng thái vào cơ sở dữ liệu SQLite và `localStorage`.
+  3. **Xóa Bỏ Triệt Để Tình Trạng Chèn Nguồn Rác Máy Móc**:
+     - Tinh chỉnh `needs_live_search`: Chỉ tìm kiếm khi câu hỏi thực sự liên quan đến tin tức thời sự năm 2026, giá cả, thời tiết, video YouTube, repo GitHub hoặc người dùng yêu cầu link/nguồn. Không tra cứu trên câu hỏi thông thường, lập trình, giải toán hay tạo thư mục.
+     - Cập nhật chỉ dẫn hệ thống: Chỉ đính kèm mục `### 🌐 Nguồn Dẫn Chứng & Tham Khảo` khi người dùng hỏi hoặc yêu cầu đường dẫn kiểm chứng. Tuyệt đối không chèn liên kết máy móc vào câu trả lời thông thường.
+  4. **Kiểm Thử Toàn Diện**:
+     - `GET /api/system/agent-mode` trả về `{"success": true, "agent_mode": "safe"}`.
+     - Thử lệnh *"tạo cho tôi thư mục test_antigravity_safe"*: KINI AI trả về đề xuất với `is_agent_proposal: true` và danh sách hành động dự kiến.
+     - Thử bấm xác nhận với `confirm_agent: "yes"`: Thư mục được tạo thành công trên đĩa `H:\KINI_AI\workspace\`.
+     - Thử câu hỏi thông thường *"bạn làm được những gì"*: AI trả lời tự nhiên, sâu sắc, sạch đẹp, hoàn toàn không có danh sách nguồn dẫn chứng máy móc.
+     - Link Online 24/7 qua Cloudflare Tunnel: `https://broadway-endif-sell-street.trycloudflare.com` hoạt động ổn định (HTTP 200 OK).
