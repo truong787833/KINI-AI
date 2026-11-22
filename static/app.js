@@ -241,8 +241,16 @@ function initNavigationAndModals() {
                 document.querySelectorAll(".model-option").forEach(o => o.classList.remove("active"));
                 opt.classList.add("active");
                 const m = opt.dataset.model;
-                if (modelLabel) modelLabel.textContent = m === "flash" ? "⚡ Gemini Flash Lite" : "🧠 Gemini Pro";
-                if (mobileModelLabel) mobileModelLabel.textContent = m === "flash" ? "KINI Flash 3.1" : "KINI Pro Deep";
+                if (modelLabel) {
+                    if (m === "flash-3.8") modelLabel.textContent = "🚀 Gemini 3.8 Flash";
+                    else if (m === "pro") modelLabel.textContent = "🧠 Gemini Pro";
+                    else modelLabel.textContent = "⚡ Gemini Flash Lite";
+                }
+                if (mobileModelLabel) {
+                    if (m === "flash-3.8") mobileModelLabel.textContent = "KINI 3.8 Flash";
+                    else if (m === "pro") mobileModelLabel.textContent = "KINI Pro Deep";
+                    else mobileModelLabel.textContent = "KINI Flash 3.1";
+                }
                 modelDropdown.classList.remove("show");
             });
         });
