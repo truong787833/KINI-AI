@@ -25,6 +25,7 @@ from . import tts_service
 from . import doc_exporter
 from . import search_engine
 from . import agent_engine
+from . import math_verifier
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -542,8 +543,11 @@ async def chat_with_kini(
                 "nói tự nhiên như người thật đang trò chuyện trực tiếp."
             )
 
-    # Tự động gắn chỉ thị kiểm tra tính toán số học chuẩn xác 100% nếu có liên quan đến tính toán, số liệu
-    if re.search(r'\b(tính|tổng|cộng|trừ|nhân|chia|\+|\=|\d+\s*[\+\-\*\/]\s*\d+|lạng|kg|gam|đơn hàng|tiền)\b', full_user_content.lower()):
+    # Tự động tính toán số học chuẩn xác 100% bằng Python (Chống ảo giác số học tuyệt đối)
+    math_context = math_verifier.extract_and_verify_arithmetic(full_user_content)
+    if math_context:
+        current_content_with_grounding += f"\n\n{math_context}"
+    elif re.search(r'\b(tính|tổng|cộng|trừ|nhân|chia|\+|\=|\d+\s*[\+\-\*\/]\s*\d+|lạng|kg|gam|đơn hàng|tiền)\b', full_user_content.lower()):
         current_content_with_grounding += (
             "\n\n[QUY TẮC BẮT BUỘC VỀ ĐỘ CHÍNH XÁC SỐ HỌC]: "
             "Câu hỏi có chứa số liệu hoặc phép tính. "
@@ -898,8 +902,11 @@ async def chat_with_kini_stream(
     for m in past_msgs[:-1]:
         formatted_history.append({"role": m["role"], "content": m["content"]})
     current_content = full_user_content + webpage_context + live_search_text
-    # Tự động gắn chỉ thị kiểm tra tính toán số học chuẩn xác 100% nếu có liên quan đến tính toán, số liệu
-    if re.search(r'\b(tính|tổng|cộng|trừ|nhân|chia|\+|\=|\d+\s*[\+\-\*\/]\s*\d+|lạng|kg|gam|đơn hàng|tiền)\b', full_user_content.lower()):
+    # Tự động tính toán số học chuẩn xác 100% bằng Python (Chống ảo giác số học tuyệt đối)
+    math_context = math_verifier.extract_and_verify_arithmetic(full_user_content)
+    if math_context:
+        current_content += f"\n\n{math_context}"
+    elif re.search(r'\b(tính|tổng|cộng|trừ|nhân|chia|\+|\=|\d+\s*[\+\-\*\/]\s*\d+|lạng|kg|gam|đơn hàng|tiền)\b', full_user_content.lower()):
         current_content += (
             "\n\n[QUY TẮC BẮT BUỘC VỀ ĐỘ CHÍNH XÁC SỐ HỌC]: "
             "Câu hỏi có chứa số liệu hoặc phép tính. "

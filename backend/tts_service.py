@@ -49,7 +49,8 @@ async def generate_vietnamese_audio_async(text: str, voice_type: str = "female")
         clean = "Dạ, em nghe rõ rồi ạ."
 
     try:
-        comm = edge_tts.Communicate(clean, voice=voice)
+        # rate="+18%": Đọc lưu loát, năng động, chuẩn đàm thoại tự nhiên, không bị chậm chạp
+        comm = edge_tts.Communicate(clean, voice=voice, rate="+18%")
         await comm.save(file_path)
 
         if os.path.exists(file_path) and os.path.getsize(file_path) > 200:

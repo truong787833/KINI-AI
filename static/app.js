@@ -1070,9 +1070,15 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
         `;
     }
 
+    let formattedModelName = displayModel;
+    if (displayModel === "gemini-3.8-flash") formattedModelName = "Gemini 3.8 Flash";
+    else if (displayModel === "gemini-3.5-flash") formattedModelName = "Gemini 3.5 Flash";
+    else if (displayModel === "gemini-3.1-flash-lite") formattedModelName = "Gemini 3.1 Flash Lite";
+    else if (displayModel === "gemini-3.1-pro-preview") formattedModelName = "Gemini Pro Deep";
+
     let fallbackHint = "";
     if (extraData && extraData.fallback_from_38) {
-        fallbackHint = ` <span style="opacity:0.8;font-size:10px;font-style:italic;" title="Máy chủ Google đang quá tải 3.8 Flash (503), KINI tự động chuyển tiếp sang 3.5 Flash để phục vụ anh không bị gián đoạn">(Google 3.8 tạm bận)</span>`;
+        fallbackHint = ` <span style="opacity:0.85;font-size:11px;color:#38bdf8;font-style:italic;" title="Google AI Studio giới hạn Gemini 3.8 Flash ở mức 20 lượt/ngày trên Free Tier. KINI đã tự động chuyển tiếp sang mô hình ổn định để không gián đoạn trò chuyện.">(Tự chuyển từ 3.8)</span>`;
     }
 
     row.innerHTML = `
@@ -1084,7 +1090,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
                 ${proposalCardHtml}
             </div>
             <div class="msg-actions">
-                <span class="msg-model-badge" title="Mô hình thực tế từ Google API">⚡ ${escapeHtml(displayModel)}${fallbackHint}</span>
+                <span class="msg-model-badge" title="Mô hình thực tế từ Google API">⚡ ${escapeHtml(formattedModelName)}${fallbackHint}</span>
                 ${agentActionsHtml}
                 <button class="btn-msg-action btn-speak" title="Đọc bằng giọng nói tiếng Việt">
                     <span class="action-icon">🔊</span> Nghe đọc
@@ -3777,9 +3783,22 @@ function startVoiceLiveListening() {
     } catch(e) {}
 }
 
+let voiceLiveLastSentText = "";
+let voiceLiveLastSentTime = 0;
+
 async function processVoiceLiveTurn(userSpokenText) {
     // Chặn tuyệt đối lặp lượt / race condition
     if (!voiceLiveActive || voiceLiveIsProcessing) return;
+    const cleanSpoken = (userSpokenText || "").trim();
+    if (!cleanSpoken) return;
+
+    // Chặn gửi lặp lại cùng một câu trong vòng 3.5 giây (Chống trùng lặp Voice Live)
+    const now = Date.now();
+    if (cleanSpoken.toLowerCase() === voiceLiveLastSentText.toLowerCase() && (now - voiceLiveLastSentTime < 3500)) {
+        return;
+    }
+    voiceLiveLastSentText = cleanSpoken;
+    voiceLiveLastSentTime = now;
     
     voiceLiveIsProcessing = true;
     voiceLiveState = "processing";
