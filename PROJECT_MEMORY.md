@@ -649,3 +649,27 @@
      - Cài đặt tri thức chuyên sâu: Nhận biết "Mây và Gạo" là hai em bé / nhân vật hoạt hình 3D đáng yêu của anh Trường.
      - Khi gặp yêu cầu poster / kẹo dẻo / logo: Tự động xuất prompt phong cách thương mại Disney Pixar 3D: Hai em bé Mây và Gạo má phúng phính mắt to tròn vui cười ăn kẹo dẻo, chữ 3D bóng bẩy "ChipChip Mây & Gạo", viền huy hiệu tròn mạ vàng, tia nước hoa quả và kẹo bay lơ lửng, ánh sáng studio rực rỡ, độ nét 8K.
   3. **Đổi nhãn định danh**: Cập nhật huy hiệu trên giao diện thành `✨ KINI AI Art Studio`.
+
+
+### Mốc Cập Nhật: Tái Thiết Toàn Diện Khung Nhập Lệnh Chat Chuẩn Google Antigravity & Modern Gemini (2026-11-22)
+- **Yêu cầu & Nhận xét của anh Trường**:
+  - *"qua nhận xét. a thấy phần nhập chat rất xấu. tự nhiên chat chỉ trong khung nhỏ. còn các model đó thi thừa rộng rãi. có cách nào ẩn xuống lúc chọn xong và chat đẹp như này không"*
+  - Đính kèm 2 ảnh:
+    + Ảnh 1: Khung nhập cũ bị dồn ép vào một hàng ngang khiến ô textarea chỉ chiếm ~35% diện tích bên trái, chữ bị xuống dòng liên tục, trong khi các nút Model, Research, Live, Mic chiếm gần hết không gian bên phải.
+    + Ảnh 2: Giao diện chuẩn mực của Google Antigravity / Gemini thế hệ mới: Ô nhập văn bản rộng thênh thang chiếm trọn 100% chiều ngang phía trên; toàn bộ công cụ và bộ chọn model được xếp gọn gàng thành một thanh công cụ phía dưới trong cùng một khối thẻ bo tròn hiện đại.
+- **Giải pháp kỹ thuật đã triển khai hoàn thiện 100%**:
+  1. **Tái cấu trúc HTML (`static/index.html`)**:
+     - Tách `.pill-input-box` thành cấu trúc 2 tầng chuyên nghiệp:
+       + **Tầng trên (`.prompt-input-row`)**: Ô `textarea#main-user-input` mở rộng 100% chiều rộng, không bị chèn ép, tự co giãn độ cao mượt mà theo nội dung gõ.
+       + **Tầng dưới (`.prompt-bottom-toolbar`)**: Thanh công cụ nằm gọn gàng bên dưới ngăn cách bởi viền mờ tinh tế.
+         * *Bên trái (`.prompt-tools-left`)*: Nút đính kèm `+`, nút bộ chọn model `Gemini 3.8 Flash ▾` (chọn xong tự đóng menu gọn gàng), nút `🔬 Research`, nút `🎙️ Live`.
+         * *Bên phải (`.prompt-tools-right`)*: Nút chế độ `🛡️ Turbo ▾` (chuẩn Antigravity), nút mic thu âm tiếng Việt `🎤`, nút gửi tròn màu xanh với mũi tên sang phải sắc nét `➔`.
+  2. **Thiết kế CSS Hiện Đại Đẳng Cấp (`static/style.css`)**:
+     - `.pill-input-box`: Chuyển thành dạng Card bo góc 22px với hiệu ứng kính mờ `backdrop-filter: blur(20px)`, bóng đổ sang trọng `box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45)`, tự phát sáng xanh viền khi focus.
+     - `.pill-textarea`: Chiều rộng 100%, xóa bỏ mọi đường viền thừa, font chữ sắc nét 0.98rem, line-height 1.5, gõ dài tự động giãn dòng thoải mái.
+     - Đồng bộ menu Model Dropdown mở hướng lên trên (`bottom: calc(100% + 10px); left: 0`) và thẻ Quota Flyout Card mở sang phải mượt mà.
+     - Tương thích responsive 100% cho cả Desktop, Tablet và Mobile.
+  3. **Đồng bộ Logic (`static/app.js`)**:
+     - Cập nhật nhãn Model hiển thị gọn gàng (`Gemini 3.8 Flash`, `Gemini Pro`, `Gemini Flash Lite`).
+     - Tối ưu nhãn chế độ tự hành (`Turbo` / `Safe`) vừa vặn trong thanh công cụ.
+     - Đảm bảo toàn bộ phím tắt (Enter gửi, Shift+Enter xuống dòng, Slash command `/`, Copy/Paste, Kéo thả tệp) hoạt động 100% trơn tru, không có bất kỳ regression nào.

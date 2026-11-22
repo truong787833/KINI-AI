@@ -244,9 +244,9 @@ function initNavigationAndModals() {
                 opt.classList.add("active");
                 const m = opt.dataset.model;
                 if (modelLabel) {
-                    if (m === "flash-3.8") modelLabel.textContent = "🚀 Gemini 3.8 Flash";
-                    else if (m === "pro") modelLabel.textContent = "🧠 Gemini Pro";
-                    else modelLabel.textContent = "⚡ Gemini Flash Lite";
+                    if (m === "flash-3.8") modelLabel.textContent = "Gemini 3.8 Flash";
+                    else if (m === "pro") modelLabel.textContent = "Gemini Pro";
+                    else modelLabel.textContent = "Gemini Flash Lite";
                 }
                 if (mobileModelLabel) {
                     if (m === "flash-3.8") mobileModelLabel.textContent = "KINI 3.8 Flash";
@@ -1146,7 +1146,7 @@ function updateAgentModeUI(mode) {
 
     if (mode === "turbo") {
         if (icon) icon.textContent = "⚡";
-        if (label) label.textContent = "Turbo (Tự hành)";
+        if (label) label.textContent = "Turbo";
         if (btn) {
             btn.classList.add("turbo-active");
             btn.title = "Chế độ: ⚡ Tự hành Turbo (Bấm để chuyển sang Hỏi trước)";
@@ -1154,7 +1154,7 @@ function updateAgentModeUI(mode) {
         if (sel) sel.value = "turbo";
     } else {
         if (icon) icon.textContent = "🛡️";
-        if (label) label.textContent = "Hỏi trước (Safe)";
+        if (label) label.textContent = "Safe";
         if (btn) {
             btn.classList.remove("turbo-active");
             btn.title = "Chế độ: 🛡️ Hỏi trước Safe Mode (Bấm để chuyển sang Tự hành Turbo)";

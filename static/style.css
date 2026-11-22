@@ -1082,31 +1082,81 @@ body::before {
     color: var(--danger);
 }
 
-/* The Iconic Floating Pill Box */
+/* The Iconic Floating Pill Box (Chuẩn Antigravity & Gemini Modern Layout) */
 .pill-input-box {
     width: 100%;
-    background: var(--bg-pill);
-    border: 1px solid var(--border-color);
-    border-radius: 32px;
-    padding: 8px 14px;
+    background: rgba(22, 24, 38, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 22px;
+    padding: 12px 14px 10px 14px;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .pill-input-box:focus-within {
-    border-color: rgba(78, 128, 238, 0.5);
-    box-shadow: 0 8px 32px rgba(78, 128, 238, 0.15);
+    border-color: rgba(78, 128, 238, 0.55);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), 0 0 20px rgba(78, 128, 238, 0.15);
+    background: rgba(24, 27, 42, 0.95);
+}
+
+.prompt-input-row {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+}
+
+.pill-textarea {
+    width: 100%;
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 0.98rem;
+    resize: none;
+    min-height: 32px;
+    max-height: 180px;
+    line-height: 1.5;
+    padding: 2px 4px 6px 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.prompt-bottom-toolbar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.prompt-tools-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.prompt-tools-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .btn-pill-action {
     background: none;
     border: none;
     color: var(--text-secondary);
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1119,6 +1169,32 @@ body::before {
 .btn-pill-action:hover {
     background: rgba(255, 255, 255, 0.08);
     color: var(--text-primary);
+}
+
+.btn-pill-action.btn-add-file {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+}
+
+.btn-pill-action.btn-add-file:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.btn-pill-action.btn-mic {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+}
+
+.btn-pill-action.btn-mic:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
 }
 
 .btn-pill-action.btn-mic.recording {
@@ -1134,27 +1210,45 @@ body::before {
 }
 
 .btn-pill-action.btn-send {
-    background: var(--primary);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #4e80ee;
     color: #fff;
-}
-.btn-pill-action.btn-send:hover {
-    background: var(--primary-light);
-    transform: scale(1.04);
+    box-shadow: 0 3px 12px rgba(78, 128, 238, 0.35);
 }
 
-.pill-textarea {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text-primary);
-    font-size: 0.98rem;
-    resize: none;
-    max-height: 160px;
-    line-height: 1.45;
-    padding: 6px 2px;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+.btn-pill-action.btn-send:hover {
+    background: #3b6bd6;
+    transform: scale(1.06);
+    box-shadow: 0 4px 16px rgba(78, 128, 238, 0.5);
+}
+
+.btn-agent-mode-compact {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+    padding: 5px 10px;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-agent-mode-compact:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-agent-mode-compact.turbo-active {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
 }
 
 .pill-textarea::-webkit-scrollbar {
@@ -1178,7 +1272,7 @@ body::before {
 .attach-popup-menu {
     display: none;
     position: absolute;
-    bottom: 50px;
+    bottom: calc(100% + 12px);
     left: 0;
     background: var(--bg-surface-elevated);
     border: 1px solid var(--border-color);
@@ -1220,12 +1314,13 @@ body::before {
 }
 
 .model-badge {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-full);
-    padding: 5px 10px;
-    color: var(--text-secondary);
-    font-size: 0.78rem;
+    padding: 5px 11px;
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    font-weight: 500;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1234,20 +1329,31 @@ body::before {
 }
 
 .model-badge:hover {
-    background: rgba(255, 255, 255, 0.09);
-    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.model-badge .arrow-down {
+    font-size: 0.72rem;
+    opacity: 0.7;
+    transition: transform 0.2s ease;
 }
 
 .model-dropdown-menu {
     display: none;
     position: absolute;
-    bottom: 46px;
-    right: 0;
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 6px;
-    width: 240px;
+    bottom: calc(100% + 10px);
+    left: 0;
+    right: auto;
+    background: var(--bg-surface-elevated, #1a1d2e);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md, 14px);
+    padding: 8px;
+    width: 290px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.1);
+    z-index: 100;
+}
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
     z-index: 50;
 }
@@ -1776,40 +1882,43 @@ body::before {
     .pill-input-box {
         background: #181a26;
         border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 32px;
-        padding: 6px 8px 6px 12px;
+        border-radius: 20px;
+        padding: 10px 12px 8px 12px;
         box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: 6px;
     }
     .model-badge {
-        display: none !important; /* Đã chuyển lên giữa Top Nav */
+        display: flex;
+        padding: 4px 8px;
+        font-size: 0.75rem;
     }
     .btn-pill-action.btn-add-file {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
         color: #94a3b8;
         padding: 0;
     }
     .pill-textarea {
+        width: 100%;
         font-size: 0.95rem;
-        line-height: 1.4;
-        padding: 6px 4px;
-        flex: 1;
-        max-height: 110px;
+        line-height: 1.45;
+        padding: 2px 2px;
+        min-height: 30px;
+        max-height: 130px;
     }
     .btn-pill-action.btn-mic {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
         color: #94a3b8;
         padding: 0;
     }
     .btn-pill-action.btn-send {
-        width: 38px;
-        height: 38px;
+        width: 34px;
+        height: 34px;
         border-radius: 50%;
         background: #4e80ee;
         color: #fff;
@@ -2238,7 +2347,8 @@ body::before {
 .usage-flyout-card {
     position: absolute;
     bottom: 0;
-    right: 105%;
+    left: calc(100% + 12px);
+    right: auto;
     width: 320px;
     background: rgba(18, 20, 32, 0.98);
     backdrop-filter: blur(20px);
@@ -2246,14 +2356,15 @@ body::before {
     border-radius: 16px;
     padding: 16px;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(138, 92, 246, 0.15);
-    z-index: 50;
+    z-index: 105;
     animation: fadeIn 0.2s ease;
 }
 
 @media (max-width: 768px) {
     .usage-flyout-card {
-        right: 0;
-        bottom: 110%;
+        left: 0;
+        right: auto;
+        bottom: calc(100% + 10px);
         width: 290px;
     }
 }
@@ -3872,9 +3983,10 @@ body::before {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: var(--text-secondary);
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 20px;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
+    font-weight: 500;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -3899,9 +4011,9 @@ body::before {
     background: rgba(168, 85, 247, 0.15);
     border: 1px solid rgba(168, 85, 247, 0.4);
     color: #c084fc;
-    padding: 6px 14px;
+    padding: 5px 11px;
     border-radius: 20px;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
     display: inline-flex;
