@@ -340,3 +340,29 @@
      - Đặt câu hỏi thử nghiệm: *"Hãy cho tôi biết 3 tin tức thời sự mới nhất hôm nay ngày 22/11/2026 từ các bài báo"*.
      - KINI AI trích xuất chuẩn xác 100% các bài báo mới nhất sáng ngày 22/11/2026 từ Báo Dân trí (Chiến sự Ukraine - chiến dịch Bẫy Gấu lúc 04:38:56 GMT), VnExpress (Miền Bắc sắp đón đợt rét mới từ ngày 24/11 lúc 03:51:32 GMT), và cảnh báo an toàn thực phẩm.
      - Dữ liệu hoàn toàn khớp thực tế, minh bạch nguồn gốc và thời gian.
+
+
+### Mốc Nâng Cấp: Kiến Trúc Siêu Trí Tuệ Tìm Kiếm & Dẫn Chứng Đa Nguồn (Universal Deep Intelligence Engine)
+- **Yêu cầu của anh Trường**:
+  1. KINI AI phải luôn cập nhật chính xác, biết lọc, phân tích chuyên sâu.
+  2. Mọi thông tin (cũ như lịch sử, định nghĩa hay mới như tin tức năm 2026) đều phải chính xác 100%.
+  3. BẮT BUỘC có ĐƯỜNG DẪN CHỨNG CHUẨN XÁC (Working Citations & URLs).
+  4. Nắm bắt toàn bộ các lĩnh vực, ngành nghề, YouTube, GitHub, Facebook, TikTok, Wikipedia...
+  5. Sức mạnh tìm kiếm mạnh như Google Search, hiểu biết sâu sắc như GPT, Gemini, Claude.
+- **Giải pháp kỹ thuật đã triển khai**:
+  1. **Tích hợp Đa Nguồn Tìm Kiếm Thời Gian Thực (`backend/search_engine.py`)**:
+     - **Google News & VnExpress RSS**: Cập nhật tin tức báo chí chính thống từng phút trong ngày, bóc tách link gốc bài viết.
+     - **Multi-Source Web Search (DuckDuckGo HTML)**: Giải mã đường link thực tế (`uddg` decoding), trích xuất tiêu đề và đoạn tóm tắt chất lượng cao.
+     - **GitHub Public API Integration (`search_github_repos`)**: Tìm kiếm mã nguồn mở, thư viện, framework, repo số 1 kèm số sao (⭐) và đường link GitHub trực tiếp.
+     - **YouTube Discovery (`search_youtube_videos`)**: Tìm kiếm video, bài giảng, clip review thực tế với đường dẫn `https://www.youtube.com/watch?v=...`.
+     - **Wikipedia Academic API (`search_wikipedia_facts`)**: Bách khoa toàn thư cho kiến thức lịch sử, khoa học, nhân vật, định nghĩa ("cũ đều chuẩn xác 100%").
+     - **Cổng thông tin Pháp luật Chính phủ**: Giữ vững nguyên văn điều khoản pháp luật.
+  2. **Tiêu chuẩn Trả lời Chuẩn Siêu Trí Tuệ (`backend/gemini_client.py`)**:
+     - Bố cục chuyên nghiệp: Bản chất -> Phân tích đa chiều -> Đánh giá & Khuyến nghị thực thi.
+     - BẮT BUỘC đính kèm mục:
+       `### 🌐 Nguồn Dẫn Chứng & Tham Khảo`
+       chứa các đường link Markdown click được: `[Tên nguồn / Tiêu đề](URL)` cho mọi câu trả lời có tra cứu.
+     - Nghiêm cấm bịa đặt link hoặc thông tin sai sự thật.
+  3. **Kiểm thử nghiệm thu**:
+     - Kiểm thử câu hỏi lịch sử: Trả lời sâu sắc về Chiến dịch Điện Biên Phủ và đính kèm đầy đủ link Cổng TTĐT Chính phủ, Báo Nhân Dân, Wikipedia.
+     - Dịch vụ 24/24 tự động nạp mã mới (PID: 22572), đường link online phản hồi HTTP 200 OK toàn cầu.
