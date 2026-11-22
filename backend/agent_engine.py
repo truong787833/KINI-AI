@@ -16,15 +16,19 @@ os.makedirs(WORKSPACE_DIR, exist_ok=True)
 # CÁC CÔNG CỤ CỤC BỘ DÀNH CHO KINI AI AGENT
 # ============================================================
 def tool_write_file(rel_path: str, content: str) -> Dict[str, Any]:
-    """Tạo hoặc ghi đè file trong thư mục workspace"""
+    """Tạo hoặc ghi đè file trên máy tính (trong workspace hoặc đường dẫn cụ thể)"""
     try:
-        # Chuẩn hóa đường dẫn an toàn
-        clean_path = os.path.normpath(rel_path).lstrip("\\/.")
-        full_path = os.path.join(WORKSPACE_DIR, clean_path)
+        clean = rel_path.strip().strip('"\'')
+        if re.match(r'^[a-zA-Z]:[\\/]', clean):
+            full_path = os.path.abspath(clean)
+        else:
+            clean_path = os.path.normpath(clean).lstrip("\\/.")
+            full_path = os.path.join(WORKSPACE_DIR, clean_path)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, "w", encoding="utf-8") as f:
             f.write(content)
-        return {"success": True, "path": clean_path, "bytes": len(content.encode("utf-8"))}
+        display_path = os.path.relpath(full_path, WORKSPACE_DIR) if full_path.startswith(WORKSPACE_DIR) else full_path
+        return {"success": True, "path": display_path.replace("\\", "/"), "full_path": full_path, "bytes": len(content.encode("utf-8"))}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -106,12 +110,17 @@ def tool_run_command(command: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 def tool_create_folder(rel_path: str) -> Dict[str, Any]:
-    """Tạo thư mục mới trong workspace"""
+    """Tạo thư mục mới trên máy tính (trong workspace hoặc đường dẫn cụ thể)"""
     try:
-        clean_path = os.path.normpath(rel_path).lstrip("\\/.")
-        full_path = os.path.join(WORKSPACE_DIR, clean_path)
+        clean = rel_path.strip().strip('"\'')
+        if re.match(r'^[a-zA-Z]:[\\/]', clean):
+            full_path = os.path.abspath(clean)
+        else:
+            clean_path = os.path.normpath(clean).lstrip("\\/.")
+            full_path = os.path.join(WORKSPACE_DIR, clean_path)
         os.makedirs(full_path, exist_ok=True)
-        return {"success": True, "path": clean_path}
+        display_path = os.path.relpath(full_path, WORKSPACE_DIR) if full_path.startswith(WORKSPACE_DIR) else full_path
+        return {"success": True, "path": display_path.replace("\\", "/"), "full_path": full_path}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

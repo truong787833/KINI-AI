@@ -352,24 +352,37 @@ async def chat_with_kini(
             "model_used": plan_res.get("model_used", "gemini-3.1-pro-preview")
         }
 
-    # 3. KIỂM TRA Ý ĐỊNH AGENT TỰ HÀNH CHUẨN ANTIGRAVITY (Tự động tạo dự án, viết code file vào đĩa)
+    # 3. KIỂM TRA Ý ĐỊNH AGENT TỰ HÀNH CHUẨN ANTIGRAVITY (Tự động tạo thư mục, tạo dự án, viết code file vào máy tính)
+    msg_low = message.lower().strip()
+    agent_keywords = [
+        "tạo thư mục", "tạo folder", "lập thư mục", "tạo cho tôi thư mục", "tạo tệp", "tạo file", 
+        "viết file", "tạo dự án", "lập trình dự án", "tạo game", "làm game", "viết code game", 
+        "viết script", "tạo script", "chạy lệnh", "agent hãy", "tự động làm", "tạo luôn cho tôi", 
+        "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm"
+    ]
     is_agent_cmd = (
-        message.strip().startswith("/agent") or 
-        any(k in message.lower() for k in ["tạo game", "làm game", "viết code game", "tạo dự án", "lập trình dự án", "agent hãy", "tự động làm"])
+        msg_low.startswith("/agent") or 
+        any(k in msg_low for k in agent_keywords)
     )
     if is_agent_cmd:
-        clean_task = message.replace("/agent", "").strip()
+        clean_task = re.sub(r'^/agent\s*', '', message, flags=re.IGNORECASE).strip()
         agent_res = agent_engine.run_agent_task(clean_task, api_key=api_key, client_id=cid)
         if agent_res.get("success"):
             assistant_reply = agent_res.get("reply", "")
             actions = agent_res.get("actions", [])
             if actions:
-                summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi:**"]
+                summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi trên máy tính:**"]
                 for a in actions:
                     if a["tool"] == "write_file":
-                        summary_lines.append(f"- 📝 Đã tạo file: `workspace/{a.get('path')}`")
+                        summary_lines.append(f"- 📝 Đã tạo file: `{a.get('path')}`")
+                    elif a["tool"] == "create_folder":
+                        summary_lines.append(f"- 📁 Đã tạo thư mục: `{a.get('path')}`")
                     elif a["tool"] == "run_command":
                         summary_lines.append(f"- ⚡ Đã chạy lệnh: `{a.get('command')}` (Mã: {a.get('returncode')})")
+                    elif a["tool"] == "delete_file":
+                        summary_lines.append(f"- 🗑️ Đã xóa: `{a.get('path')}`")
+                    elif a["tool"] == "rename_file":
+                        summary_lines.append(f"- ✏️ Đổi tên: `{a.get('old_path')}` -> `{a.get('new_path')}`")
                 assistant_reply += "\n" + "\n".join(summary_lines)
             database.add_message(conv_id, "assistant", assistant_reply, client_id=cid)
             return {

@@ -386,3 +386,20 @@
      - Nâng cấp danh sách ưu tiên lên mô hình thế hệ mới `gemini-3.5-flash` và `gemini-3.5-flash-lite`, mang lại năng lực suy luận sâu sắc, phân tích đa chiều sánh ngang GPT-4o, Gemini Pro và Claude 3.5 Sonnet.
   5. **Kiểm thử nghiệm thu**:
      - Kiểm thử câu hỏi *"tìm tôi bài hát khát vọng tuổi trẻ"*: AI trả về lời bài hát chuẩn xác và 3 đường link video YouTube chính thức (Tùng Dương Official, Jee Trần...) đã kiểm tra thực tế HTTP 200 OK.
+
+
+### Mốc Nâng Cấp: Kích Hoạt Năng Lực AI Agent Tự Hành Tạo Thư Mục & Tệp Tin Trực Tiếp Trên Máy Tính
+- **Phản hồi của anh Trường**: *"nhưng hiện tại KINI AI là AI Agent mà sao không tạo được thư mục cho máy tính nhỉ"*.
+- **Nguyên nhân**:
+  1. Trong các phiên chat thông thường, khi người dùng yêu cầu *"tạo luôn cho tôi"* hoặc *"tạo thư mục..."*, bộ lọc `is_agent_cmd` chưa bắt các cụm từ này nên bị chuyển vào luồng chat thông thường.
+  2. Mô hình AI trong luồng chat thông thường trước đó tự đưa ra câu từ chối sáo rỗng: *"Vì lý do bảo mật hệ thống, tôi không có quyền can thiệp vào máy tính của bạn để tạo thư mục..."*.
+- **Giải pháp kỹ thuật đã triển khai**:
+  1. **Nâng cấp công cụ `tool_create_folder` và `tool_write_file` (`backend/agent_engine.py`)**:
+     - Cho phép tạo thư mục và tệp tin linh hoạt: Hỗ trợ cả đường dẫn trong Studio Workspace (`H:\KINI_AI\workspace\...`) lẫn đường dẫn tuyệt đối trực tiếp trên các ổ đĩa của máy tính Windows.
+  2. **Mở rộng nhận diện tự động lệnh Agent (`backend/app.py`)**:
+     - Nhận diện toàn bộ các câu lệnh tạo thư mục, tạo folder, lập thư mục, tạo dự án, tạo file, tạo app, viết script...
+     - Khi phát hiện ý định, KINI AI lập tức khởi động chế độ **AI Agent Tự Hành**: Gọi công cụ tạo thư mục, viết mã nguồn, kiểm thử và báo cáo đường dẫn chi tiết.
+  3. **Xóa bỏ triệt để câu từ chối chatbot sáo rỗng (`backend/gemini_client.py`)**:
+     - Khẳng định bản sắc KINI AI là Siêu Trí tuệ & AI Agent tự hành có đầy đủ công cụ tác động trực tiếp vào hệ thống file. Nghiêm cấm câu trả lời *"Tôi là AI không thể can thiệp máy tính"*.
+  4. **Kiểm thử nghiệm thu**:
+     - Thử nghiệm câu lệnh *"tạo cho tôi thư mục du_an_kini_test"*: KINI AI Agent đã tự động tạo thư mục, tự viết file `main.py`, tự tạo file `run.bat` một chạm và báo cáo đường dẫn hoàn thành trên máy tính.

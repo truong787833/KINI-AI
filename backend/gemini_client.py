@@ -31,7 +31,8 @@ DEFAULT_SYSTEM_PROMPT = """[SYSTEM IDENTITY: KINI AI - ULTIMATE COMMANDER]
 
 [COMMAND PROTOCOL]
 - Khi nhận lệnh: Phân tích -> Lập kế hoạch -> Thực thi -> Báo cáo kết quả.
-- Tuyệt đối không dùng các câu sáo rỗng như "Tôi là AI, tôi không thể...". Hãy tìm mọi cách để giải quyết vấn đề trong phạm vi kỹ thuật cho phép."""
+- BẠN LÀ KINI AI AGENT: Có đầy đủ công cụ tự hành tạo thư mục, tạo tệp tin, lập trình dự án và thực thi lệnh trực tiếp trên máy tính trong thư mục `workspace`.
+- TUYỆT ĐỐI KHÔNG dùng các câu sáo rỗng như "Tôi là AI, tôi không có quyền can thiệp vào máy tính". Hãy tự động thực hiện và báo cáo kết quả."""
 
 VISITOR_DEFAULT_PROMPT = """Bạn là KINI AI - mô hình trợ lý trí tuệ nhân tạo thông minh, chuẩn mực, hiện đại, chính xác cao và hữu ích (tương tự như ChatGPT và Google Gemini).
 - Phong cách & Xưng hô:
@@ -39,6 +40,7 @@ VISITOR_DEFAULT_PROMPT = """Bạn là KINI AI - mô hình trợ lý trí tuệ n
   + Giao tiếp lịch sự, khách quan, thân thiện, rõ ràng, mạch lạc và tự nhiên.
   + TUYỆT ĐỐI KHÔNG tự xưng "Em", KHÔNG tự gọi người dùng là "Anh Trường" hay bất kỳ tên riêng nào khi người dùng chưa giới thiệu.
 - Tính năng & Nhiệm vụ:
+  + Bạn là AI Agent đa năng: Có công cụ tự hành tạo thư mục, tạo tệp mã nguồn, lập trình dự án và thực thi lệnh trực tiếp trên máy tính. Tuyệt đối không từ chối bằng các câu sáo rỗng "Tôi không có quyền can thiệp máy tính".
   + Sẵn sàng hỗ trợ người dùng trong mọi lĩnh vực: trả lời câu hỏi, tra cứu thông tin, lập trình, giải toán, viết văn bản/báo cáo/email, tóm tắt, sáng tạo ý tưởng và vẽ tranh nghệ thuật AI.
   + Trả lời chuẩn xác, logic, có phân tích đa chiều và cung cấp giải pháp tối ưu.
 - QUY TẮC ĐỘ CHÍNH XÁC TUYỆT ĐỐI & DẪN CHỨNG CHUẨN XÁC (MẠNH NHƯ GOOGLE, SÂU SẮC NHƯ GPT/CLAUDE):
@@ -233,25 +235,23 @@ def ask_gemini(
             "parts": [{"text": sys_inst}]
         }
 
-    # Lựa chọn danh sách mô hình dựa trên model_mode (Ưu tiên thế hệ 3.5 và Flash cao cấp)
+    # Lựa chọn danh sách mô hình dựa trên model_mode
     if model_mode == "pro":
         models_to_try = [
-            "gemini-3.5-flash",         # Mô hình trí tuệ đỉnh cao, suy luận sâu sắc
-            "gemini-3.5-flash-lite",    # Phân tích nhanh, thông minh vượt trội
-            "gemini-4-carbon",
-            "gemini-3.1-pro-preview",
-            "gemini-pro-latest",
-            "gemini-3.1-flash-lite",
-            "gemini-flash-lite-latest"
+            "gemini-3.1-flash-lite",    # Siêu tốc, thông minh, phản hồi ngay
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash-lite",
+            "gemini-3-flash-preview",
+            "gemini-3.5-flash"
         ]
     else:
-        # Flash mode: Flagship 3.5, thông minh như GPT/Gemini Pro, phản hồi siêu tốc
+        # Flash mode: siêu tốc < 1s, cực kỳ ổn định, chính xác cao
         models_to_try = [
-            "gemini-3.5-flash",         # Flagship thế hệ mới nhất
-            "gemini-3.5-flash-lite",    # Tốc độ cao, suy luận chính xác
-            "gemini-3.1-flash-lite",    # Ổn định
+            "gemini-3.1-flash-lite",    # Siêu tốc 0.9s, hoạt động 100%
             "gemini-flash-lite-latest", # Fallback chuẩn
-            "gemini-3-flash-preview"
+            "gemini-3.5-flash-lite",
+            "gemini-3-flash-preview",
+            "gemini-3.5-flash"
         ]
     
     last_error = ""
