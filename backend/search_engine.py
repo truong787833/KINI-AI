@@ -599,3 +599,97 @@ def fetch_webpage_content(url: str, max_chars: int = 4000) -> Optional[Dict[str,
     except Exception as e:
         logger.warning(f"Lỗi đọc nội dung trang web từ {url}: {e}")
         return None
+
+def execute_deep_research(topic: str, api_key: str = "", client_id: str = "master") -> Dict[str, Any]:
+    """
+    HỆ THỐNG DEEP RESEARCH (NGHIÊN CỨU SÂU ĐA NGUỒN TỰ HÀNH & XUẤT BÁO CÁO CHIẾN LƯỢC)
+    1. Thu thập dữ liệu đa tầng từ Google News, Báo chí, Wikipedia, Thư viện pháp luật và Web Search.
+    2. Đọc sâu nội dung thực tế từ các bài báo chính thống.
+    3. Tổng hợp thành Báo cáo chuyên sâu học thuật / chiến lược toàn diện (Executive Dossier).
+    """
+    from . import gemini_client
+    logger.info(f"[*] Bắt đầu quy trình Deep Research cho chủ đề: '{topic}'")
+    
+    discovered_sources = []
+    # 1. Rà soát tin tức thời sự & báo chí mới nhất
+    news_items = fetch_google_news_search(topic, limit=5)
+    discovered_sources.extend(news_items)
+    
+    # 2. Rà soát bách khoa & định nghĩa học thuật
+    wiki_items = search_wikipedia_facts(topic, limit=2)
+    discovered_sources.extend(wiki_items)
+    
+    # 3. Rà soát web đa nguồn
+    web_items = search_web_duckduckgo(topic, limit=5)
+    discovered_sources.extend(web_items)
+    
+    # 4. Trích xuất toàn văn 2-3 bài viết uy tín nhất
+    full_articles_text = ""
+    for item in (news_items + web_items)[:3]:
+        url = item.get("url", "")
+        if url and url.startswith("http"):
+            try:
+                page_data = fetch_webpage_content(url, max_chars=3500)
+                if page_data and page_data.get("content"):
+                    full_articles_text += f"\n--- BÀI VIẾT NGUỒN: {page_data['title']} ({url}) ---\n{page_data['content']}\n"
+            except Exception:
+                pass
+
+    # Xây dựng prompt tổng hợp báo cáo chuyên sâu
+    dossier_context = f"=== DỮ LIỆU ĐA NGUỒN THỰC TẾ THU THẬP ĐƯỢC CHO CHỦ ĐỀ '{topic}' (NĂM 2026) ===\n"
+    for i, s in enumerate(discovered_sources, 1):
+        dossier_context += f"[{i}] {s.get('title')} ({s.get('source')}) - Link: {s.get('url')}\n   Tóm tắt: {s.get('snippet')}\n"
+        
+    if full_articles_text:
+        dossier_context += f"\n=== NỘI DUNG CHI TIẾT TRÍCH XUẤT TỪ CÁC TÀI LIỆU CHỦ CHỐT ===\n{full_articles_text}\n"
+
+    deep_prompt = [
+        {"role": "user", "content": f"""Bạn là KINI AI - Chuyên gia nghiên cứu chiến lược và phân tích dữ liệu cao cấp.
+Nhiệm vụ của bạn là lập một BÁO CÁO NGHIÊN CỨU CHUYÊN SÂU (DEEP RESEARCH REPORT) hoàn chỉnh, đẳng cấp về chủ đề: "{topic}".
+
+Dưới đây là hồ sơ dữ liệu thực tế cập nhật mới nhất năm 2026 đã được thu thập trực tiếp:
+{dossier_context}
+
+YÊU CẦU CẤU TRÚC BÁO CÁO CHUYÊN SÂU (ĐẦY ĐỦ, CHẶT CHẼ, KHÔNG DÙNG 'v.v.' HAY VIẾT TẮT):
+# 📑 BÁO CÁO NGHIÊN CỨU CHIẾN LƯỢC: {topic.upper()}
+*(Tài liệu nghiên cứu chuyên sâu độc quyền được tổng hợp bởi KINI AI Deep Research Engine - Cập nhật 2026)*
+
+## 1. 📌 TÓM TẮT ĐIỀU HÀNH (EXECUTIVE SUMMARY)
+- Bản chất cốt lõi của vấn đề trong 3-4 đoạn phân tích sắc bén.
+- 3 kết luận then chốt rút ra từ dữ liệu thực tế.
+
+## 2. 🏛️ CĂN CỨ PHÁP LÝ & BỐI CẢNH LỊCH SỬ / NGUỒN GỐC
+- Căn cứ văn bản pháp lý, tiêu chuẩn ngành hoặc nguồn gốc học thuật.
+- Diễn tiến bối cảnh đưa tới thực trạng hiện tại.
+
+## 3. 📊 PHÂN TÍCH THỰC TRẠNG & SỐ LIỆU ĐA CHIỀU (CẬP NHẬT 2026)
+- Phân tích chi tiết các mặt, các xu hướng nổi bật.
+- Số liệu so sánh, dẫn chứng cụ thể từ các bài báo và tài liệu nguồn.
+
+## 4. ⚖️ ĐÁNH GIÁ CƠ HỘI, THÁCH THỨC & MA TRẬN RỦI RO
+- Những cơ hội mang tính đột phá.
+- Các nguy cơ tiềm ẩn hoặc rào cản cần phòng tránh.
+
+## 5. 💡 KHUYẾN NGHỊ HÀNH ĐỘNG & LỘ TRÌNH THỰC THI (ACTIONABLE ROADMAP)
+- Đề xuất các giải pháp khả thi theo từng bước (Ngắn hạn - Trung hạn - Dài hạn).
+
+## 6. 🌐 TÀI LIỆU & NGUỒN THAM KHẢO CHÍNH THỐNG
+- Liệt kê đầy đủ các đường link dẫn chứng thực tế từ dữ liệu tra cứu ở trên.
+
+VĂN PHONG: Sâu sắc, mang tầm nhìn cố vấn chiến lược, sử dụng thuật ngữ chuẩn xác, mạch lạc và có giá trị áp dụng thực tiễn cao nhất."""}
+    ]
+
+    res = gemini_client.ask_gemini(
+        messages=deep_prompt,
+        api_key=api_key,
+        model_mode="pro",
+        client_id=client_id
+    )
+
+    report_content = res.get("reply", "Không thể tạo báo cáo nghiên cứu chuyên sâu.")
+    return {
+        "success": True,
+        "report": report_content,
+        "sources_count": len(discovered_sources),
+        "topic": topic
+    }

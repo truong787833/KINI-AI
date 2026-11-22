@@ -443,6 +443,19 @@
                         </div>
                     </div>
 
+                    <!-- Nút Nghiên Cứu Sâu (Deep Research) -->
+                    <button class="btn-deep-research" id="btn-deep-research" title="Bật/Tắt chế độ Nghiên Cứu Sâu (Deep Research Multi-source)">
+                        <span>🔬</span>
+                        <span>Research</span>
+                    </button>
+
+                    <!-- Nút Đàm Thoại 2 Chiều (Voice Live) -->
+                    <button class="btn-voice-live" id="btn-voice-live" title="Bật đàm thoại giọng nói 2 chiều liên tục (Voice Live Mode)">
+                        <span class="live-pulse-dot"></span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                        <span>Live</span>
+                    </button>
+
                     <!-- Nút Thu Âm Giọng Nói (Speech-to-Text) -->
                     <button class="btn-pill-action btn-mic" id="btn-voice-input" title="Bấm để nói bằng giọng tiếng Việt">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
@@ -677,6 +690,49 @@
             <div class="drag-icon">📂</div>
             <h3>Thả tệp, hình ảnh hoặc thư mục vào đây</h3>
             <p>KINI AI sẽ tự động đọc hiểu, phân tích hoặc xử lý theo yêu cầu của bạn</p>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL 5: KINI AI VOICE LIVE (ĐÀM THOẠI 2 CHIỀU RẢNH TAY)
+         ============================================================ -->
+    <div class="voice-live-overlay" id="voice-live-overlay" style="display: none;">
+        <div class="voice-live-container">
+            <button class="btn-close-voice-live" id="btn-close-voice-live" title="Đóng đàm thoại">✕</button>
+            <div class="voice-live-header">
+                <span class="voice-live-badge">🎙️ KINI VOICE LIVE 2.0</span>
+                <div class="voice-live-sub">Đàm thoại 2 chiều rảnh tay tự nhiên như con người</div>
+            </div>
+
+            <!-- Quả cầu năng lượng tương tác đa sắc màu -->
+            <div class="voice-live-orb-wrapper">
+                <div class="voice-live-orb" id="voice-live-orb">
+                    <div class="orb-ring ring-1"></div>
+                    <div class="orb-ring ring-2"></div>
+                    <div class="orb-ring ring-3"></div>
+                    <div class="orb-core"></div>
+                </div>
+                <div class="voice-live-soundwaves" id="voice-live-waves">
+                    <div class="wave-bar bar-1"></div>
+                    <div class="wave-bar bar-2"></div>
+                    <div class="wave-bar bar-3"></div>
+                    <div class="wave-bar bar-4"></div>
+                    <div class="wave-bar bar-5"></div>
+                    <div class="wave-bar bar-6"></div>
+                    <div class="wave-bar bar-7"></div>
+                </div>
+            </div>
+
+            <div class="voice-live-status" id="voice-live-status">Sẵn sàng. Hãy nói bất cứ điều gì...</div>
+            
+            <div class="voice-live-transcript-box" id="voice-live-transcript">
+                <div class="transcript-line transcript-assistant">KINI AI sẵn sàng lắng nghe anh Trường.</div>
+            </div>
+
+            <div class="voice-live-controls">
+                <button class="btn-voice-ctrl" id="btn-voice-toggle-mic" title="Bật/Tắt Micro">🎤 Mic: Bật</button>
+                <button class="btn-voice-ctrl btn-voice-end" id="btn-voice-end-session" title="Kết thúc">🛑 Kết thúc đàm thoại</button>
+            </div>
         </div>
     </div>
 

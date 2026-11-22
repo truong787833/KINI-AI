@@ -60,6 +60,7 @@ function initApp() {
     try { initSlashCommands(); } catch(e) { console.error("initSlashCommands:", e); }
     try { initClipboardAndDragDrop(); } catch(e) { console.error("initClipboardAndDragDrop:", e); }
     try { initSpeechToText(); } catch(e) { console.error("initSpeechToText:", e); }
+    try { initVoiceLive(); } catch(e) { console.error("initVoiceLive:", e); }
     try { initMemories(); } catch(e) { console.error("initMemories:", e); }
     try { updateMemoryCountBadge(); } catch(e) { console.error("updateMemoryCountBadge:", e); }
     try { initSettings(); } catch(e) { console.error("initSettings:", e); }
@@ -694,6 +695,34 @@ async function sendMessage() {
 
     // 2. Hiển thị loading indicator cho KINI
     const loadingId = appendLoadingMessage();
+
+    // 2.1. ĐIỀU PHỐI CHẾ ĐỘ DEEP RESEARCH (NGHIÊN CỨU SÂU ĐA TẦNG)
+    if (isDeepResearchMode) {
+        try {
+            const loadingRow = document.getElementById(loadingId);
+            if (loadingRow) {
+                const textEl = loadingRow.querySelector(".loading-text");
+                if (textEl) textEl.textContent = "🔬 Đang kích hoạt Deep Research: Rà soát đa nguồn Google News, Báo chí, Wikipedia & Thư viện pháp luật...";
+            }
+            const res = await fetch("/api/research/deep", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ topic: message, conv_id: currentConvId })
+            });
+            const data = await res.json();
+            removeLoadingMessage(loadingId);
+            if (data.reply) {
+                appendAssistantMessage(data.reply, "", false, "Gemini Pro (Deep Research)");
+                isDeepResearchMode = false;
+                document.getElementById("btn-deep-research")?.classList.remove("active");
+                userInput.placeholder = "Hỏi KINI bất kỳ điều gì...";
+                loadConversations(false);
+                return;
+            }
+        } catch(researchErr) {
+            console.warn("Lỗi Deep Research, fallback về chat thường:", researchErr);
+        }
+    }
 
     try {
         const formData = new FormData();
@@ -2261,12 +2290,15 @@ function formatMarkdown(text) {
 
                 const isRunnerCandidate = (lang && ['html', 'htm', 'xml', 'js', 'javascript', 'canvas'].includes(lang.toLowerCase())) ||
                                           code.includes('<canvas') || code.includes('<!DOCTYPE') || code.includes('<html');
+                const isPythonCandidate = (lang && ['python', 'py'].includes(lang.toLowerCase()));
                 const runnerBtn = isRunnerCandidate ? `<button class="btn-run-artifact" onclick="launchArtifactRunner('${artifactId}')" title="Mở trực tiếp trên Web Preview & Game Runner">🎮 Mở Web/Game Runner</button>` : "";
+                const pythonBtn = isPythonCandidate ? `<button class="btn-run-code" onclick="executePythonSnippet(this, '${artifactId}')" title="Chạy mã Python và phân tích dữ liệu trực tiếp">▶️ Chạy mã</button>` : "";
 
                 return `<div class="code-block-wrapper">
                     <div class="code-block-header">
                         ${langLabel}
                         <div style="display:flex;align-items:center;">
+                            ${pythonBtn}
                             ${runnerBtn}
                             <button class="btn-copy-code" onclick="copyCodeBlock(this, \`${escapeAttr(codeText)}\`)" title="Sao chép code">📋 Sao chép</button>
                         </div>
@@ -2289,11 +2321,14 @@ function formatMarkdown(text) {
         window.__KINI_ARTIFACTS[artifactId] = { code: code.trim(), lang: lang || "html" };
         const isRunnerCandidate = (lang && ['html', 'htm', 'xml', 'js', 'javascript', 'canvas'].includes(lang.toLowerCase())) ||
                                   code.includes('<canvas') || code.includes('<!DOCTYPE') || code.includes('<html');
+        const isPythonCandidate = (lang && ['python', 'py'].includes(lang.toLowerCase()));
         const runnerBtn = isRunnerCandidate ? `<button class="btn-run-artifact" onclick="launchArtifactRunner('${artifactId}')" title="Mở trực tiếp trên Web Preview & Game Runner">🎮 Mở Web/Game Runner</button>` : "";
+        const pythonBtn = isPythonCandidate ? `<button class="btn-run-code" onclick="executePythonSnippet(this, '${artifactId}')" title="Chạy mã Python và phân tích dữ liệu trực tiếp">▶️ Chạy mã</button>` : "";
         return `<div class="code-block-wrapper">
             <div class="code-block-header">
                 <span class="code-lang-label">${lang || ''}</span>
                 <div style="display:flex;align-items:center;">
+                    ${pythonBtn}
                     ${runnerBtn}
                     <button class="btn-copy-code" onclick="copyCodeBlock(this, \`${escapeAttr(code.trim())}\`)">📋 Sao chép</button>
                 </div>
@@ -2322,6 +2357,76 @@ function copyCodeBlock(btn, code) {
         btn.textContent = "✓ Đã sao chép";
         setTimeout(() => btn.textContent = "📋 Sao chép", 2000);
     });
+}
+
+// ============================================================
+// NÂNG CẤP 1: PYTHON CODE INTERPRETER & DATA SANDBOX
+// ============================================================
+async function executePythonSnippet(btn, artifactId) {
+    const art = window.__KINI_ARTIFACTS[artifactId];
+    if (!art || !art.code) return;
+    
+    const wrapper = btn.closest(".code-block-wrapper");
+    if (!wrapper) return;
+    
+    let consoleEl = wrapper.querySelector(".code-output-console");
+    if (consoleEl) consoleEl.remove();
+    
+    btn.disabled = true;
+    const oldText = btn.innerHTML;
+    btn.innerHTML = `⏳ Đang chạy...`;
+    
+    try {
+        const res = await fetch("/api/code/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: art.code })
+        });
+        const data = await res.json();
+        
+        consoleEl = document.createElement("div");
+        consoleEl.className = "code-output-console";
+        
+        const statusClass = data.success ? "status-success" : "status-error";
+        const statusText = data.success ? `✅ Thực thi hoàn tất (ExitCode: ${data.returncode})` : `❌ Lỗi thực thi (ExitCode: ${data.returncode})`;
+        
+        let stdoutHtml = data.stdout ? `<div class="code-stdout">${escapeHtml(data.stdout)}</div>` : "";
+        let stderrHtml = data.stderr ? `<div class="code-stderr">${escapeHtml(data.stderr)}</div>` : "";
+        if (!data.stdout && !data.stderr && data.success) {
+            stdoutHtml = `<div class="code-stdout" style="color:var(--text-muted);">(Chương trình kết thúc thành công - Không có dữ liệu in ra màn hình)</div>`;
+        }
+        
+        let plotsHtml = "";
+        if (data.plots && data.plots.length > 0) {
+            plotsHtml = `<div class="code-plots-grid">`;
+            data.plots.forEach((p, idx) => {
+                plotsHtml += `
+                    <div class="code-plot-card">
+                        <img src="${p}" alt="Đồ thị Python ${idx+1}">
+                        <a href="${p}" download="kini_python_chart_${idx+1}.png" class="btn-chart-download" style="display:inline-block;margin-top:4px;">⬇️ Tải đồ thị PNG</a>
+                    </div>
+                `;
+            });
+            plotsHtml += `</div>`;
+        }
+        
+        consoleEl.innerHTML = `
+            <div class="code-output-header">
+                <span class="${statusClass}">${statusText}</span>
+                <span>⏱️ ${data.elapsed || 0}s</span>
+            </div>
+            ${stdoutHtml}
+            ${stderrHtml}
+            ${plotsHtml}
+        `;
+        
+        wrapper.appendChild(consoleEl);
+    } catch(err) {
+        showToast("❌ Lỗi khi thực thi Python: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+    }
 }
 
 
@@ -2420,6 +2525,8 @@ let ideActiveFilePath = "";
 let ideRawTreeNodes = [];
 let ideIsMaximized = false;
 
+let isProgrammaticChange = false;
+
 function ensureIdeEditorReady() {
     const wrapper = document.getElementById("ide-codemirror-wrapper");
     if (!wrapper) return;
@@ -2447,6 +2554,7 @@ function ensureIdeEditorReady() {
         });
 
         ideCodeMirror.on("change", () => {
+            if (isProgrammaticChange) return;
             const dirtyDot = document.getElementById("ide-tab-dirty");
             if (dirtyDot && ideActiveFilePath) dirtyDot.style.display = "inline";
         });
@@ -2460,6 +2568,7 @@ function ensureIdeEditorReady() {
         ta.className = "ide-fallback-editor";
         ta.placeholder = "// Chọn một file từ Workspace Explorer để soạn thảo...";
         ta.addEventListener("input", () => {
+            if (isProgrammaticChange) return;
             const dirtyDot = document.getElementById("ide-tab-dirty");
             if (dirtyDot && ideActiveFilePath) dirtyDot.style.display = "inline";
         });
@@ -2479,8 +2588,9 @@ function getIdeCode() {
     return ta ? ta.value : "";
 }
 
-function setIdeCode(content, cmMode = "python") {
+function setIdeCode(content, cmMode = "python", markClean = true) {
     ensureIdeEditorReady();
+    isProgrammaticChange = true;
     if (ideCodeMirror) {
         ideCodeMirror.setOption("mode", cmMode);
         ideCodeMirror.setValue(content);
@@ -2492,6 +2602,12 @@ function setIdeCode(content, cmMode = "python") {
     }
     const ta = document.getElementById("ide-fallback-textarea");
     if (ta) ta.value = content;
+    isProgrammaticChange = false;
+
+    if (markClean) {
+        const dirtyDot = document.getElementById("ide-tab-dirty");
+        if (dirtyDot) dirtyDot.style.display = "none";
+    }
 }
 
 function initAntigravityIDE() {
@@ -2758,13 +2874,11 @@ async function openIdeFile(relPath) {
     else if (ext === ".css") cmMode = "css";
     else if (ext === ".md") cmMode = "markdown";
 
-    setIdeCode("// Đang tải dữ liệu...", cmMode);
-
     try {
         const res = await fetch(`/api/agent/file?path=${encodeURIComponent(relPath)}`);
         const data = await res.json();
         if (data.success) {
-            setIdeCode(data.content, cmMode);
+            setIdeCode(data.content, cmMode, true);
 
             // 2. Nếu là HTML Web App / Game Canvas
             if (ext === ".html") {
@@ -3427,3 +3541,252 @@ window.KiniTaskRunner = {
         }
     }
 };
+
+// ============================================================
+// NÂNG CẤP 2 & 4: DEEP RESEARCH & VOICE LIVE 2.0 DUPLEX
+// ============================================================
+let isDeepResearchMode = false;
+let voiceLiveActive = false;
+let voiceLiveRecognition = null;
+let voiceLiveAudio = null;
+let voiceLiveSilenceTimer = null;
+let voiceLiveLastTranscript = "";
+let voiceLiveMicEnabled = true;
+
+function initVoiceLive() {
+    const btnOpen = document.getElementById("btn-voice-live");
+    const overlay = document.getElementById("voice-live-overlay");
+    const btnClose = document.getElementById("btn-close-voice-live");
+    const btnEnd = document.getElementById("btn-voice-end-session");
+    const btnToggleMic = document.getElementById("btn-voice-toggle-mic");
+
+    if (btnOpen) {
+        btnOpen.addEventListener("click", () => {
+            startVoiceLiveSession();
+        });
+    }
+
+    if (btnClose) {
+        btnClose.addEventListener("click", () => {
+            stopVoiceLiveSession();
+        });
+    }
+
+    if (btnEnd) {
+        btnEnd.addEventListener("click", () => {
+            stopVoiceLiveSession();
+        });
+    }
+
+    if (btnToggleMic) {
+        btnToggleMic.addEventListener("click", () => {
+            voiceLiveMicEnabled = !voiceLiveMicEnabled;
+            btnToggleMic.textContent = voiceLiveMicEnabled ? "🎤 Mic: Bật" : "🔇 Mic: Tắt";
+            if (!voiceLiveMicEnabled && voiceLiveRecognition) {
+                try { voiceLiveRecognition.stop(); } catch(e) {}
+                setVoiceLiveOrbState("idle", "Micro đã tạm tắt.");
+            } else if (voiceLiveMicEnabled) {
+                startVoiceLiveListening();
+            }
+        });
+    }
+
+    // Toggle Deep Research
+    document.getElementById("btn-deep-research")?.addEventListener("click", () => {
+        isDeepResearchMode = !isDeepResearchMode;
+        document.getElementById("btn-deep-research")?.classList.toggle("active", isDeepResearchMode);
+        const input = document.getElementById("main-user-input");
+        if (isDeepResearchMode) {
+            showToast("🔬 Đã BẬT Chế Độ Nghiên Cứu Sâu (Deep Research)! Nhập chủ đề cần nghiên cứu và gửi.");
+            if (input) input.placeholder = "Nhập chủ đề muốn nghiên cứu sâu (Ví dụ: Dự báo thị trường bất động sản năm 2026)...";
+        } else {
+            showToast("Đã tắt chế độ nghiên cứu sâu.");
+            if (input) input.placeholder = "Hỏi KINI bất kỳ điều gì...";
+        }
+    });
+}
+
+function setVoiceLiveOrbState(state, statusText = "") {
+    const orb = document.getElementById("voice-live-orb");
+    const statusEl = document.getElementById("voice-live-status");
+    if (orb) {
+        orb.className = "voice-live-orb " + (state === "listening" ? "listening" : (state === "speaking" ? "speaking" : ""));
+    }
+    if (statusEl && statusText) {
+        statusEl.textContent = statusText;
+    }
+}
+
+function appendVoiceLiveTranscript(role, text) {
+    const box = document.getElementById("voice-live-transcript");
+    if (!box) return;
+    const line = document.createElement("div");
+    line.className = "transcript-line " + (role === "user" ? "transcript-user" : "transcript-assistant");
+    line.textContent = (role === "user" ? "Anh Trường: " : "KINI: ") + text;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+}
+
+function startVoiceLiveSession() {
+    const overlay = document.getElementById("voice-live-overlay");
+    if (overlay) overlay.style.display = "flex";
+    voiceLiveActive = true;
+    voiceLiveMicEnabled = true;
+    const btnToggleMic = document.getElementById("btn-voice-toggle-mic");
+    if (btnToggleMic) btnToggleMic.textContent = "🎤 Mic: Bật";
+    
+    setVoiceLiveOrbState("listening", "Đang lắng nghe... Hãy nói bất cứ điều gì.");
+    startVoiceLiveListening();
+}
+
+function stopVoiceLiveSession() {
+    voiceLiveActive = false;
+    if (voiceLiveSilenceTimer) clearTimeout(voiceLiveSilenceTimer);
+    if (voiceLiveRecognition) {
+        try { voiceLiveRecognition.stop(); } catch(e) {}
+        voiceLiveRecognition = null;
+    }
+    if (voiceLiveAudio) {
+        try { voiceLiveAudio.pause(); } catch(e) {}
+        voiceLiveAudio = null;
+    }
+    const overlay = document.getElementById("voice-live-overlay");
+    if (overlay) overlay.style.display = "none";
+    setVoiceLiveOrbState("idle", "Đã kết thúc đàm thoại.");
+}
+
+function startVoiceLiveListening() {
+    if (!voiceLiveActive || !voiceLiveMicEnabled) return;
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        setVoiceLiveOrbState("idle", "Trình duyệt không hỗ trợ Web Speech API.");
+        return;
+    }
+
+    try {
+        if (voiceLiveRecognition) {
+            voiceLiveRecognition.onend = null;
+            voiceLiveRecognition.stop();
+        }
+    } catch(e) {}
+
+    voiceLiveRecognition = new SpeechRecognition();
+    voiceLiveRecognition.lang = "vi-VN";
+    voiceLiveRecognition.continuous = true;
+    voiceLiveRecognition.interimResults = true;
+
+    setVoiceLiveOrbState("listening", "Đang lắng nghe anh Trường...");
+
+    voiceLiveRecognition.onresult = (event) => {
+        let interim = "";
+        let final = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                final += event.results[i][0].transcript;
+            } else {
+                interim += event.results[i][0].transcript;
+            }
+        }
+        const textSpoken = (final || interim).trim();
+        if (textSpoken) {
+            voiceLiveLastTranscript = textSpoken;
+            const statusEl = document.getElementById("voice-live-status");
+            if (statusEl) statusEl.textContent = `"${textSpoken}"`;
+
+            // Reset silence timer: nếu im lặng 1.3s -> tự động gửi câu hỏi
+            if (voiceLiveSilenceTimer) clearTimeout(voiceLiveSilenceTimer);
+            voiceLiveSilenceTimer = setTimeout(() => {
+                if (voiceLiveLastTranscript) {
+                    processVoiceLiveTurn(voiceLiveLastTranscript);
+                    voiceLiveLastTranscript = "";
+                }
+            }, 1300);
+        }
+    };
+
+    voiceLiveRecognition.onerror = (e) => {
+        if (e.error !== "no-speech") {
+            console.warn("Voice live speech error:", e.error);
+        }
+    };
+
+    voiceLiveRecognition.onend = () => {
+        if (voiceLiveActive && voiceLiveMicEnabled) {
+            setTimeout(() => {
+                if (voiceLiveActive && voiceLiveMicEnabled) {
+                    try { voiceLiveRecognition.start(); } catch(e) {}
+                }
+            }, 250);
+        }
+    };
+
+    try {
+        voiceLiveRecognition.start();
+    } catch(e) {}
+}
+
+async function processVoiceLiveTurn(userSpokenText) {
+    if (!voiceLiveActive) return;
+    
+    try { voiceLiveRecognition.stop(); } catch(e) {}
+    setVoiceLiveOrbState("processing", "KINI AI đang suy nghĩ...");
+    appendVoiceLiveTranscript("user", userSpokenText);
+
+    try {
+        const formData = new FormData();
+        formData.append("conv_id", currentConvId);
+        formData.append("message", userSpokenText);
+        formData.append("model_mode", "flash");
+        formData.append("agent_mode", currentAgentMode);
+
+        const res = await fetch("/api/chat", {
+            method: "POST",
+            body: formData
+        });
+        const data = await res.json();
+        const reply = data.reply || "Tôi đã nghe rõ.";
+        
+        appendVoiceLiveTranscript("assistant", reply);
+
+        // Gọi TTS để đọc câu trả lời
+        setVoiceLiveOrbState("speaking", "KINI AI đang trả lời...");
+        const ttsRes = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: reply.substring(0, 300), voice: "female" })
+        });
+        const ttsData = await ttsRes.json();
+        
+        if (ttsData.success && ttsData.audio_url) {
+            voiceLiveAudio = new Audio(ttsData.audio_url);
+            voiceLiveAudio.onended = () => {
+                if (voiceLiveActive) {
+                    setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
+                    setTimeout(() => startVoiceLiveListening(), 300);
+                }
+            };
+            voiceLiveAudio.onerror = () => {
+                if (voiceLiveActive) {
+                    setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
+                    setTimeout(() => startVoiceLiveListening(), 300);
+                }
+            };
+            await voiceLiveAudio.play();
+        } else {
+            setTimeout(() => {
+                if (voiceLiveActive) {
+                    setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
+                    startVoiceLiveListening();
+                }
+            }, 2000);
+        }
+
+    } catch(err) {
+        console.warn("Lỗi xử lý Voice Live:", err);
+        if (voiceLiveActive) {
+            setVoiceLiveOrbState("listening", "Đã có lỗi kết nối. Hãy thử nói lại...");
+            setTimeout(() => startVoiceLiveListening(), 1000);
+        }
+    }
+}

@@ -5,6 +5,10 @@ import uuid
 import base64
 import threading
 import mimetypes
+import time
+import sys
+import subprocess
+import urllib.parse
 from typing import Optional, List
 from datetime import datetime
 
@@ -1224,6 +1228,120 @@ def serve_workspace_raw(path: str = ""):
 @app.get("/api/usage")
 def get_quota_usage():
     return database.get_usage_statistics()
+
+# ============================================================
+# 5.3. PYTHON CODE INTERPRETER & DATA ANALYSIS SANDBOX
+# ============================================================
+@app.post("/api/code/run")
+def execute_python_code_interpreter(data: dict):
+    code = data.get("code", "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Mã nguồn không được để trống")
+    
+    sandbox_dir = os.path.join(agent_engine.WORKSPACE_DIR, ".sandbox")
+    os.makedirs(sandbox_dir, exist_ok=True)
+    snippet_id = uuid.uuid4().hex[:8]
+    script_file = os.path.join(sandbox_dir, f"snippet_{snippet_id}.py")
+    
+    # Tiền xử lý code: Nếu có matplotlib.pyplot, tự động thiết lập non-interactive backend (Agg) để lưu ảnh mà không treo GUI
+    if "matplotlib" in code or "plt." in code:
+        header_mpl = "import matplotlib\nmatplotlib.use('Agg')\n"
+        full_script = header_mpl + code
+    else:
+        full_script = code
+        
+    with open(script_file, "w", encoding="utf-8") as f:
+        f.write(full_script)
+        
+    start_time = time.time()
+    try:
+        proc = subprocess.run(
+            [sys.executable, script_file],
+            cwd=agent_engine.WORKSPACE_DIR,
+            capture_output=True,
+            text=True,
+            timeout=18,
+            encoding="utf-8",
+            errors="replace"
+        )
+        elapsed = round(time.time() - start_time, 3)
+        
+        # Quét các file ảnh mới tạo trong vòng 20s qua trong workspace (ví dụ plt.savefig)
+        generated_plots = []
+        for root, _, files in os.walk(agent_engine.WORKSPACE_DIR):
+            if ".sandbox" in root:
+                continue
+            for f in files:
+                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.svg')):
+                    f_path = os.path.join(root, f)
+                    try:
+                        if os.path.getmtime(f_path) >= start_time - 1:
+                            rel = os.path.relpath(f_path, agent_engine.WORKSPACE_DIR).replace("\\", "/")
+                            generated_plots.append(f"/api/workspace/raw?path={urllib.parse.quote(rel)}")
+                    except Exception:
+                        pass
+                        
+        return {
+            "success": proc.returncode == 0,
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+            "returncode": proc.returncode,
+            "elapsed": elapsed,
+            "plots": generated_plots[:4]
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": "⚠️ Quá thời gian thực thi (Timeout 18 giây). Vui lòng tối ưu vòng lặp hoặc thuật toán.",
+            "returncode": -1,
+            "elapsed": 18.0,
+            "plots": []
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": f"Lỗi thực thi: {str(e)}",
+            "returncode": -1,
+            "elapsed": 0.0,
+            "plots": []
+        }
+    finally:
+        if os.path.exists(script_file):
+            try: os.remove(script_file)
+            except: pass
+
+# ============================================================
+# 5.4. DEEP RESEARCH STRATEGIC DOSSIER & REPORT ENGINE
+# ============================================================
+@app.post("/api/research/deep")
+async def execute_deep_research_endpoint(request: Request, data: dict):
+    topic = data.get("topic", "").strip()
+    conv_id = data.get("conv_id", "default").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập chủ đề nghiên cứu sâu.")
+        
+    cid = get_request_client_id(request)
+    api_key = database.get_setting("gemini_api_key", "", client_id=cid)
+    if not api_key:
+        api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+        
+    database.add_message(conv_id, "user", f"🔬 [Nghiên Cứu Sâu - Deep Research]: {topic}", client_id=cid)
+    
+    # Thu thập và tổng hợp báo cáo chiến lược
+    research_dossier = search_engine.execute_deep_research(topic, api_key=api_key, client_id=cid)
+    report_text = research_dossier.get("report", "")
+    sources_investigated = research_dossier.get("sources_count", 0)
+    
+    database.add_message(conv_id, "assistant", report_text, client_id=cid)
+    
+    return {
+        "success": True,
+        "reply": report_text,
+        "sources_count": sources_investigated,
+        "topic": topic
+    }
 
 # ============================================================
 # 6. CÀI ĐẶT

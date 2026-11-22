@@ -97,6 +97,23 @@ def start_cloudflared():
     log(f"Cloudflare Tunnel PID: {proc.pid}")
     return proc
 
+def start_hotkey():
+    hotkey_script = os.path.join(TOOLS_DIR, "kini_hotkey.pyw")
+    if not os.path.exists(hotkey_script):
+        return None
+    pyw = sys.executable.replace("python.exe", "pythonw.exe")
+    if not os.path.exists(pyw):
+        pyw = sys.executable
+    proc = subprocess.Popen(
+        [pyw, hotkey_script],
+        cwd=BASE_DIR,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+    )
+    log(f"Global Desktop Hotkey Listener PID: {proc.pid}")
+    return proc
+
 def main():
     log("==================================================")
     log("  KINI AI - DỊCH VỤ GIÁM SÁT & DUY TRÌ 24/24")
@@ -105,6 +122,7 @@ def main():
     backend_proc = start_backend()
     time.sleep(2)
     tunnel_proc = start_cloudflared()
+    hotkey_proc = start_hotkey()
 
     current_url = None
 
@@ -115,6 +133,8 @@ def main():
                 backend_proc.terminate()
             if tunnel_proc and tunnel_proc.poll() is None:
                 tunnel_proc.terminate()
+            if hotkey_proc and hotkey_proc.poll() is None:
+                hotkey_proc.terminate()
         except Exception:
             pass
         sys.exit(0)
@@ -137,6 +157,10 @@ def main():
             if tunnel_proc.poll() is not None:
                 log(f"[CẢNH BÁO] Cloudflared bị dừng (Code: {tunnel_proc.returncode}). Đang tự động khởi động lại...")
                 tunnel_proc = start_cloudflared()
+
+            # 3. Kiểm tra Hotkey
+            if hotkey_proc and hotkey_proc.poll() is not None:
+                hotkey_proc = start_hotkey()
 
             # 3. Lấy URL đường dẫn trực tuyến
             new_url = extract_tunnel_url()
