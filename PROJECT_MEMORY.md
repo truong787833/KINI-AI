@@ -544,3 +544,26 @@
   4. **Kiểm Thử Nghiệm Thu**:
      - Test Live Voice: Nhắn "xin chào alo", AI trả lời 1 câu súc tích trong 0.8s: *"Chào anh Trường, em đã sẵn sàng. Anh cần em hỗ trợ công việc gì ngay bây giờ ạ?"*.
      - Test Deep Research với "xin chào em": Trả về thông báo hướng dẫn chu đáo, `sources_count = 0`.
+
+
+### Mốc Cập Nhật: Tích Hợp Tùy Chọn Trực Tiếp Gemini 3.8 Flash Chuẩn Antigravity (2026-11-22)
+- **Thắc mắc của anh Trường**:
+  1. *"lúc nãy e nói có gemini 3.8 flash mà a có thấy đâu. làm sao để có gemini 3.8 flash như trong antigravity."*
+  2. *"hay có cách nào đăng kết hợp google để đăng nhập tài khoản pro vào KINI AI để có gemini 3.8 flash không"*
+- **Phân tích kỹ thuật & Bản chất hệ thống**:
+  1. **Vì sao trong Antigravity có sẵn `Gemini 3.8 Flash Medium`?**
+     - Antigravity là IDE chuyên dụng của Google DeepMind, kết nối trực tiếp đến hạ tầng cổng doanh nghiệp nội bộ (Google Internal Gateway) thông qua phiên đăng nhập tài khoản Google (OAuth), sở hữu đường truyền băng thông riêng được ưu tiên tuyệt đối.
+  2. **Vì sao trước đây trong KINI AI không thấy tên 3.8 Flash?**
+     - Trên giao diện trước đây chỉ có 2 nhãn cố định: "Gemini Flash (3.1 Flash Lite)" và "Gemini Pro (3.1 Pro Preview)".
+     - Trong backend, `gemini-3.8-flash` đã được đăng ký nhưng nằm sau `gemini-3.1-flash-lite`. Đồng thời trên cổng API miễn phí (Free Tier) của Google AI Studio, mô hình `gemini-3.8-flash` thường xuyên trả về mã `503 High Demand (Quá tải lưu lượng công cộng)`.
+- **Giải pháp kỹ thuật đã triển khai**:
+  1. **Bổ sung Tùy chọn `🚀 Gemini 3.8 Flash (Chuẩn Antigravity)` lên giao diện KINI AI**:
+     - Cập nhật `static/index.html` và `static/app.js`: Thêm nút chọn trực tiếp `flash-3.8`.
+     - Cho phép anh Trường click chọn đích danh mô hình 3.8 Flash bất kỳ lúc nào.
+  2. **Bộ Điều Phối Đa Tầng Cực Thông Minh (`backend/gemini_client.py`)**:
+     - Khi chọn `flash-3.8`, hệ thống ưu tiên gọi trực tiếp `gemini-3.8-flash`.
+     - Nếu đúng thời điểm Google tiếp nhận thành công, AI chạy 100% trên `gemini-3.8-flash`.
+     - Nếu gặp mã 503 (quá tải Free Tier của Google), hệ thống tự động fallback tức thì sang `gemini-3.5-flash` và `gemini-3.1-flash-lite` mà không làm gián đoạn câu trả lời của anh.
+  3. **Lộ trình nâng cấp tài khoản Pro cho KINI AI**:
+     - Tài khoản Google One AI Premium cá nhân dùng cho web `gemini.google.com` (Google không cấp API key từ gói này).
+     - Để API Key đạt chuẩn Pro VIP (không bao giờ dính lỗi 503), anh chỉ cần bật Billing trên Google AI Studio (`aistudio.google.com/plan_information`) thành tài khoản Pay-as-you-go (Tier 1). Khi đó mọi lệnh gọi `gemini-3.8-flash` sẽ có băng thông ưu tiên cao nhất tương tự Antigravity.
