@@ -721,6 +721,9 @@ async function sendMessage() {
             }
         } catch(researchErr) {
             console.warn("Lỗi Deep Research, fallback về chat thường:", researchErr);
+            isDeepResearchMode = false;
+            document.getElementById("btn-deep-research")?.classList.remove("active");
+            userInput.placeholder = "Hỏi KINI bất kỳ điều gì...";
         }
     }
 
@@ -3552,6 +3555,8 @@ let voiceLiveAudio = null;
 let voiceLiveSilenceTimer = null;
 let voiceLiveLastTranscript = "";
 let voiceLiveMicEnabled = true;
+let voiceLiveIsProcessing = false;
+let voiceLiveState = "idle";
 
 function initVoiceLive() {
     const btnOpen = document.getElementById("btn-voice-live");
@@ -3641,9 +3646,20 @@ function startVoiceLiveSession() {
 
 function stopVoiceLiveSession() {
     voiceLiveActive = false;
-    if (voiceLiveSilenceTimer) clearTimeout(voiceLiveSilenceTimer);
+    voiceLiveIsProcessing = false;
+    voiceLiveState = "idle";
+    voiceLiveLastTranscript = "";
+    if (voiceLiveSilenceTimer) {
+        clearTimeout(voiceLiveSilenceTimer);
+        voiceLiveSilenceTimer = null;
+    }
     if (voiceLiveRecognition) {
-        try { voiceLiveRecognition.stop(); } catch(e) {}
+        try {
+            voiceLiveRecognition.onresult = null;
+            voiceLiveRecognition.onend = null;
+            voiceLiveRecognition.onerror = null;
+            voiceLiveRecognition.stop();
+        } catch(e) {}
         voiceLiveRecognition = null;
     }
     if (voiceLiveAudio) {
@@ -3656,7 +3672,7 @@ function stopVoiceLiveSession() {
 }
 
 function startVoiceLiveListening() {
-    if (!voiceLiveActive || !voiceLiveMicEnabled) return;
+    if (!voiceLiveActive || !voiceLiveMicEnabled || voiceLiveIsProcessing || voiceLiveState === "speaking") return;
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -3666,7 +3682,9 @@ function startVoiceLiveListening() {
 
     try {
         if (voiceLiveRecognition) {
+            voiceLiveRecognition.onresult = null;
             voiceLiveRecognition.onend = null;
+            voiceLiveRecognition.onerror = null;
             voiceLiveRecognition.stop();
         }
     } catch(e) {}
@@ -3676,9 +3694,14 @@ function startVoiceLiveListening() {
     voiceLiveRecognition.continuous = true;
     voiceLiveRecognition.interimResults = true;
 
+    voiceLiveState = "listening";
+    voiceLiveLastTranscript = "";
     setVoiceLiveOrbState("listening", "Đang lắng nghe anh Trường...");
 
     voiceLiveRecognition.onresult = (event) => {
+        // Nếu đang xử lý hoặc đang phát âm thanh thì tuyệt đối bỏ qua
+        if (voiceLiveIsProcessing || voiceLiveState !== "listening") return;
+
         let interim = "";
         let final = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -3694,14 +3717,15 @@ function startVoiceLiveListening() {
             const statusEl = document.getElementById("voice-live-status");
             if (statusEl) statusEl.textContent = `"${textSpoken}"`;
 
-            // Reset silence timer: nếu im lặng 1.3s -> tự động gửi câu hỏi
+            // Reset silence timer: im lặng 1.1s -> tự động chốt câu và gửi
             if (voiceLiveSilenceTimer) clearTimeout(voiceLiveSilenceTimer);
             voiceLiveSilenceTimer = setTimeout(() => {
-                if (voiceLiveLastTranscript) {
-                    processVoiceLiveTurn(voiceLiveLastTranscript);
+                if (voiceLiveLastTranscript && !voiceLiveIsProcessing && voiceLiveState === "listening") {
+                    const toSend = voiceLiveLastTranscript;
                     voiceLiveLastTranscript = "";
+                    processVoiceLiveTurn(toSend);
                 }
-            }, 1300);
+            }, 1100);
         }
     };
 
@@ -3712,12 +3736,13 @@ function startVoiceLiveListening() {
     };
 
     voiceLiveRecognition.onend = () => {
-        if (voiceLiveActive && voiceLiveMicEnabled) {
+        // CHỈ tự động start lại nếu đang ở trạng thái listening và KHÔNG phải đang processing hay speaking
+        if (voiceLiveActive && voiceLiveMicEnabled && voiceLiveState === "listening" && !voiceLiveIsProcessing) {
             setTimeout(() => {
-                if (voiceLiveActive && voiceLiveMicEnabled) {
+                if (voiceLiveActive && voiceLiveMicEnabled && voiceLiveState === "listening" && !voiceLiveIsProcessing) {
                     try { voiceLiveRecognition.start(); } catch(e) {}
                 }
-            }, 250);
+            }, 200);
         }
     };
 
@@ -3727,9 +3752,28 @@ function startVoiceLiveListening() {
 }
 
 async function processVoiceLiveTurn(userSpokenText) {
-    if (!voiceLiveActive) return;
+    // Chặn tuyệt đối lặp lượt / race condition
+    if (!voiceLiveActive || voiceLiveIsProcessing) return;
     
-    try { voiceLiveRecognition.stop(); } catch(e) {}
+    voiceLiveIsProcessing = true;
+    voiceLiveState = "processing";
+    
+    if (voiceLiveSilenceTimer) {
+        clearTimeout(voiceLiveSilenceTimer);
+        voiceLiveSilenceTimer = null;
+    }
+    voiceLiveLastTranscript = "";
+
+    // Tắt ngay micro và gỡ bỏ onend để micro KHÔNG thu âm tiếng AI tự nói qua loa
+    try {
+        if (voiceLiveRecognition) {
+            voiceLiveRecognition.onresult = null;
+            voiceLiveRecognition.onend = null;
+            voiceLiveRecognition.onerror = null;
+            voiceLiveRecognition.stop();
+        }
+    } catch(e) {}
+    
     setVoiceLiveOrbState("processing", "KINI AI đang suy nghĩ...");
     appendVoiceLiveTranscript("user", userSpokenText);
 
@@ -3739,54 +3783,71 @@ async function processVoiceLiveTurn(userSpokenText) {
         formData.append("message", userSpokenText);
         formData.append("model_mode", "flash");
         formData.append("agent_mode", currentAgentMode);
+        formData.append("is_voice_live", "1");
 
         const res = await fetch("/api/chat", {
             method: "POST",
             body: formData
         });
         const data = await res.json();
-        const reply = data.reply || "Tôi đã nghe rõ.";
+        const reply = data.reply || "Dạ, em nghe rõ rồi ạ.";
         
         appendVoiceLiveTranscript("assistant", reply);
 
         // Gọi TTS để đọc câu trả lời
+        voiceLiveState = "speaking";
         setVoiceLiveOrbState("speaking", "KINI AI đang trả lời...");
+        
         const ttsRes = await fetch("/api/tts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: reply.substring(0, 300), voice: "female" })
+            body: JSON.stringify({ 
+                text: reply.substring(0, 250), 
+                voice: "female",
+                is_voice_live: true
+            })
         });
         const ttsData = await ttsRes.json();
         
         if (ttsData.success && ttsData.audio_url) {
             voiceLiveAudio = new Audio(ttsData.audio_url);
-            voiceLiveAudio.onended = () => {
+            // TĂNG TỐC ĐỘ ĐỌC 15% - Giọng đọc lưu loát, năng động, loại bỏ cảm giác chậm chạp
+            voiceLiveAudio.playbackRate = 1.15;
+            
+            const resumeListening = () => {
                 if (voiceLiveActive) {
                     setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
-                    setTimeout(() => startVoiceLiveListening(), 300);
+                    setTimeout(() => {
+                        voiceLiveIsProcessing = false;
+                        voiceLiveState = "listening";
+                        startVoiceLiveListening();
+                    }, 400); // 400ms buffer tránh micro bắt tiếng vọng còn sót lại từ loa
                 }
             };
-            voiceLiveAudio.onerror = () => {
-                if (voiceLiveActive) {
-                    setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
-                    setTimeout(() => startVoiceLiveListening(), 300);
-                }
-            };
+
+            voiceLiveAudio.onended = resumeListening;
+            voiceLiveAudio.onerror = resumeListening;
             await voiceLiveAudio.play();
         } else {
             setTimeout(() => {
                 if (voiceLiveActive) {
+                    voiceLiveIsProcessing = false;
+                    voiceLiveState = "listening";
                     setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
                     startVoiceLiveListening();
                 }
-            }, 2000);
+            }, 1500);
         }
 
     } catch(err) {
         console.warn("Lỗi xử lý Voice Live:", err);
         if (voiceLiveActive) {
             setVoiceLiveOrbState("listening", "Đã có lỗi kết nối. Hãy thử nói lại...");
-            setTimeout(() => startVoiceLiveListening(), 1000);
+            setTimeout(() => {
+                voiceLiveIsProcessing = false;
+                voiceLiveState = "listening";
+                startVoiceLiveListening();
+            }, 1000);
         }
     }
 }

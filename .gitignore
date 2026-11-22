@@ -11,3 +11,5 @@ generated_images/*
 *.log
 active_online_url.txt
 workspace/.sandbox/
+generated_audio/*
+*.mp3

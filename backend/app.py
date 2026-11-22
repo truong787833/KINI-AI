@@ -217,7 +217,8 @@ async def chat_with_kini(
     confirm_agent: Optional[str] = Form("no"),
     task_prompt: Optional[str] = Form(""),
     file: Optional[UploadFile] = File(None),
-    files: Optional[List[UploadFile]] = File(None)
+    files: Optional[List[UploadFile]] = File(None),
+    is_voice_live: Optional[str] = Form("0")
 ):
     cid = get_request_client_id(request)
     api_key = database.get_setting("gemini_api_key", "", client_id=cid)
@@ -488,6 +489,27 @@ async def chat_with_kini(
         })
     # Gắn tin nhắn hiện tại kèm nội dung trang web và kết quả tra cứu trực tuyến mới nhất
     current_content_with_grounding = full_user_content + webpage_context + live_search_text
+
+    # Tối ưu hóa đặc biệt cho phiên đàm thoại giọng nói 2 chiều (Voice Live Mode)
+    if is_voice_live == "1":
+        if cid == "master":
+            current_content_with_grounding += (
+                "\n\n[QUY TẮC ĐÀM THOẠI TRỰC TIẾP LIVE VOICE]: "
+                "Bạn đang trò chuyện bằng giọng nói trực tiếp qua micro với anh Trường. "
+                "Hãy xưng 'em' và gọi 'anh Trường'. "
+                "BẮT BUỘC TRẢ LỜI NGẮN GỌN (1 đến 2 câu ngắn, tối đa 30 từ), súc tích, đi thẳng vào ý chính, "
+                "KHÔNG chào hỏi sáo rỗng dài dòng, KHÔNG dùng markdown (*, #, _, code, gạch đầu dòng), "
+                "nói tự nhiên, lưu loát như người thật đang trò chuyện trực tiếp."
+            )
+        else:
+            current_content_with_grounding += (
+                "\n\n[QUY TẮC ĐÀM THOẠI TRỰC TIẾP LIVE VOICE]: "
+                "Bạn đang trò chuyện bằng giọng nói trực tiếp qua micro với người dùng. "
+                "BẮT BUỘC TRẢ LỜI NGẮN GỌN (1 đến 2 câu ngắn, tối đa 30 từ), súc tích, đi thẳng vào ý chính, "
+                "KHÔNG dùng markdown (*, #, _, code, gạch đầu dòng), "
+                "nói tự nhiên như người thật đang trò chuyện trực tiếp."
+            )
+
     formatted_history.append({
         "role": "user",
         "content": current_content_with_grounding
@@ -610,7 +632,8 @@ async def chat_with_kini_stream(
     confirm_agent: Optional[str] = Form("no"),
     task_prompt: Optional[str] = Form(""),
     file: Optional[UploadFile] = File(None),
-    files: Optional[List[UploadFile]] = File(None)
+    files: Optional[List[UploadFile]] = File(None),
+    is_voice_live: Optional[str] = Form("0")
 ):
     cid = get_request_client_id(request)
     api_key = database.get_setting("gemini_api_key", "", client_id=cid)
@@ -1331,7 +1354,7 @@ async def execute_deep_research_endpoint(request: Request, data: dict):
     
     # Thu thập và tổng hợp báo cáo chiến lược
     research_dossier = search_engine.execute_deep_research(topic, api_key=api_key, client_id=cid)
-    report_text = research_dossier.get("report", "")
+    report_text = research_dossier.get("report") or research_dossier.get("reply", "")
     sources_investigated = research_dossier.get("sources_count", 0)
     
     database.add_message(conv_id, "assistant", report_text, client_id=cid)

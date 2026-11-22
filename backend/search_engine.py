@@ -610,6 +610,44 @@ def execute_deep_research(topic: str, api_key: str = "", client_id: str = "maste
     from . import gemini_client
     logger.info(f"[*] Bắt đầu quy trình Deep Research cho chủ đề: '{topic}'")
     
+    # 0. KIỂM TRA NẾU NGƯỜI DÙNG CHỈ GÕ LỜI CHÀO HỎI / TIN NHẮN THÔNG THƯỜNG
+    import unicodedata
+    clean_no_accents = "".join([c for c in unicodedata.normalize('NFKD', topic.strip().lower()) if not unicodedata.combining(c)]).replace('đ', 'd').replace('Đ', 'D')
+    clean_topic = re.sub(r'[^\w\s]', '', clean_no_accents).strip()
+    greetings = {
+        "xin chao", "chao", "chao em", "chao ban", "xin chao em", "hello", "hi", "alo", "alo em",
+        "hey", "chao kini", "kini oi", "test", "ok", "duoc chua", "ban la ai", "ai do", "hi em",
+        "alo kini", "xin chao kini", "kini", "hai", "haizz", "alo ban", "chao ban nhe", "chao anh",
+        "xin chao anh", "chao buoi sang", "chao buoi toi"
+    }
+    words = clean_topic.split()
+    if clean_topic in greetings or (len(words) <= 3 and any(w in ["chao", "hello", "hi", "alo", "hey", "test"] for w in words)):
+        if client_id == "master":
+            guide_reply = (
+                "Chào anh Trường! Em là KINI AI đây ạ. 😊\n\n"
+                "Em thấy anh đang bật chế độ **Nghiên Cứu Sâu (Deep Research)** 🔬. "
+                "Chế độ này được thiết kế để tự động rà soát đa nguồn (Google News, Wikipedia, Báo chí, Thư viện pháp luật) "
+                "và xuất bản một **Báo Cáo Nghiên Cứu Chiến Lược chuyên sâu** (về kinh tế, công nghệ, thị trường hoặc học thuật).\n\n"
+                "💡 Anh muốn em nghiên cứu sâu về đề tài nào hôm nay ạ? Anh hãy nhập tên chủ đề cụ thể "
+                "(Ví dụ: *Dự báo thị trường bất động sản năm 2026*, *Xu hướng công nghệ AI Agent*, *Quy định mới về luật thuế*...) "
+                "để em bắt đầu quét dữ liệu ngay nhé!"
+            )
+        else:
+            guide_reply = (
+                "Xin chào bạn! Mình là KINI AI.\n\n"
+                "Bạn đang bật chế độ **Nghiên Cứu Sâu (Deep Research)** 🔬. "
+                "Chế độ này giúp bạn rà soát đa tầng từ báo chí, bách khoa toàn thư và văn bản pháp luật để xuất bản báo cáo chiến lược toàn diện.\n\n"
+                "💡 Bạn vui lòng nhập chủ đề cụ thể (Ví dụ: *Thị trường bán dẫn 2026*, *Xu hướng xe điện*...) để mình bắt đầu nghiên cứu nhé!"
+            )
+        return {
+            "success": True,
+            "topic": topic,
+            "report": guide_reply,
+            "reply": guide_reply,
+            "sources_count": 0,
+            "sources": []
+        }
+
     discovered_sources = []
     # 1. Rà soát tin tức thời sự & báo chí mới nhất
     news_items = fetch_google_news_search(topic, limit=5)

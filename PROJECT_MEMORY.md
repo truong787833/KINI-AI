@@ -519,3 +519,28 @@
      - `static/app.js`: Máy trạng thái rảnh tay: Tự động lắng nghe giọng nói tiếng Việt -> Tự động nhận diện khoảng lặng 1.3s khi người dùng dứt lời -> Gửi câu hỏi -> Nhận câu trả lời -> Đọc to qua TTS tự nhiên -> Khi đọc xong lập tức tự động lắng nghe lượt tiếp theo liên tục không cần chạm tay vào bàn phím/chuột.
   6. **Kiểm Thử Toàn Diện & Trạng Thái Hệ Thống**:
      - Toàn bộ backend, frontend, hotkey daemon, tunnel online và IDE editor đã được kiểm tra nghiêm ngặt, đạt trạng thái hoàn hảo 100%.
+
+
+### Mốc Tối Ưu: Khắc Phục Lỗi Voice Live (Đọc Chậm & Lặp 2 Lần) & Xử Lý Deep Research Chào Hỏi (2026-11-22)
+- **Phản hồi của anh Trường**:
+  1. *"đa live voice được, tuy nhiên trên PC nghe đọc rất chậm, còn bị lặp 2 lần."*
+  2. *"ảnh 2: sao chỉ là câu xin chào chưa hỏi hoặc lệnh gì mà lại trả lời nghe mông lung vậy?"*
+- **Nguyên nhân cốt lõi**:
+  1. **Lỗi Live Voice lặp 2 lần**: Trình duyệt trên Windows (Cốc Cốc, Chrome) khi gọi `recognition.stop()` phát sinh sự kiện `onend` ngay lập tức, tự khởi động lại mic trong khi AI vẫn đang chờ phản hồi từ máy chủ. Khi không có cờ `voiceLiveIsProcessing`, lượt nói bị gửi 2 lần liên tiếp. Ngoài ra, khi loa PC phát ra âm thanh, mic thu lại tiếng của chính AI tạo vòng lặp âm học.
+  2. **Lỗi Live Voice đọc chậm**: Trước đây luồng chat trả về bài văn dài (3-4 câu lớn) và Edge TTS đọc ở tốc độ gốc (1.0x), gây cảm giác lê thê, chờ đợi lâu.
+  3. **Lỗi Deep Research trả lời mông lung với "xin chào em"**: Trên thanh công cụ anh Trường đang vô tình bấm bật chế độ `🔬 Research`. Hệ thống Deep Research trước đây cứ nhận được bất kỳ chuỗi văn bản nào là tự động tìm kiếm Google News và bách khoa toàn thư, dẫn đến việc xuất bản cả một "Báo cáo chiến lược" phân tích cụm từ "xin chào em".
+- **Giải pháp kỹ thuật đã triển khai**:
+  1. **Khóa State Machine Voice Live 2.0 (`static/app.js`)**:
+     - Bổ sung cờ `voiceLiveIsProcessing` và biến trạng thái `voiceLiveState` ("listening" | "processing" | "speaking"). Chặn 100% tình trạng gửi trùng lặp hoặc race condition.
+     - Tắt hoàn toàn micro và gỡ bỏ sự kiện `onend` ngay khi người dùng dứt lời để micro không bao giờ thu tiếng AI phát ra từ loa PC.
+     - Sau khi âm thanh kết thúc hoàn toàn, đợi đệm 400ms khử tiếng vang phòng rồi mới mở lại micro cho lượt nghe tiếp theo.
+  2. **Tăng Tốc Giọng Đọc & Rút Ngắn Phản Hồi Đàm Thoại**:
+     - Thiết lập `voiceLiveAudio.playbackRate = 1.15`: Tăng 15% tốc độ phát âm thanh trong HTML5 Audio, giọng đọc sắc nét, lưu loát, năng động, loại bỏ cảm giác đọc chậm chạp.
+     - Bổ sung tham số `is_voice_live=1` vào `/api/chat`: Định hướng Gemini trả lời cực kỳ ngắn gọn (1-2 câu, tối đa 30 từ), phong cách nói chuyện thân mật như đang đàm thoại điện thoại trực tiếp.
+  3. **Bộ Lọc Lời Chào Cho Deep Research (`backend/search_engine.py`)**:
+     - Khử dấu tiếng Việt (`unicodedata.normalize`) và nhận diện toàn bộ các dạng chào hỏi ("xin chào", "xin chào em", "chào bạn", "alo", "hi", "hello"...).
+     - Khi nhận lời chào, hệ thống KHÔNG quét báo chí hay xuất báo cáo học thuật, mà trả lời chào hỏi ấm áp, giải thích rõ chế độ Research đang bật và hướng dẫn anh Trường nhập chủ đề cụ thể (hoặc tắt đi để chat bình thường).
+     - Tự động tắt nút `.btn-deep-research` sau khi gửi để không bị "dính" chế độ nghiên cứu sang các câu chat sau.
+  4. **Kiểm Thử Nghiệm Thu**:
+     - Test Live Voice: Nhắn "xin chào alo", AI trả lời 1 câu súc tích trong 0.8s: *"Chào anh Trường, em đã sẵn sàng. Anh cần em hỗ trợ công việc gì ngay bây giờ ạ?"*.
+     - Test Deep Research với "xin chào em": Trả về thông báo hướng dẫn chu đáo, `sources_count = 0`.
