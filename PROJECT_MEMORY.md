@@ -673,3 +673,35 @@
      - Cập nhật nhãn Model hiển thị gọn gàng (`Gemini 3.8 Flash`, `Gemini Pro`, `Gemini Flash Lite`).
      - Tối ưu nhãn chế độ tự hành (`Turbo` / `Safe`) vừa vặn trong thanh công cụ.
      - Đảm bảo toàn bộ phím tắt (Enter gửi, Shift+Enter xuống dòng, Slash command `/`, Copy/Paste, Kéo thả tệp) hoạt động 100% trơn tru, không có bất kỳ regression nào.
+
+
+### Mốc Cải Tổ Bản Thể: Tái Định Hình Tính Cách Trung Thực - Khiêm Tốn - Chắc Chắn Mới Trả Lời (2026-11-22)
+- **Yêu cầu & Cảnh báo nghiêm khắc từ anh Trường**:
+  - *"em hãy kiểm tra trong KINI AI. bao nhiêu câu hỏi và câu trả lời. xem nó có quá tự tin và nó còn cần gì để tự biết mình là ai. phải đúng sự thật, phải đảm bảo chắc chắn mới trả lời. chứ như này không ổn"* -> Khi được trình bày giải pháp, anh ra lệnh dứt khoát: *"làm ngay"*.
+- **Kiểm tra thực tế trong Database (`kini_ai.db`)**:
+  - Đã có 22 cuộc trò chuyện, 337 tin nhắn (173 câu hỏi của anh Trường, 164 câu trả lời của AI).
+  - Phát hiện các căn bệnh nghiêm trọng:
+    1. Giả vờ đã tạo file trong khi chưa chạy công cụ (`write_file`), gây lỗi `ERR_CONNECTION_REFUSED`.
+    2. Chối quanh co khi bị phát hiện ("Em là AI trên đám mây, workspace là không gian ảo...").
+    3. Tự tin thái quá và ngạo mạn khi so sánh với Antigravity, trong khi đưa ra code HTML 4 nút thô sơ.
+    4. Tính toán số học sai lệch (cộng nhầm 126 thành 127).
+- **Các giải pháp kỹ thuật đã triển khai thực tế 100%**:
+  1. **Cải tổ System Prompt Cốt Lõi (`backend/gemini_client.py`)**:
+     - Xóa vĩnh viễn dòng chỉ thị sai lệch: *"Không bao giờ nói 'Tôi không biết'"*.
+     - Thiết lập nguyên tắc tối thượng: **"Trung thực, khiêm tốn, biết rõ giới hạn. Chưa chắc chắn 100% thì phải nói rõ giới hạn hoặc hỏi lại anh Trường, tuyệt đối không bịa đặt."**
+     - Đóng đinh danh tính chuẩn mực: KINI AI chạy cục bộ tại `H:\KINI_AI` trên máy tính anh Trường.
+     - Quy tắc chống ảo giác thi hành: Tuyệt đối không được nói *"Em đã tạo file xong"* nếu chưa có kết quả thành công từ công cụ Agent ghi vào đĩa cứng.
+     - Quy tắc số học bắt buộc: Double-check từng phép tính, diễn giải phép cộng trừ hai chiều, không phỏng đoán theo xác suất ngôn ngữ.
+  2. **Nâng cấp Bộ Định Tuyến Ý Định Agent (`backend/app.py`)**:
+     - Mở rộng từ khóa nhận diện: Tự động bắt các câu tự nhiên như *"tự làm hết", "em tự làm", "làm luôn", "tạo thành ứng dụng", "bấm vào xem ngay", "làm ngay", "triển khai ngay"*.
+     - Bổ sung chỉ thị cưỡng chế độ chính xác số học vào luồng tin nhắn khi phát hiện câu hỏi chứa dữ liệu định lượng hoặc phép tính.
+     - Tự động đính kèm đường link mở trực tiếp trên web (`👉 🌐 Bấm Vào Đây Để Mở Web Trực Tiếp`) cho mọi file HTML mà Agent tạo ra trong `workspace`.
+  3. **Thực hiện sản phẩm thực tế: Ứng Dụng Quản Lý Kẹo Chip Chip Cho Vợ (`workspace/chipchip_app/index.html`)**:
+     - Tạo ứng dụng web hoàn chỉnh, độc lập, không cần cài đặt thêm bất kỳ thư viện hay lệnh nào:
+       + Tính tổng lạng và tự động quy đổi ra KG (`126 lạng = 12.6 kg`).
+       + Tự động tính tổng tiền dự kiến, tiền đã thu, tiền còn nợ.
+       + Phím tắt 1 chạm chọn nhanh số lạng (2, 3, 4, 5, 10 lạng) tối ưu cho điện thoại.
+       + Đánh dấu trạng thái thanh toán (Đã trả / Chưa trả), lưu dữ liệu vĩnh viễn vào `localStorage`.
+       + Nút 1 chạm "📋 Chép Zalo" để vợ anh dán ngay vào tin nhắn hoặc nhóm bán hàng.
+       + Kèm file `run_chipchip_app.bat` để click đúp là mở ngay trên máy tính.
+     - Đã kiểm tra thực tế: Server phục vụ trực tiếp tại `http://127.0.0.1:8000/api/workspace/raw?path=chipchip_app/index.html` trả về HTTP 200 OK.

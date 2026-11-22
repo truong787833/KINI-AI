@@ -384,7 +384,11 @@ async def chat_with_kini(
         "tạo thư mục", "tạo folder", "lập thư mục", "tạo cho tôi thư mục", "tạo tệp", "tạo file", 
         "viết file", "tạo dự án", "lập trình dự án", "tạo game", "làm game", "viết code game", 
         "viết script", "tạo script", "chạy lệnh", "agent hãy", "tự động làm", "tạo luôn cho tôi", 
-        "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm"
+        "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm",
+        "tự làm hết", "em tự làm", "tự động tạo", "làm luôn cho anh", "làm luôn", "tạo thành ứng dụng",
+        "tạo ứng dụng", "làm ứng dụng", "bấm cái là vào xem", "bấm vào xem ngay", "xây dựng ứng dụng",
+        "lập trình cho anh", "viết cho anh một web", "dựng cho anh một trang", "tạo web", "làm web",
+        "viết trang web", "tạo giao diện web"
     ]
     is_agent_cmd = (
         msg_low.startswith("/agent") or 
@@ -398,17 +402,23 @@ async def chat_with_kini(
 
     # Kiểm tra xem người dùng có đang gõ câu xác nhận phê duyệt tác vụ vừa đề xuất không
     approval_phrases = [
-        "chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay", 
-        "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn"
+        "chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay", "làm ngay",
+        "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn",
+        "làm luôn", "ok làm ngay", "triển khai ngay", "làm giúp anh ngay"
     ]
     is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in approval_phrases)
     pending_task_from_history = ""
     if is_chat_approval:
-        past_check = database.get_conversation_messages(conv_id)[-4:]
+        past_check = database.get_conversation_messages(conv_id)[-6:]
         for pm in reversed(past_check):
             if pm.get("role") == "user" and any(k in pm.get("content", "").lower() for k in agent_keywords):
                 pending_task_from_history = pm.get("content", "").strip()
                 break
+            elif pm.get("role") == "assistant" and "KINI Agent Đề Xuất Kế Hoạch" in pm.get("content", ""):
+                m_task = re.search(r'data-task=["\'](.*?)["\']', pm.get("content", ""))
+                if m_task:
+                    pending_task_from_history = m_task.group(1).strip()
+                    break
 
     is_confirmed_execution = (confirm_agent == "yes") or bool(pending_task_from_history)
     task_to_run = task_prompt.strip() or pending_task_from_history or re.sub(r'^/agent\s*', '', message, flags=re.IGNORECASE).strip()
@@ -423,7 +433,10 @@ async def chat_with_kini(
                 summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi trên máy tính:**"]
                 for a in actions:
                     if a["tool"] == "write_file":
-                        summary_lines.append(f"- 📝 Đã tạo file: `{a.get('path')}`")
+                        p_file = a.get('path', '')
+                        summary_lines.append(f"- 📝 Đã tạo file: `{p_file}`")
+                        if p_file.lower().endswith(('.html', '.htm')):
+                            summary_lines.append(f"  👉 [🌐 Bấm Vào Đây Để Mở Web Trực Tiếp](/api/workspace/raw?path={urllib.parse.quote(p_file)})")
                     elif a["tool"] == "create_folder":
                         summary_lines.append(f"- 📁 Đã tạo thư mục: `{a.get('path')}`")
                     elif a["tool"] == "run_command":
@@ -528,6 +541,15 @@ async def chat_with_kini(
                 "KHÔNG dùng markdown (*, #, _, code, gạch đầu dòng), "
                 "nói tự nhiên như người thật đang trò chuyện trực tiếp."
             )
+
+    # Tự động gắn chỉ thị kiểm tra tính toán số học chuẩn xác 100% nếu có liên quan đến tính toán, số liệu
+    if re.search(r'\b(tính|tổng|cộng|trừ|nhân|chia|\+|\=|\d+\s*[\+\-\*\/]\s*\d+|lạng|kg|gam|đơn hàng|tiền)\b', full_user_content.lower()):
+        current_content_with_grounding += (
+            "\n\n[QUY TẮC BẮT BUỘC VỀ ĐỘ CHÍNH XÁC SỐ HỌC]: "
+            "Câu hỏi có chứa số liệu hoặc phép tính. "
+            "BẮT BUỘC phải thực hiện phép tính cẩn thận từng bước (Double-Check), diễn giải rõ ràng phép cộng/trừ từng số hạng, "
+            "tuyệt đối không được tính nhẩm sai hoặc làm tròn sai số."
+        )
 
     formatted_history.append({
         "role": "user",
@@ -876,6 +898,14 @@ async def chat_with_kini_stream(
     for m in past_msgs[:-1]:
         formatted_history.append({"role": m["role"], "content": m["content"]})
     current_content = full_user_content + webpage_context + live_search_text
+    # Tự động gắn chỉ thị kiểm tra tính toán số học chuẩn xác 100% nếu có liên quan đến tính toán, số liệu
+    if re.search(r'\b(tính|tổng|cộng|trừ|nhân|chia|\+|\=|\d+\s*[\+\-\*\/]\s*\d+|lạng|kg|gam|đơn hàng|tiền)\b', full_user_content.lower()):
+        current_content += (
+            "\n\n[QUY TẮC BẮT BUỘC VỀ ĐỘ CHÍNH XÁC SỐ HỌC]: "
+            "Câu hỏi có chứa số liệu hoặc phép tính. "
+            "BẮT BUỘC phải thực hiện phép tính cẩn thận từng bước (Double-Check), diễn giải rõ ràng phép cộng/trừ từng số hạng, "
+            "tuyệt đối không được tính nhẩm sai hoặc làm tròn sai số."
+        )
     formatted_history.append({"role": "user", "content": current_content})
 
     async def chat_sse_streamer():
