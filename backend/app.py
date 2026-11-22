@@ -26,6 +26,7 @@ from . import doc_exporter
 from . import search_engine
 from . import agent_engine
 from . import math_verifier
+from . import image_editor
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -234,9 +235,9 @@ async def chat_with_kini(
 
     # 1. Xử lý tệp đính kèm (Đơn lẻ, Hàng loạt hoặc Thư mục tải lên)
     upload_list = []
-    if files:
+    if files and isinstance(files, (list, tuple)):
         upload_list.extend(files)
-    if file and file.filename and file not in upload_list:
+    if file and hasattr(file, "filename") and file.filename and file not in upload_list:
         upload_list.append(file)
 
     for item in upload_list:
@@ -297,13 +298,119 @@ async def chat_with_kini(
     except Exception:
         pass
 
-    # 2. KIỂM TRA Ý ĐỊNH VẼ TRANH / TẠO ẢNH / THIẾT KẾ LOGO TRỰC TIẾP
+    # 2. KIỂM TRA Ý ĐỊNH VẼ TRANH / TẠO ẢNH / THIẾT KẾ LOGO / CHỈNH SỬA ẢNH
     generated_img_url = ""
-    if gemini_client.is_image_request(message):
+    is_img_req = gemini_client.is_image_request(message)
+    low_msg = message.lower().strip()
+
+    # 2.1. TÌM ẢNH GẦN NHẤT TRONG CUỘC HỘI THOẠI ĐỂ SẴN SÀNG CHỈNH SỬA / BIẾN THỂ
+    recent_image_path = ""
+    recent_image_url = ""
+    if file_display_url:
+        cand_p = os.path.join(IMAGES_DIR, os.path.basename(file_display_url))
+        if os.path.exists(cand_p):
+            recent_image_path = cand_p
+            recent_image_url = file_display_url
+    if not recent_image_path:
+        past_msgs_check = database.get_conversation_messages(conv_id)
+        for pm in reversed(past_msgs_check):
+            p_img = pm.get("image_url", "")
+            if p_img and "/api/images/" in p_img:
+                cand_p = os.path.join(IMAGES_DIR, os.path.basename(p_img))
+                if os.path.exists(cand_p):
+                    recent_image_path = cand_p
+                    recent_image_url = p_img
+                    break
+
+    # 2.2. XỬ LÝ LỆNH SỬA ẢNH NÓI CHUNG (KHI CHƯA NÊU RÕ CẦN ĐỔI CHI TIẾT NÀO)
+    is_generic_edit_request = bool(re.search(
+        r'^(hãy\s+)?(sửa|chỉnh\s+sửa|edit|làm\s+lại)\s+(ảnh|hình|logo|poster)?\s*(này)?\s*(cho\s+tôi|cho\s+anh|giúp\s+anh|giúp\s+em)?$',
+        low_msg
+    ))
+    if (is_img_req or recent_image_path) and is_generic_edit_request:
+        if cid == "master":
+            guide_reply = (
+                "🎨 **Dạ thưa anh Trường, em đã sẵn sàng chỉnh sửa bức ảnh/logo này cho anh rồi ạ!** ✨\n\n"
+                "Anh muốn em thay đổi chi tiết nào ạ? Em có thể làm ngay:\n"
+                "- 📱 **Đổi số điện thoại** (Ví dụ anh nhắn: *'đổi số điện thoại thành 0367722091'*)\n"
+                "- ✏️ **Đổi tên / chữ thương hiệu** (Ví dụ: *'đổi tên thành ChipChip Bé Yêu'*)\n"
+                "- 🎨 **Đổi màu sắc / phong cách 3D** (Ví dụ: *'làm phong cách hoạt hình 3D Pixar nổi khối hơn'*)\n\n"
+                "Anh cho em biết chi tiết anh muốn đổi, em sẽ cập nhật và xuất ảnh mới ngay lập tức cho anh nhé!"
+            )
+        else:
+            guide_reply = (
+                "🎨 **Tôi đã sẵn sàng chỉnh sửa bức ảnh/logo này cho bạn:** ✨\n\n"
+                "Bạn muốn thay đổi chi tiết nào:\n"
+                "- 📱 **Đổi số điện thoại** (Ví dụ: *đổi số điện thoại thành 0367722091*)\n"
+                "- ✏️ **Đổi tên thương hiệu / chữ**\n"
+                "- 🎨 **Đổi màu sắc hoặc phong cách 3D**\n\n"
+                "Bạn hãy nhắn chi tiết muốn đổi, tôi sẽ xử lý ngay nhé!"
+            )
+        database.add_message(conv_id, "assistant", guide_reply, client_id=cid)
+        return {
+            "success": True,
+            "reply": guide_reply,
+            "image_url": "",
+            "is_image_generated": False
+        }
+
+    # 2.3. XỬ LÝ LỆNH ĐỔI SỐ ĐIỆN THOẠI TRÊN HUY HIỆU LOGO TRỰC TIẾP (LOSSLESS 3D EMBOSS)
+    m_phone = re.search(r'(?:đổi|thay|sửa|thêm)\s+(?:số\s+điện\s+thoại|sđt|phone)?\s*(?:thành|sang)?\s*(\d{9,12})', message, re.IGNORECASE)
+    if m_phone and recent_image_path:
+        new_phone_digits = m_phone.group(1)
+        edit_res = image_editor.update_badge_phone_number(recent_image_path, new_phone_digits)
+        if edit_res.get("success"):
+            generated_img_url = edit_res["image_url"]
+            database.add_gallery_item(
+                prompt=f"Cập nhật số điện thoại thành {new_phone_digits} trên logo",
+                style="3d",
+                image_url=generated_img_url,
+                image_path=edit_res["file_path"],
+                width=edit_res.get("width", 2048),
+                height=edit_res.get("height", 2048)
+            )
+            if cid == "master":
+                assistant_reply = (
+                    f"🎨 **Em đã cập nhật số điện thoại thành `{new_phone_digits}` trên logo cho anh Trường rồi ạ!** ✨\n\n"
+                    f"- 📱 **Số điện thoại mới:** `{new_phone_digits}`\n"
+                    f"- 💎 **Hiệu ứng chữ:** *3D Jelly Pixar Emboss & Bevel bóng bẩy*\n"
+                    f"- 📐 **Độ phân giải:** *{edit_res.get('width', 2048)}x{edit_res.get('height', 2048)} Ultra HD siêu nét giữ nguyên 100% chi tiết gốc*\n\n"
+                    f"Anh Trường có thể bấm trực tiếp vào ảnh để xem chi tiết, phóng to hoặc bấm nút tải HD về máy nhé!"
+                )
+            else:
+                assistant_reply = (
+                    f"🎨 **Đã cập nhật số điện thoại thành `{new_phone_digits}` trên logo thành công:** ✨\n\n"
+                    f"- 📱 **Số mới:** `{new_phone_digits}`\n"
+                    f"- 💎 **Hiệu ứng:** 3D Jelly Pixar Emboss\n\n"
+                    f"Bạn có thể bấm vào ảnh để phóng to hoặc tải về máy!"
+                )
+            database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url, client_id=cid)
+            return {
+                "success": True,
+                "reply": assistant_reply,
+                "image_url": generated_img_url,
+                "is_image_generated": True,
+                "model_used": "KINI 3D Image Engine"
+            }
+
+    # 2.4. TẠO ẢNH AI TỰ ĐỘNG BẰNG FLUX.1 / GEMINI PROMPT ENGINE
+    if is_img_req:
         clean_prompt = gemini_client.clean_image_prompt(message)
+        # Nếu câu lệnh là sửa đổi/biến thể mà có bối cảnh trước đó (ví dụ 'ChipChip Mây & Gạo')
+        if any(k in low_msg for k in ["đổi", "thay", "sửa", "thêm"]) and len(clean_prompt) < 40:
+            past_msgs_check = database.get_conversation_messages(conv_id)
+            context_kw = ""
+            for pm in reversed(past_msgs_check):
+                c_low = pm.get("content", "").lower()
+                if "chipchip" in c_low or "mây" in c_low or "gạo" in c_low:
+                    context_kw = "logo 3D huy hiệu tròn ChipChip Mây & Gạo, 2 bé Mây và Gạo 3D Pixar kẹo dẻo"
+                    break
+            if context_kw:
+                clean_prompt = f"{context_kw}, {clean_prompt}"
+
         # Tự động nhận diện phong cách tốt nhất dựa trên yêu cầu của người dùng
         detected_style = "realistic"
-        low_p = message.lower()
+        low_p = (message + " " + clean_prompt).lower()
         if any(k in low_p for k in ["3d", "pixar", "disney", "chibi", "dễ thương", "glossy", "nổi khối"]):
             detected_style = "3d"
         elif any(k in low_p for k in ["logo", "biểu tượng", "icon", "badge", "emblem"]):
@@ -317,7 +424,7 @@ async def chat_with_kini(
         elif any(k in low_p for k in ["sơn dầu", "tranh vẽ", "oil", "watercolor", "màu nước"]):
             detected_style = "oil"
 
-        # Sử dụng Engine tạo ảnh FLUX.1 tối ưu hóa bằng Gemini
+        # Sử dụng Engine tạo ảnh tối ưu hóa bằng Gemini
         img_result = image_generator.generate_ai_image(clean_prompt, style=detected_style, api_key=api_key)
         if img_result.get("success"):
             generated_img_url = img_result["image_url"]
@@ -355,7 +462,7 @@ async def chat_with_kini(
             }
         else:
             if cid == "master":
-                fail_reply = f"⚠️ Dạ thưa anh Trường, hệ thống vẽ ảnh FLUX.1 đang bận tạm thời: {img_result.get('error', 'Không phản hồi')}. Anh vui lòng thử bấm gửi lại giúp em nhé!"
+                fail_reply = f"⚠️ Dạ thưa anh Trường, hệ thống vẽ ảnh đang bận tạm thời: {img_result.get('error', 'Không phản hồi')}. Anh vui lòng thử bấm gửi lại giúp em nhé!"
             else:
                 fail_reply = f"⚠️ Hệ thống tạo ảnh đang bận tạm thời: {img_result.get('error', 'Không phản hồi')}. Bạn vui lòng bấm gửi lại nhé!"
             database.add_message(conv_id, "assistant", fail_reply, client_id=cid)

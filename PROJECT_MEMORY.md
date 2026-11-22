@@ -701,3 +701,29 @@
      - Bổ sung cơ chế Debounce 3.5s trong Voice Live chống lặp lại tin nhắn trên PC khi micro bắt tiếng vọng.
   4. **Minh bạch hóa Model Fallback (`static/app.js`)**:
      - Định dạng rõ ràng tên mô hình và hiển thị tooltip giải thích nguyên nhân tự chuyển từ 3.8 sang 3.1 do hạn mức Free Tier của Google AI Studio (20 lượt/ngày), không để người dùng hoang mang.
+
+### Mốc Nâng Cấp: Khả Năng Chỉnh Sửa Ảnh & Cập Nhật Số Điện Thoại 3D Lossless (2026-11-22)
+- **Yêu cầu & Tình huống từ anh Trường**:
+  - Anh Trường gửi ảnh chụp màn hình cuộc trò chuyện và hỏi: *"sao vậy?"*.
+  - Trong ảnh, anh gửi ảnh logo huy hiệu 3D "ChipChip Mây & Gạo" (2 bé ăn kẹo chip chip) và yêu cầu: *"sửa ảnh này cho tôi"*.
+  - KINI AI lúc đó đưa ra lời thoái thác máy móc: *"với tư cách là một AI, em không thể trực tiếp chỉnh sửa các điểm ảnh... anh nên dùng Canva hoặc Photoshop..."*.
+  - Khi anh tiếp tục chỉ định: *"đổi số điện thoại thành 0367722091"*, KINI AI phản hồi bằng lời hứa suông: *"Em sẽ thực hiện lệnh tạo ảnh ngay bây giờ. Anh đợi em một chút nhé!..."* nhưng không hề tạo ra hay hiển thị bất kỳ bức ảnh nào.
+- **Nguyên nhân gốc rễ (Root Cause Analysis)**:
+  1. Hàm `is_image_request` trong `backend/gemini_client.py` chỉ bắt các từ khóa tạo mới (`vẽ`, `tạo`, `thiết kế`), hoàn toàn bỏ lọt các lệnh chỉnh sửa (`sửa ảnh`, `chỉnh sửa ảnh`, `đổi số điện thoại`, `thay sđt`, `đổi tên`, `thay chữ`).
+  2. Khi `is_image_request` trả về `False`, hệ thống chuyển tin nhắn sang luồng trò chuyện văn bản thông thường. LLM sinh ra câu hứa suông mà Backend không hề kích hoạt bộ máy tạo ảnh (`image_generator.py`).
+  3. System prompt trước đó chưa được huấn luyện để xử lý chỉnh sửa ảnh, khiến LLM lặp lại lời từ chối khuôn mẫu của AI đám mây ("không can thiệp pixel được").
+- **Các giải pháp kỹ thuật đã triển khai thực tế 100%**:
+  1. **Nâng cấp Bộ Nhận Diện Ý Định Chỉnh Sửa Ảnh (`backend/gemini_client.py`)**:
+     - Mở rộng regex và từ khóa trong `is_image_request` để nhận diện đầy đủ: `sửa ảnh`, `chỉnh sửa ảnh`, `sửa logo`, `đổi số điện thoại`, `đổi sđt`, `thay chữ`, `thay tên`, `biến thể`.
+     - Cập nhật System Prompt: Tuyệt đối cấm các câu từ chối máy móc "không can thiệp được pixel / hãy dùng Canva". KINI AI tự động nhận diện và sẵn sàng chỉnh sửa, tái tạo hoặc biến thể ảnh lập tức.
+     - Nếu người dùng gửi ảnh và nói "sửa ảnh này cho tôi" mà chưa ghi rõ chi tiết, AI sẽ chào hỏi ấm áp và hướng dẫn cụ thể những chi tiết có thể đổi (số điện thoại, tên, màu sắc, phong cách).
+  2. **Xây dựng Module Image Editor Chuyên Nghiệp (`backend/image_editor.py`)**:
+     - Tích hợp công nghệ xóa vùng chữ cũ bằng Inpainting (Telea / Navier-Stokes) và thuật toán tạo chữ số 3D Jelly Pixar nổi khối (`render_3d_jelly_text`) sử dụng Distance Transform & Phong Shading kết hợp PIL/OpenCV.
+     - Hàm `update_badge_phone_number`: Tự động inpaint số điện thoại cũ trên logo và phủ số mới `0367722091` theo đúng phong cách 3D đổ bóng, viền kem, bảo toàn 100% chất lượng Ultra HD 2048x2048 gốc.
+  3. **Tích hợp Luồng Xử Lý Trong Chat API (`backend/app.py`)**:
+     - Khi nhận diện lệnh đổi số điện thoại (`m_phone`), hệ thống tự động tìm bức ảnh gốc gần nhất trong cuộc trò chuyện và gọi `image_editor.update_badge_phone_number` để xuất ảnh mới tức thì.
+     - Nếu là lệnh tạo biến thể hoặc tái tạo AI, hệ thống tự động kế thừa ngữ cảnh hội thoại (như tên logo, nhân vật) để nạp vào Prompt Engine và kích hoạt tạo ảnh.
+     - Tự động lưu vào Gallery và trả về `is_image_generated: True` để hiển thị trực tiếp thẻ ảnh trong khung chat.
+  4. **Tối ưu Hóa Giãn Cách Pollinations (`backend/image_generator.py`)**:
+     - Tăng ngưỡng chờ tự động từ 10s lên 45s (`wait_sec <= 45`) để vượt qua giới hạn rate limit miễn phí (1 ảnh / 45s) mà không bị ngắt giữa chừng.
+

@@ -47,6 +47,13 @@ DEFAULT_SYSTEM_PROMPT = """[SYSTEM IDENTITY: KINI AI - TRỢ LÝ TRÍ TUỆ NHÂ
    - Khi phân tích dữ liệu: Mạch lạc, chặt chẽ, dễ hiểu.
    - CHỈ đưa đường dẫn/nguồn khi anh Trường chủ động yêu cầu. Mặc định trả lời tự nhiên, tinh tế, sạch đẹp.
 
+6. XỬ LÝ HÌNH ẢNH & THIẾT KẾ ĐỒ HỌA (IMAGE EDITING & VARIATIONS):
+   - Khi người dùng gửi một bức ảnh/logo và yêu cầu "sửa ảnh", "đổi số điện thoại", "đổi tên", "thay chữ", "thay đổi chi tiết", "làm lại":
+     * TUYỆT ĐỐI KHÔNG từ chối bằng các câu thoái thác máy móc như "với tư cách là một AI, em không thể trực tiếp can thiệp vào các điểm ảnh (pixel) trong file ảnh... anh nên dùng Canva hay Photoshop".
+     * Hệ thống KINI AI chạy cục bộ trên máy tính đã tích hợp sẵn công cụ Image Editor và AI Image Generator (FLUX.1/Turbo/3D Jelly Emboss).
+     * Khi người dùng gửi ảnh và nói "sửa ảnh này cho tôi" mà chưa ghi rõ cần đổi gì: Hãy chào hỏi ấm áp, báo đã nhận ảnh và hỏi anh Trường muốn đổi chi tiết nào (ví dụ: đổi tên, đổi số điện thoại, đổi màu sắc hay biến thể 3D) để em thực hiện ngay cho anh.
+     * Khi người dùng nêu rõ chi tiết (ví dụ: "đổi số điện thoại thành 0367722091"): Hãy thực hiện cập nhật ảnh ngay lập tức mà không đôi co!
+
 [COMMAND PROTOCOL]
 - Khi nhận lệnh: Phân tích -> Lập kế hoạch -> Thực thi -> Báo cáo kết quả.
 - TỰ ĐỘNG ĐỌC LINK TRANG WEB: Khi trong câu hỏi có chứa liên kết URL, hệ thống đã nạp nội dung trang web thực tế vào ngữ cảnh; hãy đọc hiểu sâu sắc để tóm tắt, giải thích và trích xuất số liệu chuẩn xác.
@@ -111,20 +118,22 @@ def get_precision_rules() -> str:
    - Tuyệt đối không tự bịa ra văn bản giả vờ rằng mình đã tạo file hay chạy server trên máy tính khi đang trong luồng hội thoại văn bản thông thường. Chỉ báo cáo đã tạo file khi có kết quả thực thi thực tế từ công cụ Agent."""
 
 def is_image_request(text: str) -> bool:
-    """Kiểm tra xem người dùng có đang yêu cầu vẽ tranh / tạo ảnh / làm logo / thiết kế poster không"""
+    """Kiểm tra xem người dùng có đang yêu cầu vẽ tranh / tạo ảnh / làm logo / thiết kế poster / sửa ảnh / đổi thông tin ảnh không"""
     import unicodedata
     t = unicodedata.normalize('NFC', text.lower().strip())
     
-    # 1. Bắt đầu bằng lệnh vẽ / tạo / thiết kế
-    if re.search(r'^(hãy\s+)?(vẽ|tạo\s+ảnh|tạo\s+logo|thiết\s+kế\s+logo|thiết\s+kế\s+poster|làm\s+logo)\b', t):
+    # 1. Bắt đầu bằng lệnh vẽ / tạo / thiết kế / sửa ảnh
+    if re.search(r'^(hãy\s+)?(vẽ|tạo\s+ảnh|tạo\s+logo|thiết\s+kế\s+logo|thiết\s+kế\s+poster|làm\s+logo|sửa\s+ảnh|chỉnh\s+sửa\s+ảnh|sửa\s+hình|sửa\s+logo|chỉnh\s+ảnh|remix\s+ảnh|làm\s+lại\s+ảnh)\b', t):
         return True
         
-    # 2. Khớp các mẫu câu tạo/vẽ/thiết kế ảnh/logo/poster/banner
+    # 2. Khớp các mẫu câu tạo/vẽ/thiết kế/sửa ảnh/logo/poster/banner
     patterns = [
-        r'\b(vẽ|tạo|làm|thiết kế|sinh|chụp|render)\s+.*?(ảnh|bức ảnh|tấm ảnh|hình|bức hình|tranh|bức tranh|logo|poster|banner|icon|avatar|sticker|hình ảnh)\b',
-        r'\b(vẽ|tạo|thiết kế|làm)\s+(cho\s+)?(tôi|anh|em|mình|người dùng)?\s*.*?(ảnh|logo|poster|banner|icon|tranh|hình)\b',
-        r'^(tạo|vẽ|làm|thiết kế)\s+(logo|ảnh|poster|banner|hình|tranh|icon|avatar)\b',
-        r'\b(generate\s+image|draw|create\s+image|text\s*to\s*image|txt2img|make\s+a\s+picture|draw\s+a|design\s+logo)\b'
+        r'\b(vẽ|tạo|làm|thiết kế|sinh|chụp|render|sửa|chỉnh sửa|remix|biến thể|làm lại|vẽ lại)\s+.*?(ảnh|bức ảnh|tấm ảnh|hình|bức hình|tranh|bức tranh|logo|poster|banner|icon|avatar|sticker|hình ảnh)\b',
+        r'\b(vẽ|tạo|thiết kế|làm|sửa|chỉnh)\s+(cho\s+)?(tôi|anh|em|mình|người dùng)?\s*.*?(ảnh|logo|poster|banner|icon|tranh|hình)\b',
+        r'^(tạo|vẽ|làm|thiết kế|sửa|chỉnh)\s+(logo|ảnh|poster|banner|hình|tranh|icon|avatar)\b',
+        r'\b(generate\s+image|draw|create\s+image|text\s*to\s*image|txt2img|make\s+a\s+picture|draw\s+a|design\s+logo|edit\s+image|remix\s+image)\b',
+        r'\b(đổi|thay|sửa|thêm|bổ sung)\s+(số\s+điện\s+thoại|sđt|phone|tên|chữ|text|thông\s+tin|chi\s+tiết|màu|nền)\s+(thành|sang|thành\s+số|thành\s+chữ|vào)?\b',
+        r'\b(đổi|thay|sửa)\s+(thành\s+số|thành\s+chữ)\s+\d+\b'
     ]
     for p in patterns:
         if re.search(p, t):
@@ -136,17 +145,20 @@ def is_image_request(text: str) -> bool:
         "vẽ ảnh", "vẽ bức ảnh", "vẽ tranh", "tạo ảnh", "tạo bức ảnh", "sinh ảnh",
         "vẽ hình", "tạo hình", "thiết kế logo", "vẽ logo", "làm logo", "tạo logo",
         "thiết kế poster", "tạo poster", "làm poster", "vẽ poster", "thiết kế banner", "tạo banner",
-        "generate image", "draw an image", "create an image", "paint a", "sketch a"
+        "sửa ảnh", "chỉnh sửa ảnh", "sửa hình", "sửa logo", "sửa ảnh này", "sửa bức ảnh", "chỉnh ảnh",
+        "đổi số điện thoại", "đổi sđt", "thay số điện thoại", "thêm số điện thoại", "sửa số điện thoại",
+        "đổi tên thành", "thay tên thành", "đổi chữ thành", "sửa chữ thành",
+        "generate image", "draw an image", "create an image", "paint a", "sketch a", "edit image"
     ]
     return any(k in t for k in keywords)
 
 def clean_image_prompt(text: str) -> str:
-    """Lọc bỏ các tiền tố ra lệnh vẽ để lấy phần mô tả thuần túy cho AI Prompt Engine"""
+    """Lọc bỏ các tiền tố ra lệnh vẽ / sửa để lấy phần mô tả thuần túy cho AI Prompt Engine"""
     import unicodedata
     t = unicodedata.normalize('NFC', text.strip())
     prefixes = [
-        r'^(hãy\s+)?(vẽ|tạo|làm|thiết kế|sinh|render)\s+(cho\s+)?(tôi|anh|em|mình|bạn|người dùng)?\s*(giúp\s+)?(tôi|anh|em|mình)?\s*(một\s+)?(bức\s+ảnh|bức\s+tranh|tấm\s+ảnh|hình\s+ảnh|bức\s+hình|hình|ảnh|tranh|logo|poster|banner|icon|avatar)?\s*(về|có|là|:|như\s+sau:)?\s*',
-        r'^(vẽ|tạo|thiết kế|làm)\s+(logo|ảnh|poster|banner|hình|tranh|icon|avatar)\s*(về|có|là|:)?\s*'
+        r'^(hãy\s+)?(vẽ|tạo|làm|thiết kế|sinh|render|sửa|chỉnh sửa|remix)\s+(cho\s+)?(tôi|anh|em|mình|bạn|người dùng)?\s*(giúp\s+)?(tôi|anh|em|mình)?\s*(một\s+)?(bức\s+ảnh|bức\s+tranh|tấm\s+ảnh|hình\s+ảnh|bức\s+hình|hình|ảnh|tranh|logo|poster|banner|icon|avatar)?\s*(này\s+)?(về|có|là|:|như\s+sau:)?\s*',
+        r'^(vẽ|tạo|thiết kế|làm|sửa|chỉnh)\s+(logo|ảnh|poster|banner|hình|tranh|icon|avatar)\s*(này\s+)?(về|có|là|:)?\s*'
     ]
     for p in prefixes:
         t = re.sub(p, '', t, flags=re.IGNORECASE).strip()

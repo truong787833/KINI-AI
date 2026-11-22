@@ -138,8 +138,8 @@ def generate_ai_image(
                 m = re.search(r'Retry after (\d+)s', res.text)
                 if m:
                     wait_sec = int(m.group(1))
-                    if wait_sec <= 10:
-                        logger.info(f"Đang chờ giãn cách {wait_sec}s...")
+                    if wait_sec <= 45:
+                        logger.info(f"Đang chờ giãn cách {wait_sec}s để tạo ảnh chất lượng cao...")
                         time.sleep(wait_sec + 1)
                         try:
                             retry_res = requests.get(api_url, headers=headers, timeout=28)
