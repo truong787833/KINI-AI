@@ -619,7 +619,8 @@ async def chat_with_kini(
         "success": res.get("success", False),
         "reply": assistant_reply,
         "image_url": file_display_url,
-        "model_used": res.get("model_used", "gemini")
+        "model_used": res.get("model_used", "gemini"),
+        "fallback_from_38": res.get("fallback_from_38", False)
     }
 
 @app.post("/api/chat/stream")

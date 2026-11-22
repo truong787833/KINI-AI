@@ -115,42 +115,22 @@ def clean_image_prompt(text: str) -> str:
 def build_system_instruction_with_memories(base_prompt: Optional[str] = None, client_id: str = "master") -> str:
     """Ghép nối System Prompt với thời gian thực, quy tắc chính xác và ký ức dài hạn"""
     from . import database
-    if client_id == "master":
-        sys_inst = base_prompt or database.get_setting("custom_persona", DEFAULT_SYSTEM_PROMPT, client_id="master")
-        # 1. Gắn thời gian thực tế
-        sys_inst += f"\n\n{get_current_time_context()}"
-        # 2. Gắn quy chuẩn độ chính xác tuyệt đối (Dành riêng cho máy anh Trường)
-        sys_inst += f"\n\n{get_precision_rules()}"
-        # 3. Gắn ký ức dài hạn về anh Trường
-        try:
-            memories = database.get_all_memories(limit=30, client_id="master")
-            if memories:
-                facts = "\n".join(f"- {m['fact']}" for m in memories)
-                sys_inst += f"\n\n=== BỘ NHỚ DÀI HẠN VỀ ANH HẢI TRƯỜNG (LUÔN GHI NHỚ) ===\n{facts}"
-        except Exception as e:
-            logger.warning(f"Lỗi đọc bộ nhớ: {e}")
-        return sys_inst
-    else:
-        # CHẾ ĐỘ DÀNH CHO THIẾT BỊ / NGƯỜI DÙNG KHÁC (VISITOR):
-        # Mới 100% như ChatGPT, Gemini. Không có bất kỳ dấu vết hay ký ức nào của anh Trường.
-        custom_p = database.get_setting("custom_persona", "", client_id=client_id)
-        sys_inst = base_prompt or custom_p or VISITOR_DEFAULT_PROMPT
-        
-        now = datetime.now()
-        days_vn = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
-        day_name = days_vn[int(now.strftime("%w"))]
-        sys_inst += f"\n\n[THỜI GIAN HIỆN TẠI]: {day_name}, ngày {now.strftime('%d/%m/%Y')}, lúc {now.strftime('%H:%M:%S')} (Năm {now.year})."
-        
-        # Chỉ gắn những thông tin/sở thích mà chính người dùng này đã dạy
-        try:
-            memories = database.get_all_memories(limit=30, client_id=client_id)
-            if memories:
-                facts = "\n".join(f"- {m['fact']}" for m in memories)
-                sys_inst += f"\n\n=== THÔNG TIN NGƯỜI DÙNG ĐÃ HƯỚNG DẪN BẠN GHI NHỚ ===\n{facts}"
-        except Exception as e:
-            logger.warning(f"Lỗi đọc bộ nhớ: {e}")
-            
-        return sys_inst
+    # Luôn ưu tiên bản sắc KINI AI xưng Em - gọi Anh Trường cho toàn bộ các thiết bị của anh
+    custom_p = database.get_setting("custom_persona", "", client_id=client_id)
+    sys_inst = base_prompt or custom_p or DEFAULT_SYSTEM_PROMPT
+    # 1. Gắn thời gian thực tế
+    sys_inst += f"\n\n{get_current_time_context()}"
+    # 2. Gắn quy chuẩn độ chính xác tuyệt đối (Dành riêng cho máy anh Trường)
+    sys_inst += f"\n\n{get_precision_rules()}"
+    # 3. Gắn ký ức dài hạn về anh Trường
+    try:
+        memories = database.get_all_memories(limit=30, client_id="master")
+        if memories:
+            facts = "\n".join(f"- {m['fact']}" for m in memories)
+            sys_inst += f"\n\n=== BỘ NHỚ DÀI HẠN VỀ ANH HẢI TRƯỜNG (LUÔN GHI NHỚ) ===\n{facts}"
+    except Exception as e:
+        logger.warning(f"Lỗi đọc bộ nhớ: {e}")
+    return sys_inst
 
 def extract_and_save_memory_async(user_text: str, api_key: str = "", client_id: str = "master"):
     """Tự động phân tích xem người dùng có chia sẻ thông tin cá nhân/thói quen để lưu vào bộ nhớ không"""
@@ -298,6 +278,7 @@ def ask_gemini(
                     "success": True,
                     "reply": text,
                     "model_used": model_name,
+                    "fallback_from_38": (model_mode in ["flash-3.8", "gemini-3.8-flash"] and model_name != "gemini-3.8-flash"),
                     "usage": data.get("usageMetadata", {})
                 }
             else:
@@ -416,7 +397,8 @@ def ask_gemini_stream(
                     yield {
                         "done": True,
                         "full_text": accumulated_text,
-                        "model_used": model_name
+                        "model_used": model_name,
+                        "fallback_from_38": (model_mode in ["flash-3.8", "gemini-3.8-flash"] and model_name != "gemini-3.8-flash")
                     }
                     return
             else:

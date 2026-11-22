@@ -1057,6 +1057,11 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
         `;
     }
 
+    let fallbackHint = "";
+    if (extraData && extraData.fallback_from_38) {
+        fallbackHint = ` <span style="opacity:0.8;font-size:10px;font-style:italic;" title="Máy chủ Google đang quá tải 3.8 Flash (503), KINI tự động chuyển tiếp sang 3.5 Flash để phục vụ anh không bị gián đoạn">(Google 3.8 tạm bận)</span>`;
+    }
+
     row.innerHTML = `
         <div class="message-avatar">K</div>
         <div class="message-body">
@@ -1066,7 +1071,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
                 ${proposalCardHtml}
             </div>
             <div class="msg-actions">
-                <span class="msg-model-badge" title="Mô hình thực tế từ Google API">⚡ ${escapeHtml(displayModel)}</span>
+                <span class="msg-model-badge" title="Mô hình thực tế từ Google API">⚡ ${escapeHtml(displayModel)}${fallbackHint}</span>
                 ${agentActionsHtml}
                 <button class="btn-msg-action btn-speak" title="Đọc bằng giọng nói tiếng Việt">
                     <span class="action-icon">🔊</span> Nghe đọc
