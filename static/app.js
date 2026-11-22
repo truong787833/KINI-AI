@@ -710,33 +710,129 @@ async function sendMessage() {
             }
         }
 
-        const res = await fetch("/api/chat", {
-            method: "POST",
-            body: formData
-        });
+        let streamingSucceeded = false;
+        try {
+            const streamRes = await fetch("/api/chat/stream", {
+                method: "POST",
+                body: formData
+            });
 
-        const data = await res.json();
-        removeLoadingMessage(loadingId);
+            if (streamRes.ok && streamRes.body) {
+                removeLoadingMessage(loadingId);
+                const streamRow = createStreamingAssistantRow();
+                const reader = streamRes.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let accumulatedReply = "";
+                let finalData = null;
+                let buffer = "";
 
-        if (data.reply) {
-            appendAssistantMessage(data.reply, data.image_url, data.is_image_generated, data.model_used, data);
-            if (data.is_agent && typeof refreshFileTree === "function") {
-                refreshFileTree();
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (trimmed.startsWith("data: ")) {
+                            try {
+                                const evt = JSON.parse(trimmed.slice(6));
+                                if (evt.type === "chunk" && evt.text) {
+                                    accumulatedReply += evt.text;
+                                    streamRow.updateStreamText(accumulatedReply);
+                                } else if (evt.type === "done") {
+                                    finalData = evt;
+                                    if (evt.reply) accumulatedReply = evt.reply;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                if (accumulatedReply || finalData) {
+                    streamingSucceeded = true;
+                    streamRow.finalizeMessage(accumulatedReply, finalData);
+                } else {
+                    streamRow.msgRow.remove();
+                }
             }
-            // Cập nhật số lượng ký ức
-            updateMemoryCountBadge();
-            // Cập nhật danh sách hội thoại bên sidebar ngay khi có tin nhắn mới
-            loadConversations(false);
-            // Cập nhật lại số liệu Quota & Token thực tế
-            refreshUsageStats();
-        } else {
-            appendAssistantMessage("⚠️ Không nhận được phản hồi từ KINI AI. Vui lòng thử lại.");
+        } catch (streamErr) {
+            console.warn("Lỗi luồng streaming, tự động chuyển về fallback tiêu chuẩn:", streamErr);
+        }
+
+        // Fallback tiêu chuẩn nếu trình duyệt hoặc mạng không hỗ trợ streaming
+        if (!streamingSucceeded) {
+            const res = await fetch("/api/chat", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await res.json();
+            removeLoadingMessage(loadingId);
+
+            if (data.reply) {
+                appendAssistantMessage(data.reply, data.image_url, data.is_image_generated, data.model_used, data);
+                if (data.is_agent && typeof refreshFileTree === "function") {
+                    refreshFileTree();
+                }
+                updateMemoryCountBadge();
+                loadConversations(false);
+                refreshUsageStats();
+            } else {
+                appendAssistantMessage("⚠️ Không nhận được phản hồi từ KINI AI. Vui lòng thử lại.");
+            }
         }
 
     } catch (err) {
         removeLoadingMessage(loadingId);
         appendAssistantMessage("❌ Lỗi kết nối tới máy chủ KINI AI: " + err.message);
     }
+}
+
+function createStreamingAssistantRow() {
+    const container = document.getElementById("chat-messages");
+    const row = document.createElement("div");
+    row.className = "message-row assistant";
+    row.innerHTML = `
+        <div class="message-avatar">K</div>
+        <div class="message-body">
+            <div class="message-bubble">
+                <span class="streaming-text"></span><span class="streaming-cursor">▍</span>
+            </div>
+            <div class="msg-actions" style="display: none;"></div>
+        </div>
+    `;
+    container.appendChild(row);
+    scrollToBottom();
+
+    const textSpan = row.querySelector(".streaming-text");
+    const cursor = row.querySelector(".streaming-cursor");
+
+    return {
+        msgRow: row,
+        updateStreamText: (rawText) => {
+            textSpan.innerHTML = formatMarkdown(rawText);
+            scrollToBottom();
+        },
+        finalizeMessage: (finalContent, extraData) => {
+            if (cursor) cursor.remove();
+            row.remove();
+            appendAssistantMessage(
+                finalContent, 
+                extraData?.image_url || "", 
+                extraData?.is_image_generated || false, 
+                extraData?.model_used || "gemini-3.1-flash-lite", 
+                extraData
+            );
+            if (extraData?.is_agent && typeof refreshFileTree === "function") {
+                refreshFileTree();
+            }
+            updateMemoryCountBadge();
+            loadConversations(false);
+            refreshUsageStats();
+        }
+    };
 }
 
 function appendUserMessage(text, files) {
@@ -768,6 +864,7 @@ function appendUserMessage(text, files) {
     `;
 
     container.appendChild(row);
+    initRenderedCharts(row);
     scrollToBottom();
 }
 
@@ -965,6 +1062,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
     excelBtn.addEventListener("click", () => exportExcelSheet(content));
 
     container.appendChild(row);
+    initRenderedCharts(row);
     scrollToBottom();
 }
 
@@ -2009,6 +2107,103 @@ window.launchArtifactRunner = function(artifactIdOrBtn) {
     appendTerminalLog("[RUNNER]: Khởi chạy Live Web/Game Runner từ tin nhắn chat.", "success");
 };
 
+// ============================================================
+// HỆ THỐNG BIỂU ĐỒ DỮ LIỆU TƯƠNG TÁC (CHART.JS INTERACTIVE ENGINE)
+// ============================================================
+window.__KINI_CHARTS = window.__KINI_CHARTS || {};
+window.__KINI_CHART_INSTANCES = window.__KINI_CHART_INSTANCES || {};
+
+function initRenderedCharts(container) {
+    if (typeof Chart === "undefined" || !container) return;
+    const canvases = container.querySelectorAll("canvas[id^='chart_']");
+    canvases.forEach(canvas => {
+        const chartId = canvas.id;
+        if (window.__KINI_CHART_INSTANCES[chartId]) return;
+        const chartData = window.__KINI_CHARTS[chartId];
+        if (!chartData) return;
+
+        try {
+            const ctx = canvas.getContext("2d");
+            const type = (chartData.type || "bar").toLowerCase();
+            const colors = [
+                "rgba(56, 189, 248, 0.85)",   // Cyan
+                "rgba(168, 85, 247, 0.85)",   // Purple
+                "rgba(244, 63, 94, 0.85)",    // Rose
+                "rgba(16, 185, 129, 0.85)",   // Emerald
+                "rgba(245, 158, 11, 0.85)",   // Amber
+                "rgba(59, 130, 246, 0.85)"    // Blue
+            ];
+            const borderColors = [
+                "#38bdf8", "#a855f7", "#f43f5e", "#10b981", "#f59e0b", "#3b82f6"
+            ];
+
+            if (chartData.data && chartData.data.datasets) {
+                chartData.data.datasets.forEach((ds, idx) => {
+                    if (!ds.backgroundColor) {
+                        if (['pie', 'doughnut', 'polararea'].includes(type)) {
+                            ds.backgroundColor = colors;
+                            ds.borderColor = borderColors;
+                        } else {
+                            ds.backgroundColor = colors[idx % colors.length];
+                            ds.borderColor = borderColors[idx % borderColors.length];
+                            ds.borderWidth = ds.borderWidth || 2;
+                        }
+                    }
+                    if (type === 'line') {
+                        ds.tension = ds.tension !== undefined ? ds.tension : 0.35;
+                        ds.fill = ds.fill !== undefined ? ds.fill : true;
+                    }
+                });
+            }
+
+            const chartInstance = new Chart(ctx, {
+                type: type,
+                data: chartData.data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: "#cbd5e1", font: { family: "system-ui", size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: "rgba(15, 23, 42, 0.95)",
+                            titleColor: "#38bdf8",
+                            bodyColor: "#f1f5f9",
+                            borderColor: "rgba(56, 189, 248, 0.3)",
+                            borderWidth: 1,
+                            padding: 10,
+                            cornerRadius: 8
+                        }
+                    },
+                    scales: ['pie', 'doughnut', 'polararea', 'radar'].includes(type) ? {} : {
+                        x: {
+                            grid: { color: "rgba(255, 255, 255, 0.06)" },
+                            ticks: { color: "#94a3b8", font: { size: 11 } }
+                        },
+                        y: {
+                            grid: { color: "rgba(255, 255, 255, 0.06)" },
+                            ticks: { color: "#94a3b8", font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+            window.__KINI_CHART_INSTANCES[chartId] = chartInstance;
+        } catch(e) {
+            console.warn("Lỗi vẽ biểu đồ Chart.js:", e);
+        }
+    });
+}
+
+function downloadChartImage(chartId) {
+    const canvas = document.getElementById(chartId);
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = `kini_chart_${Date.now()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+}
+
 function formatMarkdown(text) {
     if (!text) return "";
     
@@ -2018,6 +2213,33 @@ function formatMarkdown(text) {
             // Cấu hình renderer cho code blocks với highlight.js
             const renderer = new marked.Renderer();
             renderer.code = function(code, lang) {
+                // 1. Nhận diện khối biểu đồ dữ liệu Chart.js
+                if (lang && ['chart', 'chartjs'].includes(lang.toLowerCase())) {
+                    try {
+                        const chartJson = JSON.parse(code.trim());
+                        const chartId = "chart_" + Math.random().toString(36).substring(2, 9);
+                        window.__KINI_CHARTS = window.__KINI_CHARTS || {};
+                        window.__KINI_CHARTS[chartId] = chartJson;
+                        const chartTitle = chartJson.title || "Biểu Đồ Trực Quan KINI AI";
+                        return `<div class="kini-chart-card" id="card-${chartId}">
+                            <div class="chart-header">
+                                <div class="chart-header-left">
+                                    <span class="chart-icon">📊</span>
+                                    <strong class="chart-title">${escapeHtml(chartTitle)}</strong>
+                                </div>
+                                <button class="btn-chart-download" onclick="downloadChartImage('${chartId}')" title="Tải ảnh biểu đồ PNG">
+                                    ⬇️ Tải Ảnh Biểu Đồ
+                                </button>
+                            </div>
+                            <div class="chart-canvas-container">
+                                <canvas id="${chartId}"></canvas>
+                            </div>
+                        </div>`;
+                    } catch(err) {
+                        console.warn("Lỗi phân tích JSON biểu đồ:", err);
+                    }
+                }
+
                 let highlighted = code;
                 if (typeof hljs !== "undefined") {
                     try {

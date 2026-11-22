@@ -478,3 +478,85 @@ def get_grounded_context(user_query: str) -> str:
     )
 
     return "\n".join(lines)
+
+def extract_links_from_text(text: str) -> List[str]:
+    """Tìm tất cả các liên kết URL trang web có trong câu hỏi của người dùng"""
+    raw_urls = re.findall(r'https?://[^\s<>"\'\)]+', text)
+    valid_urls = []
+    for u in raw_urls:
+        clean_u = u.rstrip(".,;!?)]")
+        # Bỏ qua các link nội bộ localhost hoặc file tĩnh
+        if "127.0.0.1" in clean_u or "localhost" in clean_u or "/api/images/" in clean_u:
+            continue
+        valid_urls.append(clean_u)
+    return valid_urls
+
+def fetch_webpage_content(url: str, max_chars: int = 4000) -> Optional[Dict[str, str]]:
+    """
+    Tự động truy cập và đọc hiểu nội dung sạch của bất kỳ trang web / bài báo nào từ URL
+    (Loại bỏ quảng cáo, menu điều hướng, script và chỉ lấy nội dung cốt lõi của bài viết)
+    """
+    try:
+        from bs4 import BeautifulSoup
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "vi,en;q=0.9"
+        }
+        res = requests.get(url, headers=headers, timeout=8)
+        if res.status_code != 200:
+            return None
+
+        soup = BeautifulSoup(res.content, "html.parser")
+
+        # Xóa các thành phần rác
+        for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript", "svg", "form", "iframe"]):
+            tag.decompose()
+
+        title = soup.title.string.strip() if (soup.title and soup.title.string) else ""
+        if not title:
+            h1 = soup.find("h1")
+            if h1:
+                title = h1.get_text(strip=True)
+
+        meta_desc = ""
+        meta = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
+        if meta and meta.get("content"):
+            meta_desc = meta["content"].strip()
+
+        # Tìm vùng nội dung chính
+        main_content = (
+            soup.find("article") or 
+            soup.find(class_=re.compile(r'(detail-content|fck_detail|post-content|entry-content|main-content|article-body)', re.I)) or 
+            soup.find("main") or 
+            soup.body or 
+            soup
+        )
+
+        paragraphs = []
+        for p in main_content.find_all(["p", "h2", "h3", "li"]):
+            txt = p.get_text(strip=True)
+            if len(txt) > 20:
+                paragraphs.append(txt)
+
+        if not paragraphs:
+            full_text = main_content.get_text(separator="\n", strip=True)
+            lines = [l.strip() for l in full_text.split("\n") if len(l.strip()) > 20]
+            paragraphs = lines
+
+        clean_text = "\n\n".join(paragraphs)
+        if len(clean_text) > max_chars:
+            clean_text = clean_text[:max_chars] + "\n...(Nội dung còn tiếp)"
+
+        if len(clean_text.strip()) < 50:
+            return None
+
+        return {
+            "title": title or "Trang web",
+            "description": meta_desc,
+            "url": url,
+            "content": clean_text
+        }
+    except Exception as e:
+        logger.warning(f"Lỗi đọc nội dung trang web từ {url}: {e}")
+        return None

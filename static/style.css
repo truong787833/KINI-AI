@@ -3601,3 +3601,86 @@ body::before {
     border-color: rgba(255, 255, 255, 0.25);
 }
 
+/* ============================================================
+   STREAMING CURSOR & INTERACTIVE CHART.JS CARDS
+   ============================================================ */
+
+/* Hiệu ứng con trỏ nhấp nháy khi Streaming chữ từng từ */
+.streaming-cursor {
+    display: inline-block;
+    color: #38bdf8;
+    font-weight: 700;
+    margin-left: 2px;
+    animation: blinkCursor 0.7s infinite ease-in-out;
+}
+
+@keyframes blinkCursor {
+    0%, 100% { opacity: 1; transform: scaleY(1); }
+    50% { opacity: 0; transform: scaleY(0.7); }
+}
+
+/* Thẻ Biểu Đồ Trực Quan Tương Tác */
+.kini-chart-card {
+    margin: 14px 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4), 0 0 20px rgba(56, 189, 248, 0.1);
+    animation: fadeInSlideUp 0.3s ease-out;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chart-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-icon {
+    font-size: 1.2rem;
+}
+
+.chart-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #38bdf8;
+    letter-spacing: 0.02em;
+}
+
+.btn-chart-download {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-chart-download:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    transform: translateY(-1px);
+}
+
+.chart-canvas-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    max-height: 420px;
+}
+

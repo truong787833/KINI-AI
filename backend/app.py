@@ -11,7 +11,7 @@ from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from . import database
 from . import gemini_client
@@ -443,10 +443,30 @@ async def chat_with_kini(
         }
 
     # 4. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
+    # 4.0. TỰ ĐỘNG ĐỌC VÀ TRÍCH XUẤT NỘI DUNG TỪ BẤT KỲ ĐƯỜNG LINK TRANG WEB NÀO ĐƯỢC GỬI
+    search_target = message if message.strip() else full_user_content
+    webpage_context = ""
+    detected_links = search_engine.extract_links_from_text(search_target)
+    if detected_links:
+        for link_url in detected_links[:2]:
+            try:
+                page_data = search_engine.fetch_webpage_content(link_url)
+                if page_data:
+                    desc_str = f"Mô tả tóm tắt: {page_data['description']}\n" if page_data.get('description') else ""
+                    webpage_context += (
+                        f"\n\n=== NỘI DUNG TRANG WEB TRUY CẬP TRỰC TIẾP TỪ {page_data['url']} ===\n"
+                        f"Tiêu đề trang: {page_data['title']}\n"
+                        f"{desc_str}"
+                        f"Toàn bộ văn bản trích xuất sạch:\n{page_data['content']}\n"
+                        f"=== YÊU CẦU: KINI AI hãy đọc hiểu kỹ toàn bộ nội dung trang web trên để tóm tắt, phân tích, trích xuất số liệu hoặc trả lời câu hỏi của người dùng một cách thông minh, chính xác 100%. ==="
+                    )
+                    print(f"[*] Đã tự động đọc hiểu trang web: {link_url} ({len(page_data['content'])} ký tự)")
+            except Exception as e:
+                print(f"[!] Lỗi đọc trang web {link_url}: {e}")
+
     # Tra cứu Internet trực tuyến nếu câu hỏi liên quan đến báo chí, tin tức, thời sự, năm 2026, luật pháp, thông tin mới
     live_search_text = ""
-    search_target = message if message.strip() else full_user_content
-    if search_engine.needs_live_search(search_target):
+    if not webpage_context and search_engine.needs_live_search(search_target):
         try:
             grounded_data = search_engine.get_grounded_context(search_target)
             if grounded_data:
@@ -463,8 +483,8 @@ async def chat_with_kini(
             "role": m["role"],
             "content": m["content"]
         })
-    # Gắn tin nhắn hiện tại kèm kết quả tra cứu trực tuyến mới nhất
-    current_content_with_grounding = full_user_content + live_search_text
+    # Gắn tin nhắn hiện tại kèm nội dung trang web và kết quả tra cứu trực tuyến mới nhất
+    current_content_with_grounding = full_user_content + webpage_context + live_search_text
     formatted_history.append({
         "role": "user",
         "content": current_content_with_grounding
@@ -572,6 +592,248 @@ async def chat_with_kini(
         "image_url": file_display_url,
         "model_used": res.get("model_used", "gemini")
     }
+
+@app.post("/api/chat/stream")
+async def chat_with_kini_stream(
+    request: Request,
+    conv_id: str = Form("default"),
+    message: str = Form(""),
+    model_mode: str = Form("flash"),
+    agent_mode: Optional[str] = Form(None),
+    confirm_agent: Optional[str] = Form("no"),
+    task_prompt: Optional[str] = Form(""),
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None)
+):
+    cid = get_request_client_id(request)
+    if cid == "master":
+        api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+    else:
+        api_key = database.get_setting("gemini_api_key", "", client_id=cid)
+    
+    file_display_url = ""
+    file_display_name = ""
+    image_base64 = None
+    image_mime = "image/jpeg"
+    extracted_doc_text = ""
+
+    upload_list = []
+    if files:
+        upload_list.extend(files)
+    if file and file.filename and file not in upload_list:
+        upload_list.append(file)
+
+    for item in upload_list:
+        if not item or not item.filename:
+            continue
+        content_bytes = await item.read()
+        ext = os.path.splitext(item.filename)[1].lower()
+        if ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+            if not image_base64:
+                image_base64 = base64.b64encode(content_bytes).decode("utf-8")
+                image_mime = item.content_type or "image/jpeg"
+            save_name = f"upload_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"
+            save_path = os.path.join(IMAGES_DIR, save_name)
+            with open(save_path, "wb") as f:
+                f.write(content_bytes)
+            if not file_display_url:
+                file_display_url = f"/api/images/{save_name}"
+            extracted_doc_text += f"\n[Hình ảnh đính kèm: '{item.filename}']"
+        else:
+            temp_name = f"temp_doc_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"
+            temp_path = os.path.join(IMAGES_DIR, temp_name)
+            with open(temp_path, "wb") as f:
+                f.write(content_bytes)
+            if not file_display_url:
+                file_display_url = f"/api/images/{temp_name}"
+            parsed = file_parser.parse_uploaded_file(temp_path, item.filename)
+            if parsed.get("success"):
+                extracted_doc_text += f"\n\n[DỮ LIỆU TỆP '{item.filename}']:\n{parsed['text']}\n"
+            else:
+                extracted_doc_text += f"\n\n[Thông báo về tệp '{item.filename}']: Không thể trích xuất toàn bộ: {parsed.get('error')}\n"
+
+    full_user_content = message.strip()
+    if extracted_doc_text:
+        full_user_content += extracted_doc_text
+
+    if not full_user_content and not file_display_url:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập câu hỏi hoặc gửi tệp.")
+
+    database.add_message(conv_id, "user", full_user_content, image_url=file_display_url, client_id=cid)
+
+    # 1. KIỂM TRA TẠO ẢNH
+    if gemini_client.is_image_request(message):
+        clean_prompt = gemini_client.clean_image_prompt(message)
+        img_result = image_generator.generate_ai_image(clean_prompt, style="realistic", api_key=api_key)
+        if img_result.get("success"):
+            gen_url = img_result["image_url"]
+            database.add_gallery_item(
+                prompt=img_result["prompt"],
+                style=img_result.get("style", "realistic"),
+                image_url=gen_url,
+                image_path=img_result["file_path"],
+                width=img_result.get("width", 1024),
+                height=img_result.get("height", 1024)
+            )
+            reply = f"🎨 **Tác phẩm do KINI AI tạo ra:**\n\n*Mô tả:* \"{clean_prompt}\""
+            database.add_message(conv_id, "assistant", reply, image_url=gen_url, client_id=cid)
+            async def event_generator():
+                yield f"data: {json.dumps({'type': 'chunk', 'text': reply})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'reply': reply, 'image_url': gen_url, 'is_image_generated': True})}\n\n"
+            return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    # 2. KIỂM TRA LỆNH PLAN
+    if message.strip().startswith("/plan"):
+        clean_goal = message.replace("/plan", "").strip()
+        plan_res = agent_engine.run_plan_task(clean_goal, api_key=api_key, client_id=cid)
+        reply = plan_res.get("reply", "Không thể lập kế hoạch.")
+        database.add_message(conv_id, "assistant", reply, client_id=cid)
+        async def event_generator():
+            yield f"data: {json.dumps({'type': 'chunk', 'text': reply})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'reply': reply, 'is_plan': True})}\n\n"
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    # 3. KIỂM TRA AGENT / TURBO
+    msg_low = message.lower().strip()
+    agent_keywords = [
+        "tạo thư mục", "tạo folder", "lập thư mục", "tạo cho tôi thư mục", "tạo tệp", "tạo file", 
+        "viết file", "tạo dự án", "lập trình dự án", "tạo game", "làm game", "viết code game", 
+        "viết script", "tạo script", "chạy lệnh", "agent hãy", "tự động làm", "tạo luôn cho tôi", 
+        "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm"
+    ]
+    is_agent_cmd = (msg_low.startswith("/agent") or any(k in msg_low for k in agent_keywords))
+    active_agent_mode = (agent_mode.strip().lower() if agent_mode else "") or database.get_setting("agent_mode", "safe", client_id=cid)
+    if active_agent_mode not in ["safe", "turbo"]:
+        active_agent_mode = "safe"
+
+    approval_phrases = ["chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay", "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn"]
+    is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in approval_phrases)
+    pending_task_from_history = ""
+    if is_chat_approval:
+        past_check = database.get_conversation_messages(conv_id)[-4:]
+        for pm in reversed(past_check):
+            if pm.get("role") == "user" and any(k in pm.get("content", "").lower() for k in agent_keywords):
+                pending_task_from_history = pm.get("content", "").strip()
+                break
+
+    is_confirmed_execution = (confirm_agent == "yes") or bool(pending_task_from_history)
+    task_to_run = task_prompt.strip() or pending_task_from_history or re.sub(r'^/agent\s*', '', message, flags=re.IGNORECASE).strip()
+
+    if (is_agent_cmd and active_agent_mode == "turbo") or (is_confirmed_execution and task_to_run):
+        agent_res = agent_engine.run_agent_task(task_to_run, api_key=api_key, client_id=cid)
+        assistant_reply = agent_res.get("reply", "")
+        actions = agent_res.get("actions", [])
+        if actions:
+            summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi trên máy tính:**"]
+            for a in actions:
+                if a["tool"] == "write_file":
+                    summary_lines.append(f"- 📝 Đã tạo file: `{a.get('path')}`")
+                elif a["tool"] == "create_folder":
+                    summary_lines.append(f"- 📁 Đã tạo thư mục: `{a.get('path')}`")
+                elif a["tool"] == "run_command":
+                    summary_lines.append(f"- ⚡ Đã chạy lệnh: `{a.get('command')}` (Mã: {a.get('returncode')})")
+                elif a["tool"] == "delete_file":
+                    summary_lines.append(f"- 🗑️ Đã xóa: `{a.get('path')}`")
+                elif a["tool"] == "rename_file":
+                    summary_lines.append(f"- ✏️ Đổi tên: `{a.get('old_path')}` -> `{a.get('new_path')}`")
+            assistant_reply += "\n" + "\n".join(summary_lines)
+        database.add_message(conv_id, "assistant", assistant_reply, client_id=cid)
+        async def event_generator():
+            yield f"data: {json.dumps({'type': 'chunk', 'text': assistant_reply})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'reply': assistant_reply, 'is_agent': True, 'actions': actions, 'agent_mode': active_agent_mode})}\n\n"
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    elif is_agent_cmd and active_agent_mode == "safe":
+        proposal = agent_engine.generate_agent_proposal(task_to_run, api_key=api_key, client_id=cid)
+        reply = proposal.get("reply", "")
+        proposed_actions = proposal.get("proposed_actions", [])
+        database.add_message(conv_id, "assistant", reply, client_id=cid)
+        async def event_generator():
+            yield f"data: {json.dumps({'type': 'chunk', 'text': reply})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'reply': reply, 'is_agent_proposal': True, 'proposed_actions': proposed_actions, 'task_prompt': task_to_run, 'agent_mode': 'safe'})}\n\n"
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    # 4. CHUYỆN TRÒ / LẬP LUẬN / SUY LUẬN STREAMING THỜI GIAN THỰC
+    search_target = message if message.strip() else full_user_content
+    webpage_context = ""
+    detected_links = search_engine.extract_links_from_text(search_target)
+    if detected_links:
+        for link_url in detected_links[:2]:
+            try:
+                page_data = search_engine.fetch_webpage_content(link_url)
+                if page_data:
+                    desc_str = f"Mô tả tóm tắt: {page_data['description']}\n" if page_data.get('description') else ""
+                    webpage_context += (
+                        f"\n\n=== NỘI DUNG TRANG WEB TRUY CẬP TRỰC TIẾP TỪ {page_data['url']} ===\n"
+                        f"Tiêu đề trang: {page_data['title']}\n"
+                        f"{desc_str}"
+                        f"Toàn bộ văn bản trích xuất sạch:\n{page_data['content']}\n"
+                        f"=== YÊU CẦU: KINI AI hãy đọc hiểu kỹ toàn bộ nội dung trang web trên để tóm tắt, phân tích, trích xuất số liệu hoặc trả lời câu hỏi của người dùng một cách thông minh, chính xác 100%. ==="
+                    )
+            except Exception:
+                pass
+
+    live_search_text = ""
+    if not webpage_context and search_engine.needs_live_search(search_target):
+        try:
+            grounded_data = search_engine.get_grounded_context(search_target)
+            if grounded_data:
+                live_search_text = f"\n\n{grounded_data}"
+        except Exception:
+            pass
+
+    past_msgs = database.get_conversation_messages(conv_id)[-12:]
+    formatted_history = []
+    for m in past_msgs[:-1]:
+        formatted_history.append({"role": m["role"], "content": m["content"]})
+    current_content = full_user_content + webpage_context + live_search_text
+    formatted_history.append({"role": "user", "content": current_content})
+
+    async def chat_sse_streamer():
+        accumulated_reply = ""
+        model_used = "gemini-3.1-flash-lite"
+        for item in gemini_client.ask_gemini_stream(
+            messages=formatted_history,
+            api_key=api_key,
+            image_base64=image_base64,
+            image_mime=image_mime,
+            model_mode=model_mode,
+            client_id=cid
+        ):
+            if not item.get("done"):
+                chunk = item.get("chunk", "")
+                if chunk:
+                    accumulated_reply += chunk
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': chunk})}\n\n"
+            else:
+                model_used = item.get("model_used", model_used)
+                final_text = item.get("full_text", accumulated_reply) or accumulated_reply
+
+                # Kiểm tra link YouTube
+                if "youtube.com/watch?v=" in live_search_text:
+                    real_yt_links = list(dict.fromkeys(re.findall(r'https://www\.youtube\.com/watch\?v=[a-zA-Z0-9_-]{11}', live_search_text)))
+                    if real_yt_links:
+                        reply_yt_links = list(dict.fromkeys(re.findall(r'https://www\.youtube\.com/watch\?v=[a-zA-Z0-9_-]{11}', final_text)))
+                        for fake_l in reply_yt_links:
+                            if fake_l not in real_yt_links:
+                                final_text = final_text.replace(fake_l, real_yt_links[0])
+                        if not any(rl in final_text for rl in real_yt_links):
+                            yt_block = "\n\n### 🎬 Video / Bài Hát YouTube Chính Thức (Đã Xác Thực 100% Đang Hoạt Động):\n"
+                            for ytl in real_yt_links[:3]:
+                                yt_block += f"- 🔗 [Xem / Nghe trực tiếp trên YouTube]({ytl})\n"
+                            final_text += yt_block
+
+                # Lưu vào DB
+                database.add_message(conv_id, "assistant", final_text, client_id=cid)
+                threading.Thread(
+                    target=gemini_client.extract_and_save_memory_async, 
+                    args=(message, api_key, cid), 
+                    daemon=True
+                ).start()
+
+                yield f"data: {json.dumps({'type': 'done', 'reply': final_text, 'model_used': model_used})}\n\n"
+
+    return StreamingResponse(chat_sse_streamer(), media_type="text/event-stream")
 
 # ============================================================
 # 2. GIỌNG ĐỌC AI TIẾNG VIỆT (TEXT-TO-SPEECH)

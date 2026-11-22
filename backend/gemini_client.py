@@ -32,6 +32,8 @@ DEFAULT_SYSTEM_PROMPT = """[SYSTEM IDENTITY: KINI AI - ULTIMATE COMMANDER]
 [COMMAND PROTOCOL]
 - Khi nhận lệnh: Phân tích -> Lập kế hoạch -> Thực thi -> Báo cáo kết quả.
 - BẠN LÀ KINI AI AGENT: Có đầy đủ công cụ tự hành tạo thư mục, tạo tệp tin, lập trình dự án và thực thi lệnh trực tiếp trên máy tính trong thư mục `workspace`.
+- TỰ ĐỘNG ĐỌC LINK TRANG WEB: Khi trong câu hỏi có chứa liên kết URL, hệ thống đã nạp nội dung trang web thực tế vào ngữ cảnh; hãy đọc hiểu sâu sắc để tóm tắt, giải thích và trích xuất số liệu chuẩn xác.
+- KHẢ NĂNG VẼ BIỂU ĐỒ TRỰC QUAN (INTERACTIVE CHARTS): Khi người dùng yêu cầu vẽ biểu đồ, so sánh số liệu, thống kê tài chính hoặc kế hoạch, hãy xuất khối mã ```chart chứa JSON chuẩn (với type: 'bar'|'line'|'pie'|'doughnut', title: 'Tiêu đề', data: {labels: [...], datasets: [{label: '...', data: [...]}]}) để giao diện tự động vẽ biểu đồ tương tác tuyệt đẹp.
 - TUYỆT ĐỐI KHÔNG dùng các câu sáo rỗng như "Tôi là AI, tôi không có quyền can thiệp vào máy tính". Hãy tự động thực hiện và báo cáo kết quả."""
 
 VISITOR_DEFAULT_PROMPT = """Bạn là KINI AI - mô hình trợ lý trí tuệ nhân tạo thông minh, chuẩn mực, hiện đại, chính xác cao và hữu ích (tương tự như ChatGPT và Google Gemini).
@@ -295,3 +297,137 @@ def ask_gemini(
         "success": False,
         "reply": f"❌ Không thể kết nối với dịch vụ Gemini ({last_error}). Vui lòng kiểm tra lại kết nối mạng hoặc tính hợp lệ của API Key."
     }
+
+def ask_gemini_stream(
+    messages: List[Dict[str, str]],
+    api_key: str = "",
+    image_base64: Optional[str] = None,
+    image_mime: str = "image/jpeg",
+    system_instruction: Optional[str] = None,
+    model_mode: str = "flash",
+    client_id: str = "master"
+):
+    """
+    Phát trực tuyến (Streaming SSE) câu trả lời từ Google Gemini từng từ thời gian thực.
+    Yields dict: {"chunk": text, "done": False, "model_used": model_name}
+    Final yield: {"done": True, "full_text": full_text, "model_used": model_name}
+    """
+    from . import database
+    key = api_key.strip()
+    if not key:
+        if client_id == "master":
+            key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+        else:
+            key = database.get_setting("gemini_api_key", "", client_id=client_id)
+            
+    if not key:
+        yield {"error": "Chưa cài đặt Gemini API Key. Vui lòng vào Cài đặt để dán API Key của bạn.", "done": True}
+        return
+
+    # Chuẩn bị contents
+    contents = []
+    for msg in messages:
+        role = "user" if msg["role"] == "user" else "model"
+        parts = [{"text": msg["content"]}]
+        contents.append({"role": role, "parts": parts})
+
+    if image_base64 and contents:
+        last_user_idx = -1
+        for i in range(len(contents) - 1, -1, -1):
+            if contents[i]["role"] == "user":
+                last_user_idx = i
+                break
+        if last_user_idx != -1:
+            contents[last_user_idx]["parts"].append({
+                "inlineData": {
+                    "mimeType": image_mime,
+                    "data": image_base64
+                }
+            })
+
+    payload = {
+        "contents": contents,
+        "generationConfig": {
+            "temperature": 0.4,
+            "topP": 0.95,
+            "maxOutputTokens": 8192
+        }
+    }
+
+    sys_inst = system_instruction or build_system_instruction_with_memories(client_id=client_id)
+    if sys_inst:
+        payload["systemInstruction"] = {
+            "parts": [{"text": sys_inst}]
+        }
+
+    # Chọn danh sách mô hình
+    if model_mode == "pro":
+        models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
+    else:
+        models_to_try = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-lite-latest"]
+
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?alt=sse&key={key}"
+        accumulated_text = ""
+        try:
+            res = requests.post(url, json=payload, stream=True, timeout=12)
+            if res.status_code == 200:
+                for line in res.iter_lines():
+                    if line:
+                        decoded = line.decode("utf-8")
+                        if decoded.startswith("data: "):
+                            raw_json = decoded[6:].strip()
+                            if raw_json:
+                                try:
+                                    chunk_data = json.loads(raw_json)
+                                    parts = chunk_data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                                    for p in parts:
+                                        chunk_txt = p.get("text", "")
+                                        if chunk_txt:
+                                            accumulated_text += chunk_txt
+                                            yield {
+                                                "chunk": chunk_txt,
+                                                "done": False,
+                                                "model_used": model_name
+                                            }
+                                except Exception:
+                                    continue
+
+                if accumulated_text:
+                    yield {
+                        "done": True,
+                        "full_text": accumulated_text,
+                        "model_used": model_name
+                    }
+                    return
+            else:
+                continue
+        except Exception:
+            continue
+
+    # Fallback gọi không stream nếu mạng hoặc model gặp vấn đề
+    fallback_res = ask_gemini(
+        messages=messages,
+        api_key=key,
+        image_base64=image_base64,
+        image_mime=image_mime,
+        system_instruction=sys_inst,
+        model_mode=model_mode,
+        client_id=client_id
+    )
+    if fallback_res.get("success"):
+        yield {
+            "chunk": fallback_res.get("reply", ""),
+            "done": False,
+            "model_used": fallback_res.get("model_used", "gemini-3.1-flash-lite")
+        }
+        yield {
+            "done": True,
+            "full_text": fallback_res.get("reply", ""),
+            "model_used": fallback_res.get("model_used", "gemini-3.1-flash-lite")
+        }
+    else:
+        yield {
+            "error": fallback_res.get("reply", "Lỗi phản hồi"),
+            "done": True
+        }

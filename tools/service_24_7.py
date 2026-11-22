@@ -60,13 +60,33 @@ def start_cloudflared():
         except Exception:
             pass
 
-    cmd = [
-        CLOUDFLARED_EXE,
-        "tunnel",
-        "--url", "http://127.0.0.1:8000",
-        "--logfile", CLOUDFLARE_LOG,
-        "--loglevel", "info"
-    ]
+    token_file = os.path.join(BASE_DIR, "cloudflare_token.txt")
+    custom_token = ""
+    if os.path.exists(token_file):
+        try:
+            with open(token_file, "r", encoding="utf-8") as f:
+                custom_token = f.read().strip()
+        except Exception:
+            pass
+
+    if custom_token:
+        log("Đang vận hành Cloudflare Tunnel Cố Định Vĩnh Viễn (Named Tunnel với Token)...")
+        cmd = [
+            CLOUDFLARED_EXE,
+            "tunnel",
+            "run",
+            "--token", custom_token,
+            "--logfile", CLOUDFLARE_LOG,
+            "--loglevel", "info"
+        ]
+    else:
+        cmd = [
+            CLOUDFLARED_EXE,
+            "tunnel",
+            "--url", "http://127.0.0.1:8000",
+            "--logfile", CLOUDFLARE_LOG,
+            "--loglevel", "info"
+        ]
     proc = subprocess.Popen(
         cmd,
         cwd=BASE_DIR,

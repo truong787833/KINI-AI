@@ -430,3 +430,24 @@
      - Thử bấm xác nhận với `confirm_agent: "yes"`: Thư mục được tạo thành công trên đĩa `H:\KINI_AI\workspace\`.
      - Thử câu hỏi thông thường *"bạn làm được những gì"*: AI trả lời tự nhiên, sâu sắc, sạch đẹp, hoàn toàn không có danh sách nguồn dẫn chứng máy móc.
      - Link Online 24/7 qua Cloudflare Tunnel: `https://broadway-endif-sell-street.trycloudflare.com` hoạt động ổn định (HTTP 200 OK).
+
+### Mốc Nâng Cấp: Bộ Tứ Đột Phá - Streaming SSE, Web Link Reader, Interactive Charts & Tên Miền Cố Định
+- **Yêu cầu của anh Trường**: *"làm tất cả những gợi ý"* (Triển khai toàn bộ 4 hướng nâng cấp chiến lược).
+- **Triển khai kỹ thuật & Kết quả**:
+  1. **Phản Hồi Gõ Chữ Thời Gian Thực (Streaming SSE - Server-Sent Events)**:
+     - Xây dựng generator `ask_gemini_stream` trong `backend/gemini_client.py` và endpoint `/api/chat/stream` trong `backend/app.py`.
+     - Cập nhật `static/app.js`: Ngay khi bấm gửi, chữ được phun mượt mà từng từ với con trỏ nhấp nháy `▍` (hiệu ứng giống hệt ChatGPT và Google Gemini), render markdown lũy tiến 60fps.
+     - Cơ chế fallback an toàn: Tự động chuyển sang standard chat nếu đường truyền hoặc trình duyệt không hỗ trợ streaming.
+  2. **Tự Động Đọc & Phân Tích Link Trang Web Bất Kỳ (Web Page & Link Reader)**:
+     - Bổ sung `extract_links_from_text` và `fetch_webpage_content` trong `backend/search_engine.py`.
+     - Khi người dùng gửi link bài báo/trang web (ví dụ: `https://vnexpress.net`), KINI AI tự động tải HTML, làm sạch rác (quảng cáo, script, nav), bóc tách văn bản cốt lõi và đọc hiểu sâu sắc để tóm tắt, giải thích hoặc trả lời thắc mắc.
+  3. **Biểu Đồ Trực Quan Tương Tác Trong Chat (Chart.js Engine)**:
+     - Tích hợp thư viện `Chart.js` cục bộ tại `static/chart.min.js` (hoạt động 100% offline, không phụ thuộc internet).
+     - Khi người dùng yêu cầu vẽ biểu đồ số liệu, tài chính hoặc so sánh thống kê, KINI AI xuất khối ```chart {...}```. Giao diện tự động render biểu đồ tương tác (Cột, Đường, Tròn, Doughnut) với bảng màu neon dark mode, có nút `⬇️ Tải Ảnh Biểu Đồ` chất lượng cao.
+  4. **Cố Định Tên Miền Online Vĩnh Viễn Không Đổi**:
+     - Cập nhật `tools/service_24_7.py` hỗ trợ Cloudflare Tunnel Token cố định (`cloudflare_token.txt`).
+     - Tạo công cụ hướng dẫn tiện dụng `Cai_Dat_Ten_Mien_Co_Dinh.bat` cho phép gắn token tên miền riêng (ví dụ: `kini.truong.com`) vĩnh viễn không bao giờ đổi link.
+  5. **Kiểm Thử Nghiệm Thu Toàn Diện**:
+     - Streaming SSE qua `/api/chat/stream` trả về HTTP 200 OK, các chunk text truyền liên tục.
+     - Thử nghiệm đọc link bài viết thực tế VnExpress: AI trích xuất và tóm tắt chuẩn xác các đề mục.
+     - Cú pháp mã nguồn sạch, kiểm tra không có lỗi, Git commit đồng bộ an toàn.
