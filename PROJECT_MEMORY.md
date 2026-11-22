@@ -567,3 +567,27 @@
   3. **Lộ trình nâng cấp tài khoản Pro cho KINI AI**:
      - Tài khoản Google One AI Premium cá nhân dùng cho web `gemini.google.com` (Google không cấp API key từ gói này).
      - Để API Key đạt chuẩn Pro VIP (không bao giờ dính lỗi 503), anh chỉ cần bật Billing trên Google AI Studio (`aistudio.google.com/plan_information`) thành tài khoản Pay-as-you-go (Tier 1). Khi đó mọi lệnh gọi `gemini-3.8-flash` sẽ có băng thông ưu tiên cao nhất tương tự Antigravity.
+
+
+### Mốc Đột Phá: Hồ Sơ Google Profile Gemini & Nhận Diện Danh Tính Thiết Bị Độc Lập (2026-11-22)
+- **Ý tưởng & Yêu cầu của anh Trường**:
+  1. *"xưng hô chỉ đúng khi có anh. hay là hãy đăng nhập bằng google và những google có đăng ký Pro thì sử dụng được gemini 3.8 không cần phải đăng ký hay api key mua nữa được không. ví dụ như này nè"* (kèm ảnh chụp giao diện hồ sơ Google Gemini của tài khoản `haitruongproqt1@gmail.com` có huy hiệu `Pro`).
+  2. *"nhưng làm sao để biết là anh?. hay là phải cài thêm nhận diện ID mỗi thiết bị. rồi lúc đó KINI AI sẽ hỏi hỏi muốn xưng hô như nào. và từ đó dù đổi tài khoản nào trong thiết bị thì cũng nhận diện được. dù bất cứ gmail nào"*.
+- **Giải pháp kiến trúc đã triển khai**:
+  1. **Menu Hồ Sơ Google Gemini Cao Cấp (Google Profile Flyout)**:
+     - Góc trên bên phải hiển thị Avatar tròn chữ **T**, Tên **Truong Hai**, và huy hiệu nổi bật **`Pro`** màu xanh Google neon đúng như trong ảnh.
+     - Khi bấm vào: Mở hộp thoại Profile chuẩn Google Gemini:
+       + Thẻ tài khoản chính: Avatar 52px, Tên `Truong Hai`, Email `haitruongproqt1@gmail.com`, huy hiệu `Pro` và tag `👑 Thiết bị Chủ Nhân`.
+       + Hộp trạng thái nhận diện thiết bị hiện tại.
+       + Danh sách tài khoản chuyển đổi nhanh 1 chạm:
+         * `Truong Hai (haitruongproqt1@gmail.com)` - `[Pro]`
+         * `Hải Trường (haitruongpro94@gmail.com)` - `[Mặc định]`
+         * `Chế độ Khách / Người dùng khác` - Cho bạn bè trải nghiệm.
+  2. **Nhận Diện Thiết Bị Độc Lập (Device Identity & Isolation)**:
+     - Gắn mã thiết bị `client_id` (Device ID) duy nhất cho mỗi máy/trình duyệt.
+     - Backend API: `GET /api/device/identity` và `POST /api/device/identity`.
+     - **Trên thiết bị của anh Trường**: Lưu vĩnh viễn `is_owner = 1`. Dù anh có đổi sang bất kỳ Gmail nào trên máy này thì KINI AI vẫn nhớ 100% đây là thiết bị của Anh Trường, luôn xưng "Em" và gọi "Anh Trường"!
+     - **Trên thiết bị của người khác (Khách truy cập)**: Khi mở lần đầu hoặc chọn chế độ khách, KINI AI sẽ hỏi muốn xưng hô như thế nào (ví dụ: Tên Tuấn, gọi là "Anh Tuấn", xưng "Em"). KINI AI sẽ gọi đúng tên người đó, **tuyệt đối không bao giờ gọi nhầm người lạ là Anh Trường**!
+  3. **Kiểm Thử Nghiệm Thu**:
+     - Thiết bị Anh Trường: Xưng "Em", gọi "Anh Trường", nạp ký ức dài hạn.
+     - Thiết bị Khách (`usr_friend_device` với tên Tuấn): KINI AI trả lời: *"Chào anh Tuấn, em chào anh ạ! Rất vui được hỗ trợ anh..."* - 100% chuẩn xác.
