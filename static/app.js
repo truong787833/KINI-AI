@@ -68,6 +68,7 @@ function initApp() {
     try { initAntigravityIDE(); } catch(e) { console.error("initAntigravityIDE:", e); }
     try { loadConversations(true); } catch(e) { console.error("loadConversations:", e); }
     try { initVersionSystem(); } catch(e) { console.error("initVersionSystem:", e); }
+    try { initDeviceIdentity(); } catch(e) { console.error("initDeviceIdentity:", e); }
 }
 
 // ============================================================
@@ -3862,5 +3863,233 @@ async function processVoiceLiveTurn(userSpokenText) {
                 startVoiceLiveListening();
             }, 1000);
         }
+    }
+}
+
+
+// ============================================================
+// HỆ THỐNG DANH TÍNH THIẾT BỊ & HỒ SƠ GOOGLE PROFILE GEMINI
+// ============================================================
+let currentDeviceIdentity = null;
+
+async function initDeviceIdentity() {
+    const btnProfile = document.getElementById("btn-user-profile");
+    const flyout = document.getElementById("google-profile-flyout");
+    const btnCloseFlyout = document.getElementById("btn-close-g-profile");
+    const btnEditFromFlyout = document.getElementById("btn-edit-identity-from-flyout");
+    const btnCustomSettings = document.getElementById("btn-custom-identity-settings");
+    const modalIdentity = document.getElementById("modal-device-identity");
+    const btnCloseModal = modalIdentity?.querySelector(".modal-close");
+    const btnQuickOwner = document.getElementById("btn-quick-set-owner");
+    const btnSaveCustom = document.getElementById("btn-save-custom-identity");
+
+    // 1. Toggle Profile Flyout khi click vào User Pill
+    if (btnProfile && flyout) {
+        btnProfile.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isShown = flyout.style.display === "block";
+            flyout.style.display = isShown ? "none" : "block";
+        });
+    }
+
+    if (btnCloseFlyout && flyout) {
+        btnCloseFlyout.addEventListener("click", (e) => {
+            e.stopPropagation();
+            flyout.style.display = "none";
+        });
+    }
+
+    // Đóng khi click ra ngoài
+    document.addEventListener("click", (e) => {
+        if (flyout && flyout.style.display === "block") {
+            if (!flyout.contains(e.target) && !btnProfile.contains(e.target)) {
+                flyout.style.display = "none";
+            }
+        }
+    });
+
+    // 2. Mở Modal Cài đặt Danh tính
+    const openIdentityModal = () => {
+        if (flyout) flyout.style.display = "none";
+        if (modalIdentity) {
+            modalIdentity.style.display = "flex";
+            if (currentDeviceIdentity) {
+                const nameInp = document.getElementById("input-identity-user-name");
+                const callInp = document.getElementById("input-identity-user-call");
+                const aiCallSel = document.getElementById("select-identity-ai-call");
+                if (nameInp) nameInp.value = currentDeviceIdentity.user_name || "";
+                if (callInp) callInp.value = currentDeviceIdentity.user_call_name || "";
+                if (aiCallSel) aiCallSel.value = currentDeviceIdentity.ai_call_name || "Em";
+            }
+        }
+    };
+
+    if (btnEditFromFlyout) btnEditFromFlyout.addEventListener("click", openIdentityModal);
+    if (btnCustomSettings) btnCustomSettings.addEventListener("click", openIdentityModal);
+    if (btnCloseModal) {
+        btnCloseModal.addEventListener("click", () => {
+            modalIdentity.style.display = "none";
+        });
+    }
+
+    // 3. Tùy chọn 1 chạm: Tôi là Anh Trường (Chủ nhân & Creator)
+    if (btnQuickOwner) {
+        btnQuickOwner.addEventListener("click", async () => {
+            await setQuickIdentityOwner();
+            if (modalIdentity) modalIdentity.style.display = "none";
+        });
+    }
+
+    // 4. Lưu cài đặt tùy chỉnh cho khách / người khác
+    if (btnSaveCustom) {
+        btnSaveCustom.addEventListener("click", async () => {
+            await saveCustomDeviceIdentity();
+            if (modalIdentity) modalIdentity.style.display = "none";
+        });
+    }
+
+    // 5. Tải danh tính hiện tại của thiết bị từ Backend
+    await loadDeviceIdentity();
+}
+
+async function loadDeviceIdentity() {
+    try {
+        const res = await fetch("/api/device/identity");
+        if (res.ok) {
+            const data = await res.json();
+            currentDeviceIdentity = data;
+            renderDeviceIdentityUI(data);
+
+            // Nếu thiết bị mới hoàn toàn chưa từng cấu hình danh tính (và không phải localhost master)
+            if (!data.has_configured && kiniClientId !== "master") {
+                const modalIdentity = document.getElementById("modal-device-identity");
+                if (modalIdentity) modalIdentity.style.display = "flex";
+            }
+        }
+    } catch(err) {
+        console.warn("Lỗi tải danh tính thiết bị:", err);
+    }
+}
+
+function renderDeviceIdentityUI(data) {
+    if (!data) return;
+
+    // Header Pill
+    const hAvatar = document.getElementById("user-header-avatar");
+    const hName = document.getElementById("user-header-name");
+    const hPro = document.getElementById("user-header-pro");
+
+    if (hName) hName.textContent = data.is_owner ? "Truong Hai" : (data.user_name || "Khách");
+    if (hAvatar) hAvatar.textContent = (data.user_name || "T").substring(0, 1).toUpperCase();
+    if (hPro) {
+        hPro.style.display = data.is_pro ? "inline-block" : "none";
+    }
+
+    // Flyout Card
+    const fAvatar = document.getElementById("g-flyout-avatar");
+    const fName = document.getElementById("g-flyout-name");
+    const fEmail = document.getElementById("g-flyout-email");
+    const fBadge = document.getElementById("g-flyout-pro-badge");
+    const fTag = document.getElementById("g-flyout-device-tag");
+    const statusCall = document.getElementById("g-status-call-name");
+    const statusSub = document.getElementById("g-status-sub-text");
+
+    if (fAvatar) fAvatar.textContent = (data.user_name || "T").substring(0, 1).toUpperCase();
+    if (fName) fName.textContent = data.is_owner ? "Truong Hai" : (data.user_name || "Khách");
+    if (fEmail) fEmail.textContent = data.user_email || (data.is_owner ? "haitruongproqt1@gmail.com" : "Chưa liên kết email");
+    if (fBadge) fBadge.style.display = data.is_pro ? "inline-block" : "none";
+    if (fTag) {
+        fTag.textContent = data.is_owner ? "👑 Thiết bị Chủ Nhân" : "👤 Thiết bị Khách";
+        fTag.style.color = data.is_owner ? "#00f2fe" : "#fbbf24";
+        fTag.style.borderColor = data.is_owner ? "rgba(0, 242, 254, 0.3)" : "rgba(245, 158, 11, 0.3)";
+    }
+    if (statusCall) statusCall.textContent = data.user_call_name || (data.is_owner ? "Anh Trường" : "Bạn");
+    if (statusSub) {
+        if (data.is_owner) {
+            statusSub.innerHTML = `KINI AI sẽ luôn xưng <strong>"Em"</strong> và nạp toàn bộ ký ức dài hạn.`;
+        } else {
+            statusSub.innerHTML = `KINI AI sẽ xưng <strong>"${escapeHtml(data.ai_call_name || 'Tôi')}"</strong> và gọi bạn là <strong>"${escapeHtml(data.user_call_name || 'Bạn')}"</strong>.`;
+        }
+    }
+
+    // Active item trong danh sách
+    document.querySelectorAll(".g-account-item").forEach(item => item.classList.remove("active"));
+    if (data.is_owner) {
+        if (data.user_email === "haitruongpro94@gmail.com") {
+            document.getElementById("g-acc-item-default")?.classList.add("active");
+        } else {
+            document.getElementById("g-acc-item-pro")?.classList.add("active");
+        }
+    } else {
+        document.getElementById("g-acc-item-guest")?.classList.add("active");
+    }
+}
+
+async function selectDeviceProfile(type) {
+    if (type === "pro") {
+        await saveDeviceIdentityAPI({
+            is_owner: true,
+            user_name: "Truong Hai",
+            user_call_name: "Anh Trường",
+            ai_call_name: "Em",
+            user_email: "haitruongproqt1@gmail.com"
+        });
+        showToast("👑 Đã chọn hồ sơ Truong Hai Pro! KINI AI luôn xưng Em và gọi Anh Trường.");
+    } else if (type === "default") {
+        await saveDeviceIdentityAPI({
+            is_owner: true,
+            user_name: "Hải Trường",
+            user_call_name: "Anh Trường",
+            ai_call_name: "Em",
+            user_email: "haitruongpro94@gmail.com"
+        });
+        showToast("👑 Đã chọn hồ sơ Hải Trường! KINI AI luôn xưng Em và gọi Anh Trường.");
+    } else if (type === "guest") {
+        const modalIdentity = document.getElementById("modal-device-identity");
+        if (modalIdentity) modalIdentity.style.display = "flex";
+        document.getElementById("google-profile-flyout").style.display = "none";
+    }
+}
+
+async function setQuickIdentityOwner() {
+    await saveDeviceIdentityAPI({
+        is_owner: true,
+        user_name: "Truong Hai",
+        user_call_name: "Anh Trường",
+        ai_call_name: "Em",
+        user_email: "haitruongproqt1@gmail.com"
+    });
+    showToast("👑 Xác nhận thành công! Thiết bị này được ghi nhớ vĩnh viễn là của Anh Trường.");
+}
+
+async function saveCustomDeviceIdentity() {
+    const name = document.getElementById("input-identity-user-name")?.value.trim() || "Khách";
+    const callName = document.getElementById("input-identity-user-call")?.value.trim() || "Bạn";
+    const aiCall = document.getElementById("select-identity-ai-call")?.value || "Tôi";
+
+    await saveDeviceIdentityAPI({
+        is_owner: false,
+        user_name: name,
+        user_call_name: callName,
+        ai_call_name: aiCall,
+        user_email: ""
+    });
+    showToast(`✅ Đã lưu! KINI AI sẽ xưng "${aiCall}" và gọi bạn là "${callName}".`);
+}
+
+async function saveDeviceIdentityAPI(payload) {
+    try {
+        const res = await fetch("/api/device/identity", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            const data = await res.json();
+            currentDeviceIdentity = data;
+            renderDeviceIdentityUI(data);
+        }
+    } catch(e) {
+        console.error("Lỗi lưu danh tính thiết bị:", e);
     }
 }

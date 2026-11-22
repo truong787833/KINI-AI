@@ -115,22 +115,47 @@ def clean_image_prompt(text: str) -> str:
 def build_system_instruction_with_memories(base_prompt: Optional[str] = None, client_id: str = "master") -> str:
     """Ghép nối System Prompt với thời gian thực, quy tắc chính xác và ký ức dài hạn"""
     from . import database
-    # Luôn ưu tiên bản sắc KINI AI xưng Em - gọi Anh Trường cho toàn bộ các thiết bị của anh
-    custom_p = database.get_setting("custom_persona", "", client_id=client_id)
-    sys_inst = base_prompt or custom_p or DEFAULT_SYSTEM_PROMPT
-    # 1. Gắn thời gian thực tế
-    sys_inst += f"\n\n{get_current_time_context()}"
-    # 2. Gắn quy chuẩn độ chính xác tuyệt đối (Dành riêng cho máy anh Trường)
-    sys_inst += f"\n\n{get_precision_rules()}"
-    # 3. Gắn ký ức dài hạn về anh Trường
-    try:
-        memories = database.get_all_memories(limit=30, client_id="master")
-        if memories:
-            facts = "\n".join(f"- {m['fact']}" for m in memories)
-            sys_inst += f"\n\n=== BỘ NHỚ DÀI HẠN VỀ ANH HẢI TRƯỜNG (LUÔN GHI NHỚ) ===\n{facts}"
-    except Exception as e:
-        logger.warning(f"Lỗi đọc bộ nhớ: {e}")
-    return sys_inst
+    
+    # Đọc danh tính đã cài đặt cho thiết bị / client_id này
+    is_owner_val = database.get_setting("is_owner", "1" if client_id == "master" else "", client_id=client_id)
+    is_owner = is_owner_val != "0" # Mặc định là thiết bị của anh Trường trừ khi chọn chế độ Khách (is_owner=0)
+    
+    if is_owner:
+        # CHỦ NHÂN KINI AI: PHÙNG HẢI TRƯỜNG
+        custom_p = database.get_setting("custom_persona", "", client_id=client_id)
+        sys_inst = base_prompt or custom_p or DEFAULT_SYSTEM_PROMPT
+        sys_inst += f"\n\n{get_current_time_context()}"
+        sys_inst += f"\n\n{get_precision_rules()}"
+        try:
+            memories = database.get_all_memories(limit=30, client_id="master")
+            if memories:
+                facts = "\n".join(f"- {m['fact']}" for m in memories)
+                sys_inst += f"\n\n=== BỘ NHỚ DÀI HẠN VỀ ANH HẢI TRƯỜNG (LUÔN GHI NHỚ) ===\n{facts}"
+        except Exception as e:
+            logger.warning(f"Lỗi đọc bộ nhớ: {e}")
+        return sys_inst
+    else:
+        # THIẾT BỊ NGƯỜI DÙNG KHÁC / KHÁCH:
+        user_call = database.get_setting("user_call_name", "Bạn", client_id=client_id)
+        ai_call = database.get_setting("ai_call_name", "Tôi", client_id=client_id)
+        user_name = database.get_setting("user_name", "Khách", client_id=client_id)
+        
+        sys_inst = f"""Bạn là KINI AI - mô hình trợ lý trí tuệ nhân tạo thông minh, chuẩn mực, hiện đại, chính xác cao và hữu ích (tương tự như ChatGPT và Google Gemini).
+- QUY TẮC XƯNG HÔ THIẾT LẬP CHO THIẾT BỊ NÀY:
+  + Tên người dùng: "{user_name}".
+  + Bạn BẮT BUỘC gọi người dùng là: "{user_call}".
+  + Bạn BẮT BUỘC tự xưng là: "{ai_call}".
+  + TUYỆT ĐỐI KHÔNG tự gọi người dùng là "Anh Trường" vì đây là thiết bị/tài khoản của {user_call} ({user_name}).
+- Tính năng & Nhiệm vụ:
+  + Bạn là AI Agent đa năng: Trả lời câu hỏi, tra cứu thông tin, lập trình, giải toán, viết văn bản, tóm tắt và sáng tạo nội dung.
+  + Giao tiếp lịch sự, khách quan, thân thiện, rõ ràng, mạch lạc và tự nhiên.
+- QUY TẮC NGUỒN DẪN CHỨNG: Mặc định không xuất nguồn, chỉ hiện khi người dùng chủ động yêu cầu."""
+        
+        now = datetime.now()
+        days_vn = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
+        day_name = days_vn[int(now.strftime("%w"))]
+        sys_inst += f"\n\n[THỜI GIAN HIỆN TẠI]: {day_name}, ngày {now.strftime('%d/%m/%Y')}, lúc {now.strftime('%H:%M:%S')} (Năm {now.year})."
+        return sys_inst
 
 def extract_and_save_memory_async(user_text: str, api_key: str = "", client_id: str = "master"):
     """Tự động phân tích xem người dùng có chia sẻ thông tin cá nhân/thói quen để lưu vào bộ nhớ không"""

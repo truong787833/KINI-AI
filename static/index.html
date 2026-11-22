@@ -128,9 +128,72 @@
                     <button class="btn-icon mobile-settings-btn" id="btn-top-settings" title="Cài Đặt & API Key">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     </button>
-                    <div class="user-pill" id="btn-user-profile" title="Tài khoản">
-                        <span class="status-dot"></span>
-                        <span class="user-name">Hải Trường</span>
+                    <!-- Nút Hồ Sơ Tài Khoản Chuẩn Google Gemini -->
+                    <div class="user-pill google-profile-pill" id="btn-user-profile" title="Hồ sơ tài khoản & Xưng hô thiết bị">
+                        <div class="user-header-avatar" id="user-header-avatar">T</div>
+                        <span class="user-name" id="user-header-name">Truong Hai</span>
+                        <span class="badge-pro-pill" id="user-header-pro">Pro</span>
+                    </div>
+
+                    <!-- GOOGLE GEMINI STYLE PROFILE FLYOUT -->
+                    <div class="google-profile-flyout" id="google-profile-flyout" style="display: none;">
+                        <div class="g-profile-header">
+                            <button class="btn-g-close" id="btn-close-g-profile" title="Đóng">✕</button>
+                            <div class="g-active-card">
+                                <div class="g-active-avatar-wrap">
+                                    <div class="g-active-avatar" id="g-flyout-avatar">T</div>
+                                    <span class="g-avatar-edit-icon" id="btn-edit-identity-from-flyout" title="Cài đặt xưng hô cho thiết bị này">✏️</span>
+                                </div>
+                                <div class="g-active-info">
+                                    <div class="g-active-name" id="g-flyout-name">Truong Hai</div>
+                                    <div class="g-active-email" id="g-flyout-email">haitruongproqt1@gmail.com</div>
+                                    <div class="g-active-badge-row">
+                                        <span class="badge-pro-pill" id="g-flyout-pro-badge">Pro</span>
+                                        <span class="g-device-tag" id="g-flyout-device-tag">👑 Thiết bị Chủ Nhân</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="g-identity-status-box" id="g-identity-status-box">
+                            <div class="g-status-text">Thiết bị đang nhận diện: <strong id="g-status-call-name">Anh Trường</strong></div>
+                            <div class="g-status-sub" id="g-status-sub-text">KINI AI sẽ luôn xưng <strong>"Em"</strong> và nạp toàn bộ ký ức.</div>
+                        </div>
+
+                        <div class="g-accounts-list">
+                            <div class="g-account-item active" id="g-acc-item-pro" onclick="selectDeviceProfile('pro')">
+                                <div class="g-acc-avatar">T</div>
+                                <div class="g-acc-details">
+                                    <div class="g-acc-name">Truong Hai <span class="badge-pro-mini">Pro</span></div>
+                                    <div class="g-acc-email">haitruongproqt1@gmail.com</div>
+                                </div>
+                                <span class="g-acc-badge">Đang dùng</span>
+                            </div>
+
+                            <div class="g-account-item" id="g-acc-item-default" onclick="selectDeviceProfile('default')">
+                                <div class="g-acc-avatar default-avatar">T</div>
+                                <div class="g-acc-details">
+                                    <div class="g-acc-name">Hải Trường</div>
+                                    <div class="g-acc-email">haitruongpro94@gmail.com</div>
+                                </div>
+                                <span class="g-acc-badge default">Mặc định</span>
+                            </div>
+
+                            <div class="g-account-item" id="g-acc-item-guest" onclick="selectDeviceProfile('guest')">
+                                <div class="g-acc-avatar guest">👤</div>
+                                <div class="g-acc-details">
+                                    <div class="g-acc-name">Chế độ Khách (Người khác dùng)</div>
+                                    <div class="g-acc-email">Tùy chỉnh tên gọi riêng & xưng hô lịch sự</div>
+                                </div>
+                                <span class="g-acc-badge guest">Khách</span>
+                            </div>
+                        </div>
+
+                        <div class="g-profile-actions">
+                            <button class="g-btn-action" id="btn-custom-identity-settings">
+                                <span>⚙️</span> Cài đặt cách xưng hô cho thiết bị này
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -736,6 +799,62 @@
             <div class="voice-live-controls">
                 <button class="btn-voice-ctrl" id="btn-voice-toggle-mic" title="Bật/Tắt Micro">🎤 Mic: Bật</button>
                 <button class="btn-voice-ctrl btn-voice-end" id="btn-voice-end-session" title="Kết thúc">🛑 Kết thúc đàm thoại</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL 6: THIẾT LẬP DANH TÍNH & XƯNG HÔ THIẾT BỊ
+         ============================================================ -->
+    <div class="modal" id="modal-device-identity" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span style="font-size: 1.3rem;">👑</span>
+                    <h3>Danh Tính & Xưng Hô Cho Thiết Bị Này</h3>
+                </div>
+                <button class="modal-close" data-close="modal-device-identity">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">
+                    KINI AI sẽ ghi nhớ thiết bị này vào bộ nhớ phần cứng (Device ID). Dù anh có đổi sang bất kỳ tài khoản Gmail nào trên thiết bị này, KINI AI vẫn sẽ nhận diện chính xác!
+                </p>
+
+                <!-- Tùy chọn 1 chạm cho Anh Trường -->
+                <div class="identity-owner-quick-btn" id="btn-quick-set-owner">
+                    <div class="quick-btn-left">
+                        <div class="quick-icon">👑</div>
+                        <div>
+                            <strong>Tôi là Anh Trường (Chủ nhân & Creator)</strong>
+                            <div class="quick-sub">KINI AI sẽ luôn xưng "Em", gọi "Anh Trường", kích hoạt PRO VIP và nạp toàn bộ ký ức dài hạn.</div>
+                        </div>
+                    </div>
+                    <span class="quick-arrow">➔</span>
+                </div>
+
+                <div class="identity-divider-line"><span>HOẶC TÙY CHỈNH CHO NGƯỜI DÙNG KHÁC</span></div>
+
+                <div class="identity-custom-fields">
+                    <div class="form-group">
+                        <label>Tên của người dùng:</label>
+                        <input type="text" id="input-identity-user-name" class="form-input" placeholder="Ví dụ: Tuấn, Linh, Nam...">
+                    </div>
+                    <div class="form-group">
+                        <label>KINI AI nên gọi bạn là:</label>
+                        <input type="text" id="input-identity-user-call" class="form-input" placeholder="Ví dụ: Anh Tuấn, Chị Linh, Bạn...">
+                    </div>
+                    <div class="form-group">
+                        <label>KINI AI nên tự xưng là:</label>
+                        <select id="select-identity-ai-call" class="form-input">
+                            <option value="Em">Em (Thân mật, tôn trọng)</option>
+                            <option value="Tôi">Tôi (Lịch sự, khách quan)</option>
+                            <option value="KINI AI">KINI AI</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="btn-save-custom-identity" style="width: 100%; margin-top: 8px;">
+                        💾 Lưu Cài Đặt Danh Tính Thiết Bị
+                    </button>
+                </div>
             </div>
         </div>
     </div>

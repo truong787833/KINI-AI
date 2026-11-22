@@ -1368,6 +1368,59 @@ async def execute_deep_research_endpoint(request: Request, data: dict):
     }
 
 # ============================================================
+# 5.5. QUẢN LÝ DANH TÍNH THIẾT BỊ & XƯNG HÔ (DEVICE IDENTITY)
+# ============================================================
+@app.get("/api/device/identity")
+def get_device_identity(request: Request):
+    cid = get_request_client_id(request)
+    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "", client_id=cid)
+    # Nếu chưa cấu hình trên thiết bị này, mặc định là owner nếu cid là master
+    is_owner = is_owner_val != "0"
+    user_name = database.get_setting("user_name", "Truong Hai" if is_owner else "Khách", client_id=cid)
+    user_call_name = database.get_setting("user_call_name", "Anh Trường" if is_owner else "Bạn", client_id=cid)
+    ai_call_name = database.get_setting("ai_call_name", "Em" if is_owner else "Tôi", client_id=cid)
+    user_email = database.get_setting("user_email", "haitruongproqt1@gmail.com" if is_owner else "", client_id=cid)
+    has_configured = database.get_setting("identity_configured", "1" if cid == "master" else "0", client_id=cid)
+    
+    return {
+        "client_id": cid,
+        "is_owner": is_owner,
+        "user_name": user_name,
+        "user_call_name": user_call_name,
+        "ai_call_name": ai_call_name,
+        "user_email": user_email,
+        "is_pro": is_owner,
+        "has_configured": has_configured == "1"
+    }
+
+@app.post("/api/device/identity")
+def update_device_identity(request: Request, data: dict):
+    cid = get_request_client_id(request)
+    is_owner = bool(data.get("is_owner", False))
+    user_name = data.get("user_name", "Truong Hai" if is_owner else "Khách").strip()
+    user_call_name = data.get("user_call_name", "Anh Trường" if is_owner else "Bạn").strip()
+    ai_call_name = data.get("ai_call_name", "Em" if is_owner else "Tôi").strip()
+    user_email = data.get("user_email", "haitruongproqt1@gmail.com" if is_owner else "").strip()
+    
+    database.set_setting("is_owner", "1" if is_owner else "0", client_id=cid)
+    database.set_setting("user_name", user_name, client_id=cid)
+    database.set_setting("user_call_name", user_call_name, client_id=cid)
+    database.set_setting("ai_call_name", ai_call_name, client_id=cid)
+    database.set_setting("user_email", user_email, client_id=cid)
+    database.set_setting("identity_configured", "1", client_id=cid)
+    
+    return {
+        "success": True,
+        "client_id": cid,
+        "is_owner": is_owner,
+        "user_name": user_name,
+        "user_call_name": user_call_name,
+        "ai_call_name": ai_call_name,
+        "user_email": user_email,
+        "is_pro": is_owner
+    }
+
+# ============================================================
 # 6. CÀI ĐẶT
 # ============================================================
 @app.get("/api/settings")

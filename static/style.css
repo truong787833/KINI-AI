@@ -4013,3 +4013,362 @@ body::before {
     color: #fff;
 }
 
+
+/* ============================================================
+   GOOGLE GEMINI STYLE USER PROFILE & DEVICE IDENTITY FLYOUT
+   ============================================================ */
+.google-profile-pill {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    position: relative;
+}
+.google-profile-pill:hover {
+    border-color: #1a73e8;
+    background: rgba(26, 115, 232, 0.12);
+    box-shadow: 0 0 12px rgba(26, 115, 232, 0.25);
+}
+.user-header-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #1e88e5;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.badge-pro-pill {
+    background: #1a73e8;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.4px;
+    box-shadow: 0 0 8px rgba(26, 115, 232, 0.4);
+}
+.badge-pro-mini {
+    background: #1a73e8;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    margin-left: 4px;
+}
+
+.google-profile-flyout {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 350px;
+    max-width: 90vw;
+    background: #1e1f20;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.2);
+    padding: 18px;
+    z-index: 9999;
+    backdrop-filter: blur(24px);
+    animation: flyoutFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes flyoutFadeIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.g-profile-header {
+    position: relative;
+    margin-bottom: 12px;
+}
+.btn-g-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #9aa0a6;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.15s;
+}
+.btn-g-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.g-active-card {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+.g-active-avatar-wrap {
+    position: relative;
+}
+.g-active-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #1e88e5;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 16px rgba(30, 136, 229, 0.4);
+}
+.g-avatar-edit-icon {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #2d2f31;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+}
+.g-avatar-edit-icon:hover {
+    background: #1a73e8;
+}
+
+.g-active-info {
+    flex: 1;
+    min-width: 0;
+}
+.g-active-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: #e8eaed;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.g-active-email {
+    font-size: 12px;
+    color: #9aa0a6;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.g-active-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.g-device-tag {
+    background: rgba(0, 242, 254, 0.12);
+    color: #00f2fe;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 242, 254, 0.3);
+}
+
+.g-identity-status-box {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+.g-status-text {
+    font-size: 12px;
+    color: #e8eaed;
+    margin-bottom: 2px;
+}
+.g-status-text strong {
+    color: #00f2fe;
+}
+.g-status-sub {
+    font-size: 11px;
+    color: #9aa0a6;
+}
+
+.g-accounts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 10px;
+}
+.g-account-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+}
+.g-account-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+.g-account-item.active {
+    background: rgba(26, 115, 232, 0.14);
+    border-color: rgba(26, 115, 232, 0.35);
+}
+.g-acc-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #1e88e5;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.g-acc-avatar.default-avatar {
+    background: #0d9488;
+}
+.g-acc-avatar.guest {
+    background: #475569;
+    font-size: 15px;
+}
+.g-acc-details {
+    flex: 1;
+    min-width: 0;
+}
+.g-acc-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e8eaed;
+}
+.g-acc-email {
+    font-size: 11px;
+    color: #9aa0a6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.g-acc-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: rgba(26, 115, 232, 0.25);
+    color: #8ab4f8;
+}
+.g-acc-badge.default {
+    background: rgba(255, 255, 255, 0.08);
+    color: #9aa0a6;
+}
+.g-acc-badge.guest {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.g-profile-actions {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 10px;
+}
+.g-btn-action {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e8eaed;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: 0.15s;
+}
+.g-btn-action:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Modal Thiết lập Danh tính Thiết bị */
+.identity-owner-quick-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.18), rgba(157, 78, 221, 0.2));
+    border: 1px solid rgba(26, 115, 232, 0.45);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 16px;
+}
+.identity-owner-quick-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(26, 115, 232, 0.35);
+    border-color: #1a73e8;
+}
+.quick-btn-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.quick-icon {
+    font-size: 26px;
+}
+.quick-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+    line-height: 1.4;
+}
+.quick-arrow {
+    font-size: 18px;
+    color: #00f2fe;
+    font-weight: bold;
+}
+
+.identity-divider-line {
+    text-align: center;
+    position: relative;
+    margin: 18px 0 14px;
+}
+.identity-divider-line::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+.identity-divider-line span {
+    position: relative;
+    background: var(--bg-surface);
+    padding: 0 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.identity-custom-fields {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 14px;
+}
