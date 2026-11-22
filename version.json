@@ -1,18 +1,10 @@
 {
   "version": "4.2.0",
-  "build_number": 420,
+  "build_number": 440,
   "release_date": "2026-11-21",
   "channel": "stable",
-  "app_name": "KINI AI - Super Intelligence OS",
+  "app_name": "KINI AI",
   "latest_version": "4.2.0",
   "has_update": false,
-  "changelog": [
-    "🎨 Tinh chỉnh thanh kéo cuộn (Scrollbars) & thanh kéo giãn chia khung: Tông màu tối mờ nhạt, siêu mỏng 5-6px, tiệp màu nền 100% (loại bỏ hoàn toàn vệt trắng)",
-    "✨ Nâng cấp toàn diện giao diện chuẩn Google Antigravity: Thanh kéo dãn và thu gọn Sidebar mượt mà 60fps",
-    "🚀 Hệ thống cập nhật phiên bản OTA tự động với nút 'Restart to Update' trên Top Navbar",
-    "📁 Quản lý dự án thông minh với Breadcrumb theo dõi ngữ cảnh (haitruong / Cuộc trò chuyện)",
-    "📌 Phân mục hội thoại Đã ghim (Pinned) và Dự án (Projects) thời gian thực",
-    "⚡ Tối ưu hóa CodeMirror editor không giật lag, tự động khôi phục phiên làm việc sau F5"
-  ],
-  "download_url": "https://github.com/haitruongproqt/KINI_AI/releases/latest"
+  "changelog": []
 }

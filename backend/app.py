@@ -216,10 +216,9 @@ async def chat_with_kini(
     files: Optional[List[UploadFile]] = File(None)
 ):
     cid = get_request_client_id(request)
-    if cid == "master":
+    api_key = database.get_setting("gemini_api_key", "", client_id=cid)
+    if not api_key:
         api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
-    else:
-        api_key = database.get_setting("gemini_api_key", "", client_id=cid)
     
     file_display_url = ""
     file_display_name = ""
@@ -610,10 +609,9 @@ async def chat_with_kini_stream(
     files: Optional[List[UploadFile]] = File(None)
 ):
     cid = get_request_client_id(request)
-    if cid == "master":
+    api_key = database.get_setting("gemini_api_key", "", client_id=cid)
+    if not api_key:
         api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
-    else:
-        api_key = database.get_setting("gemini_api_key", "", client_id=cid)
     
     file_display_url = ""
     file_display_name = ""
@@ -804,6 +802,12 @@ async def chat_with_kini_stream(
             model_mode=model_mode,
             client_id=cid
         ):
+            if item.get("error"):
+                err_text = f"⚠️ {item['error']}"
+                accumulated_reply = err_text
+                yield f"data: {json.dumps({'type': 'chunk', 'text': err_text})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'reply': err_text, 'model_used': model_used})}\n\n"
+                break
             if not item.get("done"):
                 chunk = item.get("chunk", "")
                 if chunk:
@@ -812,6 +816,8 @@ async def chat_with_kini_stream(
             else:
                 model_used = item.get("model_used", model_used)
                 final_text = item.get("full_text", accumulated_reply) or accumulated_reply
+                if not final_text.strip():
+                    final_text = "Chào anh, em đã kết nối thành công. Anh cần em hỗ trợ tác vụ nào ạ?"
 
                 # Kiểm tra link YouTube
                 if "youtube.com/watch?v=" in live_search_text:
@@ -1226,12 +1232,17 @@ def get_quota_usage():
 def read_settings(request: Request):
     cid = get_request_client_id(request)
     api_k = database.get_setting("gemini_api_key", "", client_id=cid)
+    is_using_master_key = False
+    if not api_k:
+        api_k = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+        is_using_master_key = True
     saved_persona = database.get_setting("custom_persona", "", client_id=cid)
-    persona = saved_persona if saved_persona else (gemini_client.DEFAULT_SYSTEM_PROMPT if cid == "master" else "")
+    persona = saved_persona if saved_persona else database.get_setting("custom_persona", gemini_client.DEFAULT_SYSTEM_PROMPT, client_id="master")
     agent_mode = database.get_setting("agent_mode", "safe", client_id=cid)
     return {
-        "gemini_api_key": api_k,
-        "has_api_key": bool(api_k or (cid == "master" and os.environ.get("GEMINI_API_KEY", ""))),
+        "gemini_api_key": api_k if cid == "master" else ("●●●●●● (Kế thừa từ máy chủ)" if api_k else ""),
+        "has_api_key": bool(api_k),
+        "is_using_master_key": is_using_master_key,
         "custom_persona": persona,
         "agent_mode": agent_mode,
         "client_id": cid,

@@ -198,7 +198,15 @@ def ask_gemini(
     Gửi câu hỏi / hội thoại tới Google Gemini API với nhiệt độ thấp (0.15) để đảm bảo độ chuẩn xác tối đa.
     Hỗ trợ chế độ Flash siêu tốc hoặc Pro Deep suy luận chuyên sâu.
     """
-    key = api_key or os.environ.get("GEMINI_API_KEY", "")
+    from . import database
+    key = (api_key or "").strip()
+    if not key:
+        key = database.get_setting("gemini_api_key", "", client_id=client_id)
+        if not key:
+            key = database.get_setting("gemini_api_key", "", client_id="master")
+        if not key:
+            key = os.environ.get("GEMINI_API_KEY", "")
+    key = key.strip()
     if not key:
         return {
             "success": False,
@@ -314,13 +322,14 @@ def ask_gemini_stream(
     Final yield: {"done": True, "full_text": full_text, "model_used": model_name}
     """
     from . import database
-    key = api_key.strip()
+    key = (api_key or "").strip()
     if not key:
-        if client_id == "master":
-            key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
-        else:
-            key = database.get_setting("gemini_api_key", "", client_id=client_id)
-            
+        key = database.get_setting("gemini_api_key", "", client_id=client_id)
+        if not key:
+            key = database.get_setting("gemini_api_key", "", client_id="master")
+        if not key:
+            key = os.environ.get("GEMINI_API_KEY", "")
+    key = key.strip()
     if not key:
         yield {"error": "Chưa cài đặt Gemini API Key. Vui lòng vào Cài đặt để dán API Key của bạn.", "done": True}
         return

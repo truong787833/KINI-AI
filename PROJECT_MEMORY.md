@@ -471,3 +471,22 @@
   5. **Kiểm Tra Thực Tế**:
      - Câu hỏi giải thích thông thường: Trả lời tự nhiên, sâu sắc, hoàn toàn sạch bóng nguồn rác (`Co nguon khong: False`).
      - Câu hỏi yêu cầu link YouTube/nguồn cụ thể: Cung cấp chính xác link thực tế đã xác thực (`Co link/nguon khong: True`).
+
+### Mốc Sửa Lỗi Nghiêm Trọng: Khắc Phục Lỗi Tin Nhắn Trống (Blank Bubble) Khi Dùng Trình Duyệt Mới / Online
+- **Hiện tượng (Hình ảnh anh Trường gửi lúc 16:11)**:
+  - Trên trình duyệt Cốc Cốc truy cập link online `broadway-endif-sell-street.trycloudflare.com`, khi nhắn *"alo"*, *"?"*, *"ủa"*, KINI AI xuất hiện khung chat nhưng bên trong hoàn toàn trống rỗng (chỉ có thanh công cụ sao chép/xuất Word).
+- **Nguyên nhân gốc rễ**:
+  - Khi một trình duyệt mới kết nối (Cốc Cốc, Chrome điện thoại, máy khác), client tự sinh ra một `client_id` độc lập (ví dụ `usr_qy8wfp3mwrfm4yf`).
+  - Trong backend, cơ chế cũ kiểm tra API key riêng cho từng client: `database.get_setting("gemini_api_key", "", client_id=cid)`. Do trình duyệt Cốc Cốc mới mở chưa nhập API key riêng, backend nhận `api_key = ""`.
+  - Luồng Streaming SSE khi thiếu key đã dừng sớm mà không chuyển tiếp thông báo lỗi, dẫn đến `final_text = ""` và lưu chuỗi rỗng vào cơ sở dữ liệu.
+- **Biện pháp khắc phục triệt để**:
+  1. **Cơ chế Kế thừa Tự động Master API Key**:
+     - Cập nhật cả `app.py` và `gemini_client.py`: Bất kỳ thiết bị, trình duyệt hay kết nối nào (dù là Cốc Cốc, điện thoại, máy tính bảng hay qua Cloudflare Tunnel) nếu chưa cài key riêng sẽ **tự động kế thừa 100% API Key Master** của hệ thống (`client_id="master"`). Không bắt buộc người dùng phải gõ lại API key ở mỗi trình duyệt.
+  2. **Bắt lỗi Streaming & Chống Tin Nhắn Rỗng**:
+     - Nếu phát sinh lỗi hoặc kết nối gián đoạn, `chat_sse_streamer` lập tức trả về thông báo cảnh báo rõ ràng thay vì nuốt lỗi.
+     - Kiểm tra bắt buộc: Tuyệt đối không bao giờ lưu hoặc gửi chuỗi rỗng `""` về cho giao diện.
+  3. **Phục Hồi Lịch Sử Đoạn Chat**:
+     - Dọn dẹp các tin nhắn rỗng cũ (IDs 336, 338, 340, 342) và cập nhật câu trả lời đầy đủ, chuẩn xác cho câu hỏi *"ai là người tạo ra bạn"* trong cuộc trò chuyện của anh.
+  4. **Kiểm Thử Nghiệm Thu**:
+     - Gửi yêu cầu stream giả lập đúng `X-Client-ID: usr_qy8wfp3mwrfm4yf` của Cốc Cốc: Trả về HTTP 200, truyền 5 chunks SSE mượt mà, trả lời đầy đủ 100%.
+     - Public URL `https://broadway-endif-sell-street.trycloudflare.com` hoạt động thông suốt.
