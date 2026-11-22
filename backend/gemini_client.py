@@ -91,26 +91,46 @@ def get_precision_rules() -> str:
    - Bạn là KINI AI, vận hành thông qua kết nối Google Gemini API chính thức. Tuyệt đối không tự suy diễn hoặc tự nhận mình là phiên bản cũ 'Gemini 1.5 Pro' từ dữ liệu huấn luyện đóng băng cũ. Hãy luôn trung thực và trả lời khách quan."""
 
 def is_image_request(text: str) -> bool:
-    """Kiểm tra xem người dùng có đang yêu cầu vẽ tranh / tạo ảnh / làm logo không"""
-    keywords = [
-        "vẽ cho tôi", "vẽ giúp", "vẽ ảnh", "vẽ bức ảnh", "vẽ tranh", "tạo ảnh", "tạo bức ảnh", 
-        "vẽ hình", "tạo hình", "thiết kế logo", "vẽ logo", "làm logo", "generate image", 
-        "draw an image", "create an image", "paint a", "sketch a"
+    """Kiểm tra xem người dùng có đang yêu cầu vẽ tranh / tạo ảnh / làm logo / thiết kế poster không"""
+    import unicodedata
+    t = unicodedata.normalize('NFC', text.lower().strip())
+    
+    # 1. Bắt đầu bằng lệnh vẽ / tạo / thiết kế
+    if re.search(r'^(hãy\s+)?(vẽ|tạo\s+ảnh|tạo\s+logo|thiết\s+kế\s+logo|thiết\s+kế\s+poster|làm\s+logo)\b', t):
+        return True
+        
+    # 2. Khớp các mẫu câu tạo/vẽ/thiết kế ảnh/logo/poster/banner
+    patterns = [
+        r'\b(vẽ|tạo|làm|thiết kế|sinh|chụp|render)\s+.*?(ảnh|bức ảnh|tấm ảnh|hình|bức hình|tranh|bức tranh|logo|poster|banner|icon|avatar|sticker|hình ảnh)\b',
+        r'\b(vẽ|tạo|thiết kế|làm)\s+(cho\s+)?(tôi|anh|em|mình|người dùng)?\s*.*?(ảnh|logo|poster|banner|icon|tranh|hình)\b',
+        r'^(tạo|vẽ|làm|thiết kế)\s+(logo|ảnh|poster|banner|hình|tranh|icon|avatar)\b',
+        r'\b(generate\s+image|draw|create\s+image|text\s*to\s*image|txt2img|make\s+a\s+picture|draw\s+a|design\s+logo)\b'
     ]
-    t = text.lower().strip()
+    for p in patterns:
+        if re.search(p, t):
+            return True
+            
+    # 3. Từ khóa thông dụng mở rộng
+    keywords = [
+        "vẽ cho tôi", "vẽ cho anh", "vẽ giúp anh", "vẽ giúp em", "vẽ giúp tôi", 
+        "vẽ ảnh", "vẽ bức ảnh", "vẽ tranh", "tạo ảnh", "tạo bức ảnh", "sinh ảnh",
+        "vẽ hình", "tạo hình", "thiết kế logo", "vẽ logo", "làm logo", "tạo logo",
+        "thiết kế poster", "tạo poster", "làm poster", "vẽ poster", "thiết kế banner", "tạo banner",
+        "generate image", "draw an image", "create an image", "paint a", "sketch a"
+    ]
     return any(k in t for k in keywords)
 
 def clean_image_prompt(text: str) -> str:
-    """Lọc bỏ các tiền tố ra lệnh vẽ để lấy phần mô tả thuần túy"""
-    t = text.strip()
+    """Lọc bỏ các tiền tố ra lệnh vẽ để lấy phần mô tả thuần túy cho AI Prompt Engine"""
+    import unicodedata
+    t = unicodedata.normalize('NFC', text.strip())
     prefixes = [
-        r'^(hãy\s+)?vẽ\s+(cho\s+tôi\s+|giúp\s+tôi\s+|cho\s+em\s+|giúp\s+em\s+)?(một\s+)?(bức\s+ảnh|bức\s+tranh|tấm\s+ảnh|hình\s+ảnh|logo|ảnh)?\s*(về|có|là|:)?\s*',
-        r'^(hãy\s+)?tạo\s+(cho\s+tôi\s+|giúp\s+tôi\s+)?(một\s+)?(bức\s+ảnh|ảnh|hình|logo)?\s*(về|có|là|:)?\s*',
-        r'^(hãy\s+)?thiết\s+kế\s+(cho\s+tôi\s+|giúp\s+tôi\s+)?(logo|biểu\s+tượng)?\s*(về|có|là|:)?\s*'
+        r'^(hãy\s+)?(vẽ|tạo|làm|thiết kế|sinh|render)\s+(cho\s+)?(tôi|anh|em|mình|bạn|người dùng)?\s*(giúp\s+)?(tôi|anh|em|mình)?\s*(một\s+)?(bức\s+ảnh|bức\s+tranh|tấm\s+ảnh|hình\s+ảnh|bức\s+hình|hình|ảnh|tranh|logo|poster|banner|icon|avatar)?\s*(về|có|là|:|như\s+sau:)?\s*',
+        r'^(vẽ|tạo|thiết kế|làm)\s+(logo|ảnh|poster|banner|hình|tranh|icon|avatar)\s*(về|có|là|:)?\s*'
     ]
     for p in prefixes:
         t = re.sub(p, '', t, flags=re.IGNORECASE).strip()
-    return t if len(t) > 3 else text.strip()
+    return t if len(t) > 2 else text.strip()
 
 def build_system_instruction_with_memories(base_prompt: Optional[str] = None, client_id: str = "master") -> str:
     """Ghép nối System Prompt với thời gian thực, quy tắc chính xác và ký ức dài hạn"""

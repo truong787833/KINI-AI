@@ -300,13 +300,29 @@ async def chat_with_kini(
     generated_img_url = ""
     if gemini_client.is_image_request(message):
         clean_prompt = gemini_client.clean_image_prompt(message)
-        # Sử dụng Engine tạo ảnh tối ưu hóa bằng Gemini
-        img_result = image_generator.generate_ai_image(clean_prompt, style="realistic", api_key=api_key)
+        # Tự động nhận diện phong cách tốt nhất dựa trên yêu cầu của người dùng
+        detected_style = "realistic"
+        low_p = message.lower()
+        if any(k in low_p for k in ["3d", "pixar", "disney", "chibi", "dễ thương", "glossy", "nổi khối"]):
+            detected_style = "3d"
+        elif any(k in low_p for k in ["logo", "biểu tượng", "icon", "badge", "emblem"]):
+            detected_style = "3d"
+        elif any(k in low_p for k in ["anime", "manga", "hoạt hình"]):
+            detected_style = "anime"
+        elif any(k in low_p for k in ["cyberpunk", "neon", "tương lai", "futuristic", "sci-fi"]):
+            detected_style = "cyberpunk"
+        elif any(k in low_p for k in ["poster", "banner", "điện ảnh", "cinematic", "phim"]):
+            detected_style = "cinematic"
+        elif any(k in low_p for k in ["sơn dầu", "tranh vẽ", "oil", "watercolor", "màu nước"]):
+            detected_style = "oil"
+
+        # Sử dụng Engine tạo ảnh FLUX.1 tối ưu hóa bằng Gemini
+        img_result = image_generator.generate_ai_image(clean_prompt, style=detected_style, api_key=api_key)
         if img_result.get("success"):
             generated_img_url = img_result["image_url"]
             database.add_gallery_item(
                 prompt=img_result["prompt"],
-                style=img_result.get("style", "realistic"),
+                style=img_result.get("style", detected_style),
                 image_url=generated_img_url,
                 image_path=img_result["file_path"],
                 width=img_result.get("width", 1024),
@@ -314,30 +330,33 @@ async def chat_with_kini(
             )
             if cid == "master":
                 assistant_reply = (
-                    f"🎨 **Tác phẩm do KINI AI tạo ra cho anh Trường:**\n\n"
-                    f"*Mô tả gốc:* \"{clean_prompt}\"\n\n"
-                    f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', clean_prompt)}`\n\n"
-                    f"Anh có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu em chỉnh sửa thêm chi tiết nhé!"
+                    f"🎨 **Em đã tạo xong tác phẩm cho anh Trường rồi ạ!** ✨\n\n"
+                    f"- 📝 **Chủ đề:** *\"{clean_prompt}\"*\n"
+                    f"- 🎭 **Phong cách:** *{detected_style.upper()}*\n"
+                    f"- ⚡ **Động cơ AI:** *FLUX.1 Pro Ultra HD & Gemini Prompt Engine*\n\n"
+                    f"Anh có thể bấm trực tiếp vào ảnh để phóng to, bấm các nút tải HD bên dưới hoặc dặn em tạo thêm các biến thể khác nhé!"
                 )
             else:
                 assistant_reply = (
-                    f"🎨 **Tác phẩm do KINI AI tạo ra:**\n\n"
-                    f"*Mô tả gốc:* \"{clean_prompt}\"\n\n"
-                    f"*Prompt tối ưu (English):* `{img_result.get('optimized_prompt', clean_prompt)}`\n\n"
-                    f"Bạn có thể bấm nút tải ảnh HD bên dưới hoặc yêu cầu điều chỉnh thêm chi tiết nhé!"
+                    f"🎨 **Tác phẩm của bạn đã hoàn thành:** ✨\n\n"
+                    f"- 📝 **Chủ đề:** *\"{clean_prompt}\"*\n"
+                    f"- 🎭 **Phong cách:** *{detected_style.upper()}*\n"
+                    f"- ⚡ **Động cơ AI:** *FLUX.1 Pro Ultra HD*\n\n"
+                    f"Bạn có thể bấm vào ảnh để phóng to hoặc tải ảnh HD về máy!"
                 )
             database.add_message(conv_id, "assistant", assistant_reply, image_url=generated_img_url, client_id=cid)
             return {
                 "success": True,
                 "reply": assistant_reply,
                 "image_url": generated_img_url,
-                "is_image_generated": True
+                "is_image_generated": True,
+                "model_used": "FLUX.1 AI Engine"
             }
         else:
             if cid == "master":
-                fail_reply = f"⚠️ Dạ thưa anh Trường, hệ thống vẽ ảnh đang bận hoặc quá tải tạm thời: {img_result.get('error', 'Không phản hồi')}. Anh vui lòng bấm gửi lại giúp em nhé!"
+                fail_reply = f"⚠️ Dạ thưa anh Trường, hệ thống vẽ ảnh FLUX.1 đang bận tạm thời: {img_result.get('error', 'Không phản hồi')}. Anh vui lòng thử bấm gửi lại giúp em nhé!"
             else:
-                fail_reply = f"⚠️ Hệ thống tạo ảnh đang bận hoặc quá tải tạm thời: {img_result.get('error', 'Không phản hồi')}. Bạn vui lòng bấm gửi lại nhé!"
+                fail_reply = f"⚠️ Hệ thống tạo ảnh đang bận tạm thời: {img_result.get('error', 'Không phản hồi')}. Bạn vui lòng bấm gửi lại nhé!"
             database.add_message(conv_id, "assistant", fail_reply, client_id=cid)
             return {
                 "success": True,
@@ -691,25 +710,65 @@ async def chat_with_kini_stream(
 
     database.add_message(conv_id, "user", full_user_content, image_url=file_display_url, client_id=cid)
 
-    # 1. KIỂM TRA TẠO ẢNH
+    # 1. KIỂM TRA TẠO ẢNH TRỰC TIẾP
     if gemini_client.is_image_request(message):
         clean_prompt = gemini_client.clean_image_prompt(message)
-        img_result = image_generator.generate_ai_image(clean_prompt, style="realistic", api_key=api_key)
+        detected_style = "realistic"
+        low_p = message.lower()
+        if any(k in low_p for k in ["3d", "pixar", "disney", "chibi", "dễ thương", "glossy", "nổi khối"]):
+            detected_style = "3d"
+        elif any(k in low_p for k in ["logo", "biểu tượng", "icon", "badge", "emblem"]):
+            detected_style = "3d"
+        elif any(k in low_p for k in ["anime", "manga", "hoạt hình"]):
+            detected_style = "anime"
+        elif any(k in low_p for k in ["cyberpunk", "neon", "tương lai", "futuristic", "sci-fi"]):
+            detected_style = "cyberpunk"
+        elif any(k in low_p for k in ["poster", "banner", "điện ảnh", "cinematic", "phim"]):
+            detected_style = "cinematic"
+        elif any(k in low_p for k in ["sơn dầu", "tranh vẽ", "oil", "watercolor", "màu nước"]):
+            detected_style = "oil"
+
+        img_result = image_generator.generate_ai_image(clean_prompt, style=detected_style, api_key=api_key)
         if img_result.get("success"):
             gen_url = img_result["image_url"]
             database.add_gallery_item(
                 prompt=img_result["prompt"],
-                style=img_result.get("style", "realistic"),
+                style=img_result.get("style", detected_style),
                 image_url=gen_url,
                 image_path=img_result["file_path"],
                 width=img_result.get("width", 1024),
                 height=img_result.get("height", 1024)
             )
-            reply = f"🎨 **Tác phẩm do KINI AI tạo ra:**\n\n*Mô tả:* \"{clean_prompt}\""
+            if cid == "master":
+                reply = (
+                    f"🎨 **Em đã tạo xong tác phẩm cho anh Trường rồi ạ!** ✨\n\n"
+                    f"- 📝 **Chủ đề:** *\"{clean_prompt}\"*\n"
+                    f"- 🎭 **Phong cách:** *{detected_style.upper()}*\n"
+                    f"- ⚡ **Động cơ AI:** *FLUX.1 Pro Ultra HD & Gemini Prompt Engine*\n\n"
+                    f"Anh có thể bấm trực tiếp vào ảnh để phóng to, bấm các nút tải HD bên dưới hoặc dặn em tạo thêm các biến thể khác nhé!"
+                )
+            else:
+                reply = (
+                    f"🎨 **Tác phẩm của bạn đã hoàn thành:** ✨\n\n"
+                    f"- 📝 **Chủ đề:** *\"{clean_prompt}\"*\n"
+                    f"- 🎭 **Phong cách:** *{detected_style.upper()}*\n"
+                    f"- ⚡ **Động cơ AI:** *FLUX.1 Pro Ultra HD*\n\n"
+                    f"Bạn có thể bấm vào ảnh để phóng to hoặc tải ảnh HD về máy!"
+                )
             database.add_message(conv_id, "assistant", reply, image_url=gen_url, client_id=cid)
             async def event_generator():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': reply})}\n\n"
-                yield f"data: {json.dumps({'type': 'done', 'reply': reply, 'image_url': gen_url, 'is_image_generated': True})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'reply': reply, 'image_url': gen_url, 'is_image_generated': True, 'model_used': 'FLUX.1 AI Engine'})}\n\n"
+            return StreamingResponse(event_generator(), media_type="text/event-stream")
+        else:
+            if cid == "master":
+                fail_reply = f"⚠️ Dạ thưa anh Trường, hệ thống vẽ ảnh FLUX.1 đang bận tạm thời: {img_result.get('error', 'Không phản hồi')}. Anh vui lòng thử bấm gửi lại giúp em nhé!"
+            else:
+                fail_reply = f"⚠️ Hệ thống tạo ảnh đang bận tạm thời: {img_result.get('error', 'Không phản hồi')}. Bạn vui lòng bấm gửi lại nhé!"
+            database.add_message(conv_id, "assistant", fail_reply, client_id=cid)
+            async def event_generator():
+                yield f"data: {json.dumps({'type': 'chunk', 'text': fail_reply})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'reply': fail_reply, 'image_url': '', 'is_image_generated': False})}\n\n"
             return StreamingResponse(event_generator(), media_type="text/event-stream")
 
     # 2. KIỂM TRA LỆNH PLAN
@@ -995,12 +1054,14 @@ def export_xlsx(data: dict):
 # 5. TẠO ẢNH & GALLERY (KINI STUDIO)
 # ============================================================
 @app.post("/api/generate-image")
-def create_image(data: dict):
+def create_image(data: dict, request: Request):
+    cid = get_request_client_id(request)
     prompt = data.get("prompt", "").strip()
     style = data.get("style", "realistic")
     width = int(data.get("width", 1024))
     height = int(data.get("height", 1024))
-    api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))
+    conv_id = data.get("conv_id")
+    api_key = database.get_setting("gemini_api_key", "", client_id=cid) or database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
 
     if not prompt:
         raise HTTPException(status_code=400, detail="Vui lòng nhập mô tả bức ảnh bạn muốn vẽ.")
@@ -1016,6 +1077,12 @@ def create_image(data: dict):
             height=result["height"]
         )
         result["gallery_id"] = item_id
+        if conv_id and conv_id != "default":
+            if cid == "master":
+                reply_text = f"🎨 **Em vừa hoàn thành tác phẩm trong KINI Art Studio cho anh Trường:**\n\n- 📝 **Chủ đề:** \"{prompt}\"\n- 🎭 **Phong cách:** {style.upper()} ({width}x{height})"
+            else:
+                reply_text = f"🎨 **Tác phẩm từ KINI Art Studio:**\n\n- 📝 **Chủ đề:** \"{prompt}\"\n- 🎭 **Phong cách:** {style.upper()} ({width}x{height})"
+            database.add_message(conv_id, "assistant", reply_text, image_url=result["image_url"], client_id=cid)
         return result
     else:
         raise HTTPException(status_code=500, detail=result.get("error", "Không thể tạo ảnh"))

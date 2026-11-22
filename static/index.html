@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261122_1945">
+    <link rel="stylesheet" href="/static/style.css?v=20261122_2007">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -65,6 +65,10 @@
                 <button class="sidebar-menu-btn" id="btn-sidebar-studio-btn">
                     <span class="menu-icon">💻</span>
                     <span>Studio Workspace</span>
+                </button>
+                <button class="sidebar-menu-btn" id="btn-open-art-studio">
+                    <span class="menu-icon">🎨</span>
+                    <span>Xưởng Tạo Ảnh & Logo</span>
                 </button>
                 <button class="sidebar-menu-btn" id="btn-open-memory-modal">
                     <span class="menu-icon">🧠</span>
@@ -122,6 +126,9 @@
                     <div class="view-mode-toggle" id="view-mode-toggle">
                         <button class="btn-mode-tab active" id="btn-mode-chat" title="Chế độ Trò chuyện Toàn màn hình">
                             <span>💬</span> <span>Chat</span>
+                        </button>
+                        <button class="btn-mode-tab" id="btn-mode-art" title="KINI Art Studio - Xưởng Sáng Tạo Ảnh & Logo AI">
+                            <span>🎨</span> <span>Tạo Ảnh AI</span>
                         </button>
                         <button class="btn-mode-tab" id="btn-mode-ide" title="Chế độ Antigravity Studio (Workspace + Code + Chat song song)">
                             <span>⚡</span> <span>Antigravity Studio</span>
@@ -590,6 +597,153 @@
     </div>
 
     <!-- ============================================================
+         MODAL: KINI ART STUDIO - XƯỞNG TẠO ẢNH & LOGO 3D
+         ============================================================ -->
+    <div class="modal" id="modal-art-studio" style="display: none;">
+        <div class="modal-dialog modal-xl art-studio-dialog">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span style="font-size: 1.4rem;">🎨</span>
+                    <div>
+                        <h3>KINI Art Studio - Xưởng Sáng Tạo Ảnh & Logo 3D</h3>
+                        <p class="modal-subtitle">Động cơ Siêu Thực FLUX.1 Ultra Realism kết hợp Bộ não Tối ưu Prompt Gemini</p>
+                    </div>
+                </div>
+                <button class="modal-close" data-close="modal-art-studio">&times;</button>
+            </div>
+            <div class="modal-body art-studio-body">
+                <div class="art-studio-layout">
+                    <!-- Cột trái: Bảng điều khiển cấu hình & Prompt -->
+                    <div class="art-control-pane">
+                        <div class="form-group">
+                            <label class="form-label"><b>Mô tả bức ảnh / Logo bạn muốn tạo:</b></label>
+                            <textarea id="art-prompt-input" class="art-prompt-textarea" rows="3" placeholder="Nhập ý tưởng bằng tiếng Việt (Ví dụ: Thiết kế poster kẹo dẻo chip chip mây và gạo 3D tươi vui; Logo robot KINI AI viền vàng bóng bẩy...)"></textarea>
+                        </div>
+
+                        <!-- Gợi ý mẫu 1 chạm -->
+                        <div class="art-presets-wrap">
+                            <span class="art-presets-label">Gợi ý nhanh:</span>
+                            <div class="art-presets-list">
+                                <button class="art-preset-pill" data-preset="Thiết kế poster kẹo dẻo chip chip mây và gạo phong cách 3D Pixar, rực rỡ sắc màu, ngon mắt, 8k">🍬 Poster Kẹo Dẻo 3D</button>
+                                <button class="art-preset-pill" data-preset="Logo huy hiệu tròn 3D robot KINI AI mạ vàng bóng bẩy, chữ nổi khối KINI AI Ultimate AI OS, phát sáng neon, 8k">👑 Logo KINI AI 3D</button>
+                                <button class="art-preset-pill" data-preset="Thành phố công nghệ tương lai cyberpunk neon rực rỡ sắc màu trong màn mưa đêm, xe bay lượn, 8k">🌃 Cyberpunk Neon</button>
+                                <button class="art-preset-pill" data-preset="Chú mèo con dễ thương mặc bộ đồ phi hành gia lơ lửng ngoài vũ trụ, ngắm nhìn trái đất, siêu nét">🐱 Mèo Phi Hành Gia</button>
+                            </div>
+                        </div>
+
+                        <!-- Bộ chọn phong cách -->
+                        <div class="form-group">
+                            <label class="form-label"><b>Phong cách nghệ thuật:</b></label>
+                            <div class="art-style-grid" id="art-style-selector">
+                                <div class="art-style-card active" data-style="3d">
+                                    <span class="style-icon">🌟</span>
+                                    <div class="style-name">Logo & 3D Badge</div>
+                                    <div class="style-desc">Nổi khối Pixar, bóng bẩy</div>
+                                </div>
+                                <div class="art-style-card" data-style="realistic">
+                                    <span class="style-icon">📸</span>
+                                    <div class="style-name">Siêu Thực 8K</div>
+                                    <div class="style-desc">Chân thực, studio light</div>
+                                </div>
+                                <div class="art-style-card" data-style="cinematic">
+                                    <span class="style-icon">🎬</span>
+                                    <div class="style-name">Điện Ảnh Poster</div>
+                                    <div class="style-desc">Góc quay bom tấn</div>
+                                </div>
+                                <div class="art-style-card" data-style="cyberpunk">
+                                    <span class="style-icon">🔮</span>
+                                    <div class="style-name">Cyberpunk Neon</div>
+                                    <div class="style-desc">Công nghệ tương lai</div>
+                                </div>
+                                <div class="art-style-card" data-style="anime">
+                                    <span class="style-icon">🌸</span>
+                                    <div class="style-name">Anime Nhật Bản</div>
+                                    <div class="style-desc">Makoto Shinkai</div>
+                                </div>
+                                <div class="art-style-card" data-style="oil">
+                                    <span class="style-icon">🎨</span>
+                                    <div class="style-name">Sơn Dầu Cổ Điển</div>
+                                    <div class="style-desc">Nghệ thuật bảo tàng</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bộ chọn Tỉ lệ khung hình -->
+                        <div class="form-group">
+                            <label class="form-label"><b>Tỉ lệ khung hình:</b></label>
+                            <div class="art-ratio-row" id="art-ratio-selector">
+                                <button class="art-ratio-btn active" data-ratio="1:1" data-w="1024" data-h="1024">
+                                    <span class="ratio-box ratio-1-1"></span>
+                                    <span>Vuông 1:1 (Logo / Avatar)</span>
+                                </button>
+                                <button class="art-ratio-btn" data-ratio="16:9" data-w="1024" data-h="576">
+                                    <span class="ratio-box ratio-16-9"></span>
+                                    <span>Ngang 16:9 (Poster / Banner)</span>
+                                </button>
+                                <button class="art-ratio-btn" data-ratio="9:16" data-w="576" data-h="1024">
+                                    <span class="ratio-box ratio-9-16"></span>
+                                    <span>Dọc 9:16 (Story / TikTok)</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-generate-art" id="btn-submit-generate-art">
+                            <span>✨</span> BẮT ĐẦU VẼ ẢNH (AI GENERATE)
+                        </button>
+                    </div>
+
+                    <!-- Cột phải: Khu vực hiển thị kết quả tạo ảnh -->
+                    <div class="art-preview-pane">
+                        <div class="art-preview-wrapper" id="art-preview-wrapper">
+                            <!-- Trạng thái chờ / placeholder -->
+                            <div class="art-placeholder" id="art-placeholder">
+                                <img src="/static/kini_logo.png" class="art-placeholder-logo" alt="KINI Art">
+                                <h4>KINI Art Studio sẵn sàng</h4>
+                                <p>Nhập mô tả hoặc chọn gợi ý bên trái rồi bấm <b>Bắt đầu vẽ ảnh</b> để xuất tác phẩm đỉnh cao.</p>
+                            </div>
+
+                            <!-- Trạng thái đang vẽ -->
+                            <div class="art-loading" id="art-loading" style="display: none;">
+                                <div class="art-spinner"></div>
+                                <h4>KINI AI & FLUX.1 đang vẽ tranh...</h4>
+                                <p id="art-loading-status">Đang tối ưu hóa prompt qua Gemini AI...</p>
+                            </div>
+
+                            <!-- Ảnh kết quả -->
+                            <div class="art-result" id="art-result" style="display: none;">
+                                <img id="art-result-img" src="" alt="Tác phẩm hoàn thành" onclick="openLightbox(this.src, '')">
+                                <div class="art-result-meta" id="art-result-meta"></div>
+                                <div class="art-result-actions">
+                                    <a id="art-download-link" href="#" download="kini_artwork.jpg" class="btn btn-primary">
+                                        ⬇️ Tải Ảnh HD
+                                    </a>
+                                    <button class="btn btn-outline" id="btn-art-send-to-chat">
+                                        💬 Gửi Vào Chat
+                                    </button>
+                                    <button class="btn btn-outline" id="btn-art-zoom">
+                                        🔍 Phóng To
+                                    </button>
+                                    <button class="btn btn-outline" id="btn-open-gallery-from-studio">
+                                        🖼️ Bộ Sưu Tập
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dải tác phẩm gần đây -->
+                        <div class="art-recent-strip-wrap">
+                            <span class="art-recent-title">Tác phẩm gần đây:</span>
+                            <div class="art-recent-strip" id="art-recent-strip">
+                                <!-- Nạp thumbnail gần đây -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
          MODAL 2: BỘ SƯU TẬP ẢNH (GALLERY)
          ============================================================ -->
     <div class="modal" id="modal-gallery" style="display: none;">
@@ -856,6 +1010,6 @@
     </div>
 
     <script src="/static/chart.min.js"></script>
-    <script src="/static/app.js?v=20261122_1945"></script>
+    <script src="/static/app.js?v=20261122_2007"></script>
 </body>
 </html>

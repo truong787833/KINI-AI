@@ -86,8 +86,7 @@ def generate_ai_image(
     file_path = os.path.join(IMAGES_DIR, filename)
 
     # 2. Thử lần lượt các Engine tạo ảnh chất lượng cao
-    # flux-pro > flux-realism > flux > sana (theo thứ tự chất lượng)
-    models_to_try = ["flux", "flux-realism", "turbo", "sana"]
+    models_to_try = ["flux", "turbo", "flux-realism", ""]
     seed = random.randint(100000, 9999999)
     encoded_prompt = urllib.parse.quote(english_prompt)
 
@@ -97,10 +96,13 @@ def generate_ai_image(
 
     last_error = ""
     for model in models_to_try:
-        api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&model={model}&seed={seed}&nologo=true"
+        if model:
+            api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&model={model}&seed={seed}&nologo=true"
+        else:
+            api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={seed}&nologo=true"
         try:
-            logger.info(f"Đang tạo ảnh với model: {model}...")
-            res = requests.get(api_url, headers=headers, timeout=35)
+            logger.info(f"Đang tạo ảnh với model: {model or 'default'}...")
+            res = requests.get(api_url, headers=headers, timeout=28)
             if res.status_code == 200 and len(res.content) > 1000:
                 with open(file_path, "wb") as f:
                     f.write(res.content)
@@ -113,12 +115,39 @@ def generate_ai_image(
                     "prompt": clean_prompt,
                     "optimized_prompt": english_prompt,
                     "style": style,
-                    "model_used": model,
+                    "model_used": model or "flux",
                     "width": width,
                     "height": height
                 }
-            elif res.status_code == 402 or res.status_code == 503:
-                last_error = f"Model {model} đang bận ({res.status_code})"
+            elif res.status_code == 402 or res.status_code == 503 or res.status_code == 429:
+                m = re.search(r'Retry after (\d+)s', res.text)
+                if m:
+                    wait_sec = int(m.group(1))
+                    if wait_sec <= 10:
+                        logger.info(f"Đang chờ giãn cách {wait_sec}s...")
+                        time.sleep(wait_sec + 1)
+                        try:
+                            retry_res = requests.get(api_url, headers=headers, timeout=28)
+                            if retry_res.status_code == 200 and len(retry_res.content) > 1000:
+                                with open(file_path, "wb") as f:
+                                    f.write(retry_res.content)
+                                return {
+                                    "success": True,
+                                    "filename": filename,
+                                    "file_path": file_path,
+                                    "image_url": f"/api/images/{filename}",
+                                    "prompt": clean_prompt,
+                                    "optimized_prompt": english_prompt,
+                                    "style": style,
+                                    "model_used": model or "flux",
+                                    "width": width,
+                                    "height": height
+                                }
+                        except Exception:
+                            pass
+                    last_error = f"Giới hạn giãn cách miễn phí (Vui lòng chờ {wait_sec} giây)"
+                else:
+                    last_error = f"Model {model or 'default'} đang bận ({res.status_code})"
                 continue
         except Exception as e:
             last_error = str(e)

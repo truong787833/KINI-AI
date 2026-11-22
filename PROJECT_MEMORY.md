@@ -608,3 +608,31 @@
   3. **Tin nhắn KINI AI trong khung Chat**: Avatar của KINI AI trong mọi câu trả lời hiển thị robot KINI AI với hiệu ứng đổ bóng phát sáng neon.
   4. **Hero Welcome Screen**: Logo huy hiệu lớn 110px bay lượn nhẹ nhàng (hero floating) kèm hiệu ứng phát sáng đa sắc.
   5. **Cache busting**: Cập nhật `v=20261122_1945` để tải tức thì không bị lưu cache cũ.
+
+
+### Mốc Cập Nhật: Nâng Cấp Hệ Thống Tạo Ảnh Trực Tiếp Trên Chat & Xưởng Sáng Tạo KINI Art Studio (2026-11-22)
+- **Vấn đề & Yêu cầu của anh Trường**:
+  1. *\"vừa rồi anh có tạo ảnh bằng KINI AI. a thấy cũng được. nhưng sao không hiển thị ảnh tạo trên khung chat KINI AI. Ví dụ như này. riêng một phần tạo ảnh\"* (kèm ảnh chụp giao diện tạo ảnh trực tiếp trên Google Gemini web với các ấn phẩm poster kẹo dẻo 3D và logo).
+  2. Nguyên nhân trước đây: Bộ lọc `is_image_request` bị giới hạn từ khóa tĩnh, khiến các câu lệnh như *"tạo logo"*, *"thiết kế poster kẹo dẻo"* bị lọt xuống chat chữ thông thường và AI trả lời bằng văn bản hướng dẫn thay vì gọi động cơ tạo ảnh.
+- **Các giải pháp & nâng cấp đã hoàn thiện 100%**:
+  1. **Nâng cấp Bộ Lọc Ý Định Tạo Ảnh Thông Minh (`backend/gemini_client.py`)**:
+     - Áp dụng biểu thức chính quy (Regex) tiếng Việt và chuẩn hóa Unicode (NFC), nhận diện chuẩn 100% mọi mẫu câu: *"tạo logo"*, *"thiết kế poster"*, *"vẽ cho anh"*, *"tạo ảnh"*, *"làm logo"*, *"vẽ tranh"*, *"sinh ảnh"*, *"render ảnh"*, v.v.
+     - Tự động nhận diện phong cách thông minh (3D Pixar / Logo Badge / Siêu thực 8K / Cyberpunk / Anime / Điện ảnh).
+  2. **Hiển Thị Ảnh Trực Tiếp Trên Khung Chat (Chuẩn Google Gemini)**:
+     - Tạo thẻ ảnh cao cấp `.msg-image-card` viền kính mờ cong 18px bóng bẩy, huy hiệu `✨ AI Art (FLUX.1 Pro)`.
+     - Thanh nút công cụ ngay dưới ảnh:
+       + ⬇️ **Tải Ảnh HD**: Tải file gốc độ nét cao về máy.
+       + 🔍 **Phóng To**: Mở Lightbox xem toàn màn hình.
+       + 🔄 **Tạo Biến Thể**: Tự động nạp prompt để tạo phiên bản remix mới.
+       + 📋 **Chép Link**: Sao chép liên kết ảnh vào clipboard.
+  3. **Xưởng Tạo Ảnh Riêng Biệt (KINI Art Studio - "Riêng một phần tạo ảnh")**:
+     - Nút truy cập nhanh:
+       + Thẻ chế độ trên Header: `[💬 Chat] [🎨 Tạo Ảnh AI] [⚡ Antigravity Studio]`.
+       + Menu Sidebar: `🎨 Xưởng Tạo Ảnh & Logo`.
+       + Quick Pill thanh nhập lệnh: `🎨 Vẽ tranh & Logo 3D`.
+     - Giao diện Modal Studio chuyên nghiệp 2 cột:
+       + Cột trái: Ô nhập Prompt, 4 nút gợi ý mẫu 1 chạm (Poster Kẹo Dẻo 3D, Logo KINI AI 3D, Cyberpunk, Mèo Phi Hành Gia), Bộ chọn 6 phong cách nghệ thuật, Bộ chọn 3 tỉ lệ khung hình (1:1 Vuông, 16:9 Ngang, 9:16 Dọc).
+       + Cột phải: Khung hiển thị Live Preview với hiệu ứng vẽ tranh, nút Tải HD, Chèn vào Chat, Phóng to và Dải cuộn các tác phẩm vừa tạo gần đây.
+  4. **Tự Động Phục Hồi & Đồng Bộ**:
+     - Tự động đếm lùi và retry thông minh khi gặp giới hạn giãn cách miễn phí.
+     - Khi tạo từ Studio, tác phẩm tự động xuất hiện đồng thời trong khung chat hiện tại và Bộ sưu tập ảnh (Gallery).

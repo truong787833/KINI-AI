@@ -69,6 +69,7 @@ function initApp() {
     try { loadConversations(true); } catch(e) { console.error("loadConversations:", e); }
     try { initVersionSystem(); } catch(e) { console.error("initVersionSystem:", e); }
     try { initDeviceIdentity(); } catch(e) { console.error("initDeviceIdentity:", e); }
+    try { initArtStudio(); } catch(e) { console.error("initArtStudio:", e); }
 }
 
 // ============================================================
@@ -197,8 +198,8 @@ function initNavigationAndModals() {
                 input.value = "Lập trình một tựa game mini chơi trực tiếp trên web với đồ họa đẹp mắt và âm thanh sống động";
                 input.focus();
             } else if (action === "draw") {
-                input.value = "Vẽ cho tôi logo KINI AI 3D phát sáng neon công nghệ tương lai, 8k";
-                input.focus();
+                openModal("modal-art-studio");
+                if (typeof loadRecentArtStrip === "function") loadRecentArtStrip();
             } else if (action === "plan") {
                 input.value = "/plan Thiết kế kiến trúc hệ thống và lập kế hoạch toàn diện cho dự án ";
                 input.focus();
@@ -959,13 +960,24 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
     if (imageUrl) {
         imgBlock = `
             <div class="msg-image-card">
-                <img src="${imageUrl}" class="msg-inline-image" alt="Artwork" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" loading="lazy">
+                <div class="msg-image-wrapper">
+                    <img src="${imageUrl}" class="msg-inline-image" alt="Artwork" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" loading="lazy">
+                    <div class="msg-image-overlay-badge">
+                        <span>✨ AI Art (FLUX.1 Pro)</span>
+                    </div>
+                </div>
                 <div class="msg-image-actions">
-                    <a href="${imageUrl}" download="kini_artwork.jpg" class="btn-img-action" title="Tải ảnh HD">
-                        ⬇️ Tải Ảnh HD
+                    <a href="${imageUrl}" download="kini_artwork.jpg" class="btn-img-action btn-img-download" title="Tải ảnh gốc HD">
+                        <span>⬇️</span> Tải Ảnh HD
                     </a>
-                    <button class="btn-img-action" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" title="Phóng to ảnh">
-                        🔍 Phóng to
+                    <button class="btn-img-action" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" title="Xem toàn màn hình">
+                        <span>🔍</span> Phóng To
+                    </button>
+                    <button class="btn-img-action btn-img-remix" onclick="remixPrompt('${escapeAttr(content)}')" title="Tạo biến thể khác từ tác phẩm này">
+                        <span>🔄</span> Tạo Biến Thể
+                    </button>
+                    <button class="btn-img-action" onclick="copyImageUrl('${imageUrl}', this)" title="Sao chép liên kết ảnh">
+                        <span>📋</span> Chép Link
                     </button>
                 </div>
             </div>
@@ -4091,5 +4103,214 @@ async function saveDeviceIdentityAPI(payload) {
         }
     } catch(e) {
         console.error("Lỗi lưu danh tính thiết bị:", e);
+    }
+}
+
+// ============================================================
+// KINI ART STUDIO - XƯỞNG TẠO ẢNH & LOGO 3D (FLUX.1 ENGINE)
+// ============================================================
+let currentStudioArtwork = null;
+
+function remixPrompt(content) {
+    const input = document.getElementById("main-user-input");
+    if (!input) return;
+    let basePrompt = content;
+    const match = content.match(/Chủ đề:.*?["'](.*?)["']/i) || content.match(/Mô tả:.*?["'](.*?)["']/i);
+    if (match && match[1]) {
+        basePrompt = match[1];
+    }
+    input.value = `Tạo biến thể khác cho bức ảnh: ${basePrompt}, chi tiết hơn, ánh sáng đẹp hơn, 8k`;
+    input.focus();
+}
+
+function copyImageUrl(url, btn) {
+    const fullUrl = window.location.origin + url;
+    navigator.clipboard.writeText(fullUrl);
+    if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<span>✓</span> Đã Chép!`;
+        setTimeout(() => btn.innerHTML = orig, 2000);
+    }
+}
+
+function initArtStudio() {
+    let selectedStyle = "3d";
+    let selectedWidth = 1024;
+    let selectedHeight = 1024;
+
+    const openStudio = () => {
+        openModal("modal-art-studio");
+        loadRecentArtStrip();
+    };
+
+    document.getElementById("btn-mode-art")?.addEventListener("click", openStudio);
+    document.getElementById("btn-open-art-studio")?.addEventListener("click", () => {
+        closeSidebar();
+        openStudio();
+    });
+
+    // Preset pills click
+    document.querySelectorAll(".art-preset-pill").forEach(pill => {
+        pill.addEventListener("click", () => {
+            const promptInput = document.getElementById("art-prompt-input");
+            if (promptInput) {
+                promptInput.value = pill.dataset.preset;
+                promptInput.focus();
+            }
+        });
+    });
+
+    // Style selector cards
+    document.querySelectorAll(".art-style-card").forEach(card => {
+        card.addEventListener("click", () => {
+            document.querySelectorAll(".art-style-card").forEach(c => c.classList.remove("active"));
+            card.classList.add("active");
+            selectedStyle = card.dataset.style || "realistic";
+        });
+    });
+
+    // Ratio selector buttons
+    document.querySelectorAll(".art-ratio-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".art-ratio-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            selectedWidth = parseInt(btn.dataset.w || "1024");
+            selectedHeight = parseInt(btn.dataset.h || "1024");
+        });
+    });
+
+    // Submit Generate Button
+    document.getElementById("btn-submit-generate-art")?.addEventListener("click", async () => {
+        const promptInput = document.getElementById("art-prompt-input");
+        const prompt = promptInput ? promptInput.value.trim() : "";
+        if (!prompt) {
+            alert("Vui lòng nhập mô tả hoặc chọn gợi ý bức ảnh bạn muốn vẽ!");
+            promptInput?.focus();
+            return;
+        }
+
+        const placeholder = document.getElementById("art-placeholder");
+        const loading = document.getElementById("art-loading");
+        const result = document.getElementById("art-result");
+        const submitBtn = document.getElementById("btn-submit-generate-art");
+
+        if (placeholder) placeholder.style.display = "none";
+        if (result) result.style.display = "none";
+        if (loading) loading.style.display = "flex";
+        if (submitBtn) submitBtn.disabled = true;
+
+        try {
+            const res = await fetch("/api/generate-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    style: selectedStyle,
+                    width: selectedWidth,
+                    height: selectedHeight,
+                    conv_id: currentConvId || "default"
+                })
+            });
+
+            const data = await res.json();
+            if (loading) loading.style.display = "none";
+            if (submitBtn) submitBtn.disabled = false;
+
+            if (res.ok && data.success) {
+                currentStudioArtwork = data;
+                if (result) result.style.display = "flex";
+                const img = document.getElementById("art-result-img");
+                if (img) img.src = data.image_url;
+                const dl = document.getElementById("art-download-link");
+                if (dl) dl.href = data.image_url;
+                const meta = document.getElementById("art-result-meta");
+                if (meta) {
+                    meta.innerHTML = `<span>🎨 <b>Phong cách:</b> ${(data.style || selectedStyle).toUpperCase()}</span> <span>📐 <b>Kích thước:</b> ${data.width}x${data.height}</span> <span>⚡ <b>FLUX.1 Pro</b></span>`;
+                }
+                loadRecentArtStrip();
+
+                // Tự động chèn tin nhắn vào đoạn chat hiện tại để hiển thị ngay trong feed
+                appendAssistantMessage(
+                    `🎨 **Tác phẩm mới tạo từ KINI Art Studio:**\n\n- 📝 **Chủ đề:** \"${data.prompt}\"\n- 🎭 **Phong cách:** ${(data.style || selectedStyle).toUpperCase()} (${data.width}x${data.height})\n- ⚡ **Động cơ AI:** FLUX.1 Pro Ultra HD`,
+                    data.image_url,
+                    true,
+                    "FLUX.1 AI Engine"
+                );
+            } else {
+                if (placeholder) placeholder.style.display = "flex";
+                alert("⚠️ Không thể tạo ảnh lúc này: " + (data.detail || "Máy chủ tạo ảnh bận"));
+            }
+        } catch (err) {
+            if (loading) loading.style.display = "none";
+            if (placeholder) placeholder.style.display = "flex";
+            if (submitBtn) submitBtn.disabled = false;
+            alert("Lỗi kết nối tới máy chủ vẽ ảnh: " + err.message);
+        }
+    });
+
+    // Send to Chat Button
+    document.getElementById("btn-art-send-to-chat")?.addEventListener("click", () => {
+        if (!currentStudioArtwork) return;
+        appendAssistantMessage(
+            `🎨 **Tác phẩm từ KINI Art Studio:**\n\n- 📝 **Chủ đề:** \"${currentStudioArtwork.prompt}\"\n- 🎭 **Phong cách:** ${(currentStudioArtwork.style || selectedStyle).toUpperCase()}`,
+            currentStudioArtwork.image_url,
+            true,
+            "FLUX.1 AI Engine"
+        );
+        closeModal("modal-art-studio");
+        scrollToBottom();
+    });
+
+    // Zoom Button
+    document.getElementById("btn-art-zoom")?.addEventListener("click", () => {
+        if (currentStudioArtwork && currentStudioArtwork.image_url) {
+            openLightbox(currentStudioArtwork.image_url, currentStudioArtwork.prompt);
+        }
+    });
+
+    // Open Gallery from Studio
+    document.getElementById("btn-open-gallery-from-studio")?.addEventListener("click", () => {
+        closeModal("modal-art-studio");
+        openModal("modal-gallery");
+        loadGallery();
+    });
+}
+
+async function loadRecentArtStrip() {
+    const strip = document.getElementById("art-recent-strip");
+    if (!strip) return;
+    try {
+        const res = await fetch("/api/gallery");
+        const data = await res.json();
+        const items = (data.gallery || []).slice(0, 10);
+        if (items.length === 0) {
+            strip.innerHTML = "<span style='color:var(--text-muted);font-size:0.8rem;'>Chưa có tác phẩm nào</span>";
+            return;
+        }
+        strip.innerHTML = "";
+        items.forEach(it => {
+            const thumb = document.createElement("img");
+            thumb.src = it.image_url;
+            thumb.className = "art-recent-thumb";
+            thumb.title = it.prompt || "Tác phẩm AI";
+            thumb.onclick = () => {
+                currentStudioArtwork = it;
+                const result = document.getElementById("art-result");
+                const placeholder = document.getElementById("art-placeholder");
+                if (placeholder) placeholder.style.display = "none";
+                if (result) result.style.display = "flex";
+                const img = document.getElementById("art-result-img");
+                if (img) img.src = it.image_url;
+                const dl = document.getElementById("art-download-link");
+                if (dl) dl.href = it.image_url;
+                const meta = document.getElementById("art-result-meta");
+                if (meta) {
+                    meta.innerHTML = `<span>🎨 <b>Phong cách:</b> ${(it.style||'3D').toUpperCase()}</span> <span>⚡ <b>FLUX.1</b></span>`;
+                }
+            };
+            strip.appendChild(thumb);
+        });
+    } catch (e) {
+        console.warn("Không thể tải recent art strip:", e);
     }
 }
