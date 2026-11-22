@@ -339,6 +339,37 @@ def search_live_web(query: str, max_results: int = 6) -> List[Dict[str, str]]:
     """Hàm tương thích ngược tìm kiếm tổng hợp"""
     return search_web_duckduckgo(query, limit=max_results)
 
+def user_explicitly_wants_sources(text: str) -> bool:
+    """Kiểm tra xem người dùng có thực sự yêu cầu đưa link, nguồn, bài viết hay dẫn chứng không"""
+    if not text:
+        return False
+    t = text.lower().strip()
+    source_keywords = [
+        "cho tôi link", "tìm link", "xin link", "link video", "link bài", "link github", 
+        "link youtube", "dẫn chứng", "nguồn ở đâu", "bài viết nào", "link gốc", "nguồn nào", 
+        "ở đâu nói", "trang web nào", "cho đường dẫn", "trích dẫn nguồn", "xin nguồn", 
+        "chứng minh", "nguồn gốc từ đâu", "cho link"
+    ]
+    return any(k in t for k in source_keywords)
+
+def clean_unwanted_citations(reply_text: str, user_query: str) -> str:
+    """
+    Bộ lọc hậu kiểm: Nếu người dùng KHÔNG yêu cầu nguồn hoặc đường link,
+    tự động loại bỏ hoàn toàn bất kỳ mục 'Nguồn Dẫn Chứng & Tham Khảo' thừa thãi nào.
+    Đảm bảo câu trả lời luôn sạch đẹp, tinh tế như Antigravity, ChatGPT và Claude.
+    """
+    if not reply_text:
+        return reply_text
+    if user_explicitly_wants_sources(user_query):
+        return reply_text
+
+    # Phát hiện dòng tiêu đề nguồn ở cuối câu trả lời (dòng mới + tiêu đề nguồn)
+    pattern = r'(?im)^\s*(?:#{1,4}\s*)?(?:🌐|🔗)?\s*(?:\*{0,2})(?:nguồn dẫn chứng|nguồn tham khảo|tài liệu tham khảo|nguồn trích dẫn|nguồn tin & tham khảo)(?:\*{0,2})\s*.*?$'
+    match = re.search(pattern, reply_text)
+    if match:
+        return reply_text[:match.start()].strip()
+    return reply_text.strip()
+
 def needs_live_search(text: str) -> bool:
     """
     Kích hoạt tra cứu thông minh thời gian thực ĐÚNG LÚC - ĐÚNG CHỖ:
@@ -464,6 +495,17 @@ def get_grounded_context(user_query: str) -> str:
 
         lines.append(f"[{idx}] {title} (Nguồn: {source}{date_str}{url_str}){snip_str}")
 
+    wants_sources = user_explicitly_wants_sources(user_query)
+    citation_instruction = (
+        "3. NGUYÊN TẮC VỀ NGUỒN DẪN CHỨNG (NGƯỜI DÙNG ĐANG YÊU CẦU NGUỒN/LINK):\n"
+        "   - Hãy đính kèm mục '### 🌐 Nguồn Dẫn Chứng & Tham Khảo' ở cuối câu trả lời.\n"
+        "   - CHỈ trích dẫn các đường link thực tế ở danh sách trên, TUYỆT ĐỐI KHÔNG BỊA ĐẶT LINK ẢO.\n"
+    ) if wants_sources else (
+        "3. NGUYÊN TẮC VỀ ĐỊNH DẠNG (NGƯỜI DÙNG KHÔNG YÊU CẦU NGUỒN/LINK):\n"
+        "   - TUYỆT ĐỐI KHÔNG XUẤT MỤC 'Nguồn Dẫn Chứng & Tham Khảo' hay bất kỳ danh sách liên kết nào ở cuối bài!\n"
+        "   - Hãy tiếp thu kiến thức và trả lời thẳng thắn, sâu sắc, mạch lạc, sạch đẹp như ChatGPT, Claude và Antigravity.\n"
+    )
+
     lines.append(
         "\n=== CHỈ DẪN TRẢ LỜI ĐẲNG CẤP CHUẨN SIÊU TRÍ TUỆ NHÂN TẠO (KINI AI) ===\n"
         "1. HIỂU BIẾT SÂU RỘNG & PHÂN TÍCH ĐA CHIỀU (CHUẨN ANTIGRAVITY, GPT, CLAUDE):\n"
@@ -471,10 +513,7 @@ def get_grounded_context(user_query: str) -> str:
         "2. ĐỘ CHÍNH XÁC TUYỆT ĐỐI (CẢ THÔNG TIN CŨ VÀ MỚI):\n"
         "   - Thông tin lịch sử, khoa học, định nghĩa học thuật (cũ) phải chuẩn xác 100% theo căn cứ Wikipedia / Bách khoa thư.\n"
         "   - Thông tin thời sự, công nghệ, giá cả, thời tiết (mới) phải chuẩn xác theo dữ liệu báo chí và Google năm 2026.\n"
-        "3. NGUYÊN TẮC ĐƯỜNG DẪN CHỨNG & LIÊN KẾT (TÙY NHU CẦU - KHÔNG CHÈN MÁY MÓC):\n"
-        "   - CHỈ đính kèm mục '### 🌐 Nguồn Dẫn Chứng & Tham Khảo' khi người dùng HỎI hoặc YÊU CẦU ĐƯỜNG DẪN/NGUỒN (ví dụ hỏi link video YouTube, link bài hát, link bài báo, link repo GitHub, hoặc tra cứu nguồn luật).\n"
-        "   - ĐỐI VỚI CÂU HỎI THÔNG THƯỜNG / GIẢI THÍCH / SUY LUẬN: TUYỆT ĐỐI KHÔNG tự ý chèn danh sách liên kết thừa thãi ở cuối bài nếu người dùng không yêu cầu. Hãy sử dụng thông tin tra cứu để trả lời thật sâu sắc, tinh tế, sạch đẹp như Antigravity.\n"
-        "   - NẾU trích dẫn đường link, TUYỆT ĐỐI CHỈ DÙNG các link thực tế trong danh sách trên, KHÔNG BỊA ĐẶT LINK ẢO."
+        f"{citation_instruction}"
     )
 
     return "\n".join(lines)

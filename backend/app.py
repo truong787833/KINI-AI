@@ -512,12 +512,16 @@ async def chat_with_kini(
                 if fake_l not in real_yt_links:
                     assistant_reply = assistant_reply.replace(fake_l, real_yt_links[0])
             
-            # Nếu AI chưa trích dẫn link YouTube thực tế nào, tự động bổ sung danh sách link chuẩn xác
-            if not any(rl in assistant_reply for rl in real_yt_links):
+            # Nếu AI chưa trích dẫn link YouTube thực tế nào, chỉ bổ sung nếu người dùng thực sự hỏi video/bài hát/link
+            wants_yt = any(k in message.lower() for k in ["youtube", "video", "bài hát", "clip", "nghe", "xem", "link", "nguồn"])
+            if wants_yt and not any(rl in assistant_reply for rl in real_yt_links):
                 yt_block = "\n\n### 🎬 Video / Bài Hát YouTube Chính Thức (Đã Xác Thực 100% Đang Hoạt Động):\n"
                 for ytl in real_yt_links[:3]:
                     yt_block += f"- 🔗 [Xem / Nghe trực tiếp trên YouTube]({ytl})\n"
                 assistant_reply += yt_block
+
+    # BỘ LỌC HẬU KIỂM: Loại bỏ triệt để mục Nguồn Dẫn Chứng & Tham Khảo nếu người dùng không yêu cầu
+    assistant_reply = search_engine.clean_unwanted_citations(assistant_reply, message)
 
     # KIỂM TRA NẾU GEMINI TỰ ĐỘNG PHÁT RA LỆNH GỌI CÔNG CỤ VẼ ẢNH (dalle.text2im)
     if "dalle.text2im" in assistant_reply or ('"action":' in assistant_reply and '"prompt"' in assistant_reply):
@@ -817,11 +821,16 @@ async def chat_with_kini_stream(
                         for fake_l in reply_yt_links:
                             if fake_l not in real_yt_links:
                                 final_text = final_text.replace(fake_l, real_yt_links[0])
-                        if not any(rl in final_text for rl in real_yt_links):
+                        wants_yt = any(k in message.lower() for k in ["youtube", "video", "bài hát", "clip", "nghe", "xem", "link", "nguồn"])
+                        if wants_yt and not any(rl in final_text for rl in real_yt_links):
                             yt_block = "\n\n### 🎬 Video / Bài Hát YouTube Chính Thức (Đã Xác Thực 100% Đang Hoạt Động):\n"
                             for ytl in real_yt_links[:3]:
-                                yt_block += f"- 🔗 [Xem / Nghe trực tiếp trên YouTube]({ytl})\n"
+                                ytl_str = f"- 🔗 [Xem / Nghe trực tiếp trên YouTube]({ytl})\n"
+                                yt_block += ytl_str
                             final_text += yt_block
+
+                # BỘ LỌC HẬU KIỂM: Loại bỏ triệt để mục Nguồn Dẫn Chứng & Tham Khảo nếu người dùng không yêu cầu
+                final_text = search_engine.clean_unwanted_citations(final_text, message)
 
                 # Lưu vào DB
                 database.add_message(conv_id, "assistant", final_text, client_id=cid)

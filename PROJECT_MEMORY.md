@@ -451,3 +451,23 @@
      - Streaming SSE qua `/api/chat/stream` trả về HTTP 200 OK, các chunk text truyền liên tục.
      - Thử nghiệm đọc link bài viết thực tế VnExpress: AI trích xuất và tóm tắt chuẩn xác các đề mục.
      - Cú pháp mã nguồn sạch, kiểm tra không có lỗi, Git commit đồng bộ an toàn.
+
+### Mốc Tối Ưu: Triệt Tiêu Hoàn Toàn Tình Trạng Chèn "Nguồn Dẫn Chứng" Máy Móc & Rác
+- **Yêu cầu & Phản ánh của anh Trường**: Hình ảnh chụp mục `🌐 Nguồn Dẫn Chứng & Tham Khảo` với các link không liên quan (Schedule Builder, Fotor, ME-QR, Playhop) và nhắc nhở: *"sao cứ mỗi lần hỏi là có nguồn? tùy lúc người dùng cần hoặc không chứ. phải lúc nào cũng nguồn đâu"*.
+- **Nguyên nhân cốt lõi**:
+  - Khi anh Trường ra lệnh hành động (ví dụ: *"tạo ngay cho tôi"*), hệ thống tìm kiếm web tự động bị kích hoạt nhầm trên từ khóa "tạo", kéo về 4 công cụ tạo ảnh, tạo QR, tạo lịch ngẫu nhiên từ DuckDuckGo.
+  - Mô hình AI khi thấy dữ liệu tra cứu kèm theo đã máy móc xuất khối `### 🌐 Nguồn Dẫn Chứng & Tham Khảo` ở cuối câu trả lời.
+- **Giải pháp 3 Lớp Bảo Vệ Toàn Diện Đã Thực Hiện**:
+  1. **Lớp Nhận Diện Nhu Cầu Chuẩn Xác (`user_explicitly_wants_sources`)**:
+     - Trong `backend/search_engine.py`: Chỉ coi là cần nguồn khi câu hỏi chứa từ khóa rõ ràng: *"cho tôi link", "tìm link", "xin link", "link bài", "nguồn ở đâu", "ở đâu nói", "trích dẫn nguồn", "link youtube", "link github"...*.
+     - Mọi câu hỏi thông thường, trò chuyện, lập luận, tạo thư mục, làm việc với file: Mặc định 100% KHÔNG BAO GIỜ xuất nguồn.
+  2. **Lớp Định Hướng Prompt Chặt Chẽ**:
+     - Cập nhật cả `gemini_client.py` và `search_engine.py`: Nếu người dùng không hỏi nguồn, AI nhận chỉ thị nghiêm ngặt: *"TUYỆT ĐỐI KHÔNG XUẤT MỤC Nguồn Dẫn Chứng & Tham Khảo hay bất kỳ danh sách liên kết nào ở cuối bài. Chỉ tiếp thu kiến thức và trả lời thẳng thắn, sâu sắc, tinh tế, sạch đẹp như ChatGPT, Claude và Antigravity."*
+  3. **Lớp Bộ Lọc Hậu Kiểm Bắt Buộc Ở Backend (`clean_unwanted_citations`)**:
+     - Triển khai hàm lọc regex chuẩn xác tại `backend/search_engine.py` và áp dụng vào cả luồng thường `/api/chat` lẫn luồng streaming `/api/chat/stream`.
+     - Nếu người dùng không yêu cầu nguồn, dù AI có lỡ sinh ra khối `🌐 Nguồn Dẫn Chứng & Tham Khảo`, Backend sẽ tự động cắt bỏ sạch sẽ 100% trước khi lưu database và gửi đến giao diện người dùng.
+  4. **Dọn Dẹp Dữ Liệu Lịch Sử**:
+     - Đã làm sạch các tin nhắn cũ bị dính khối nguồn rác (Message ID 311, 313) trong `kini_ai.db`.
+  5. **Kiểm Tra Thực Tế**:
+     - Câu hỏi giải thích thông thường: Trả lời tự nhiên, sâu sắc, hoàn toàn sạch bóng nguồn rác (`Co nguon khong: False`).
+     - Câu hỏi yêu cầu link YouTube/nguồn cụ thể: Cung cấp chính xác link thực tế đã xác thực (`Co link/nguon khong: True`).
