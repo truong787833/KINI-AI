@@ -380,15 +380,17 @@ async def chat_with_kini(
             }
 
     # 4. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
-    # Tra cứu Internet trực tuyến nếu câu hỏi liên quan đến luật pháp, thời sự, năm 2025-2026, thông tin mới
+    # Tra cứu Internet trực tuyến nếu câu hỏi liên quan đến báo chí, tin tức, thời sự, năm 2026, luật pháp, thông tin mới
     live_search_text = ""
-    if search_engine.needs_live_search(message):
+    search_target = message if message.strip() else full_user_content
+    if search_engine.needs_live_search(search_target):
         try:
-            grounded_data = search_engine.get_grounded_context(message)
+            grounded_data = search_engine.get_grounded_context(search_target)
             if grounded_data:
                 live_search_text = f"\n\n{grounded_data}"
+                print(f"[*] Đã nạp {len(grounded_data)} ký tự dữ liệu báo chí/Google News/tra cứu thời gian thực cho: {search_target[:60]}")
         except Exception as e:
-            pass
+            print(f"[!] Lỗi tra cứu thời gian thực: {e}")
 
     past_msgs = database.get_conversation_messages(conv_id)[-12:]
     formatted_history = []

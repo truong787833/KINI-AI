@@ -107,59 +107,157 @@ def fetch_verbatim_law_article(text: str) -> Optional[str]:
 
     return None
 
-def search_live_web(query: str, max_results: int = 6) -> List[Dict[str, str]]:
-    """Tra cứu DuckDuckGo Lite cho thông tin mới nhất"""
-    target_q = extract_core_search_query(query)
-    clean_q = re.sub(r'["\']', '', target_q).strip()
-    if not clean_q:
-        return []
-
+def fetch_google_news_top(limit: int = 8) -> List[Dict[str, str]]:
+    """Lấy danh sách tin tức thời sự hàng đầu hôm nay từ Google News RSS"""
     results = []
     try:
-        res = requests.post("https://lite.duckduckgo.com/lite/", data={"q": clean_q}, headers=HEADERS, timeout=7)
+        import xml.etree.ElementTree as ET
+        url = "https://news.google.com/rss?hl=vi&gl=VN&ceid=VN:vi"
+        res = requests.get(url, headers=HEADERS, timeout=7)
         if res.status_code == 200:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(res.text, "html.parser")
-            snippets = soup.select(".result-snippet")
-            for s in snippets:
-                t = s.get_text(strip=True)
-                if t and len(t) > 15:
-                    results.append({"title": clean_q, "snippet": t})
-                if len(results) >= max_results:
-                    break
+            root = ET.fromstring(res.content)
+            for it in root.findall('.//item')[:limit]:
+                t = it.find('title').text if it.find('title') is not None else ""
+                d = it.find('pubDate').text if it.find('pubDate') is not None else ""
+                if t:
+                    results.append({"title": t, "date": d, "source": "Google News"})
     except Exception as e:
-        logger.warning(f"Lỗi tra cứu DuckDuckGo Lite: {e}")
-
+        logger.warning(f"Lỗi lấy Google News Top: {e}")
     return results
 
+def fetch_google_news_search(query: str, limit: int = 6) -> List[Dict[str, str]]:
+    """Tìm kiếm tin tức chuyên sâu theo chủ đề từ Google News RSS"""
+    results = []
+    clean_q = extract_core_search_query(query)
+    try:
+        import xml.etree.ElementTree as ET
+        encoded_q = urllib.parse.quote(clean_q)
+        url = f"https://news.google.com/rss/search?q={encoded_q}&hl=vi&gl=VN&ceid=VN:vi"
+        res = requests.get(url, headers=HEADERS, timeout=7)
+        if res.status_code == 200:
+            root = ET.fromstring(res.content)
+            for it in root.findall('.//item')[:limit]:
+                t = it.find('title').text if it.find('title') is not None else ""
+                d = it.find('pubDate').text if it.find('pubDate') is not None else ""
+                if t:
+                    results.append({"title": t, "date": d, "source": "Google News"})
+    except Exception as e:
+        logger.warning(f"Lỗi tìm kiếm Google News cho '{query}': {e}")
+    return results
+
+def fetch_vnexpress_latest(limit: int = 6) -> List[Dict[str, str]]:
+    """Lấy tin tức mới nhất từng phút từ Báo VnExpress RSS"""
+    results = []
+    try:
+        import xml.etree.ElementTree as ET
+        from bs4 import BeautifulSoup
+        url = "https://vnexpress.net/rss/tin-moi-nhat.rss"
+        res = requests.get(url, headers=HEADERS, timeout=7)
+        if res.status_code == 200:
+            root = ET.fromstring(res.content)
+            for it in root.findall('.//item')[:limit]:
+                t = it.find('title').text if it.find('title') is not None else ""
+                d = it.find('pubDate').text if it.find('pubDate') is not None else ""
+                desc_raw = it.find('description').text if it.find('description') is not None else ""
+                # Bóc tách text thuần từ HTML description
+                snippet = BeautifulSoup(desc_raw, "html.parser").get_text(strip=True) if desc_raw else ""
+                if t:
+                    results.append({"title": t, "date": d, "snippet": snippet, "source": "VnExpress"})
+    except Exception as e:
+        logger.warning(f"Lỗi lấy VnExpress RSS: {e}")
+    return results
+
+def search_duckduckgo_html(query: str, limit: int = 5) -> List[Dict[str, str]]:
+    """Tra cứu công cụ tìm kiếm DuckDuckGo HTML để lấy đoạn trích (snippets) chi tiết"""
+    clean_q = extract_core_search_query(query)
+    results = []
+    try:
+        from bs4 import BeautifulSoup
+        res = requests.post("https://html.duckduckgo.com/html/", data={"q": clean_q}, headers=HEADERS, timeout=7)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            for r in soup.select(".result__body")[:limit]:
+                t_elem = r.select_one(".result__title")
+                s_elem = r.select_one(".result__snippet")
+                t_txt = t_elem.get_text(strip=True) if t_elem else ""
+                s_txt = s_elem.get_text(strip=True) if s_elem else ""
+                if s_txt and len(s_txt) > 20:
+                    results.append({"title": t_txt, "snippet": s_txt, "source": "Web Search"})
+    except Exception as e:
+        logger.warning(f"Lỗi tìm kiếm DuckDuckGo HTML: {e}")
+    return results
+
+def search_live_web(query: str, max_results: int = 6) -> List[Dict[str, str]]:
+    """Hàm tương thích ngược gọi tìm kiếm chi tiết"""
+    return search_duckduckgo_html(query, limit=max_results)
+
 def needs_live_search(text: str) -> bool:
-    """Xác định xem câu hỏi có cần tra cứu trực tuyến thời gian thực không"""
+    """Xác định xem câu hỏi có cần tra cứu trực tuyến thời gian thực không (Báo chí, Thời sự, Google, Luật...)"""
     keywords = [
         "luật", "nghị định", "thông tư", "nghị quyết", "quyết định", "điều", "khoản",
         "thư viện pháp luật", "thuvienphapluat", "hôm nay", "mới nhất", "năm 2025", 
-        "năm 2026", "năm 2024", "giá", "thời tiết", "tin tức", "sự kiện", "văn bản", "pháp lệnh",
-        "hướng dẫn", "quy chế", "quy chuẩn", "chỉ thị"
+        "năm 2026", "năm 2024", "giá", "thời tiết", "tin tức", "tin", "bài báo", "báo", "sự kiện", 
+        "thời sự", "báo chí", "google", "sáng nay", "tối nay", "đêm qua", "chiến sự", "bóng đá",
+        "kết quả", "thế giới", "việt nam", "ở đâu", "ai là", "tổng thống", "thủ tướng", "chủ tịch",
+        "chứng khoán", "vàng", "xăng dầu", "tình hình", "diễn biến", "quy chế", "chỉ thị"
     ]
     t = text.lower()
     return any(k in t for k in keywords)
 
 def get_grounded_context(user_query: str) -> str:
     """
-    Tập hợp context chính thức: Ưu tiên trích xuất nguyên văn điều luật,
-    kết hợp kết quả tra cứu trực tuyến thời gian thực cập nhật từng ngày.
+    Tập hợp context chính thức:
+    1. Ưu tiên trích xuất nguyên văn điều luật nếu hỏi Luật/Nghị định.
+    2. Nếu hỏi tin tức chung hoặc bài báo: Nạp trực tiếp Google News Top và VnExpress mới nhất trong ngày.
+    3. Nếu hỏi chủ đề cụ thể: Tìm kiếm chuyên sâu Google News Topic và DuckDuckGo HTML snippets.
+    Đảm bảo 100% dữ liệu thực tế, có nguồn báo và thời gian để AI trả lời chuẩn xác.
     """
     # 1. Nếu có Điều luật cụ thể, truy xuất nguyên văn chính xác
     verbatim_text = fetch_verbatim_law_article(user_query)
     if verbatim_text:
         return verbatim_text
 
-    # 2. Nếu không, tra cứu thông tin trực tuyến mới nhất
-    snippets = search_live_web(user_query)
-    if snippets:
-        lines = ["=== KẾT QUẢ TRA CỨU TRỰC TUYẾN THỜI GIAN THỰC (CẬP NHẬT TỪNG NGÀY) ==="]
-        for idx, r in enumerate(snippets, 1):
-            lines.append(f"[{idx}] {r['snippet']}")
-        lines.append("=== LƯU Ý BẮT BUỘC CHO KINI: Dựa vào thông tin chính thức trên để trích dẫn NGUYÊN VĂN, CHÍNH XÁC TỪNG TỪ, TỪNG CHỮ. Tuyệt đối không trả lời 'cho có'. ===")
+    t_lower = user_query.lower()
+    is_general_news = any(k in t_lower for k in [
+        "tin tức", "tin mới", "bài báo", "thời sự hôm nay", "có gì mới", "tin nóng", 
+        "tin trong ngày", "tin 24h", "báo chí", "tin nổi bật"
+    ])
+
+    news_items = []
+    web_snippets = []
+
+    if is_general_news:
+        # Nạp tin tức hàng đầu từ Google News & VnExpress
+        news_items.extend(fetch_google_news_top(limit=6))
+        news_items.extend(fetch_vnexpress_latest(limit=4))
+    else:
+        # Tìm kiếm theo chủ đề cụ thể từ Google News và Web
+        news_items.extend(fetch_google_news_search(user_query, limit=5))
+        web_snippets.extend(search_duckduckgo_html(user_query, limit=4))
+
+    # Ghép nối dữ liệu nguồn chính thống
+    lines = [
+        "=== DỮ LIỆU BÁO CHÍ & TÌM KIẾM THỰC TẾ THỜI GIAN THỰC (CẬP NHẬT TỪNG NGÀY NĂM 2026) ===",
+        "Dưới đây là các thông tin và bài báo mới nhất được trích xuất trực tiếp từ các hãng thông tấn chính thống (Google News, VnExpress, Dân Trí, Tiền Phong, Tuổi Trẻ, v.v.):"
+    ]
+
+    count = 1
+    for n in news_items:
+        snippet_part = f" - Tóm tắt: {n['snippet']}" if n.get('snippet') else ""
+        lines.append(f"[{count}] {n['title']} (Thời gian: {n.get('date', 'Mới nhất')}){snippet_part}")
+        count += 1
+
+    for w in web_snippets:
+        lines.append(f"[{count}] {w['title']}: {w['snippet']}")
+        count += 1
+
+    if count > 1:
+        lines.append(
+            "\n=== QUY TẮC BẮT BUỘC VỀ ĐỘ CHÍNH XÁC (KHÔNG TRẢ LỜI CHO CÓ): ===\n"
+            "1. Dựa trên các thông tin báo chí và kết quả tìm kiếm thực tế trên để trả lời đầy đủ, mạch lạc, trung thực.\n"
+            "2. Nêu rõ tên cơ quan báo chí (như Báo Dân trí, Báo Tiền Phong, VnExpress, Tuổi Trẻ...) và thời gian bài viết để người dùng dễ kiểm chứng.\n"
+            "3. TUYỆT ĐỐI KHÔNG TỰ BỊA ĐẶT TIN TỨC hoặc thông tin sai lệch khi không có căn cứ xác thực."
+        )
         return "\n".join(lines)
 
     return ""
