@@ -727,3 +727,27 @@
   4. **Tối ưu Hóa Giãn Cách Pollinations (`backend/image_generator.py`)**:
      - Tăng ngưỡng chờ tự động từ 10s lên 45s (`wait_sec <= 45`) để vượt qua giới hạn rate limit miễn phí (1 ảnh / 45s) mà không bị ngắt giữa chừng.
 
+### Mốc Nâng Cấp: Hệ Thống Vibe Coding Studio & Tích Hợp Live Runner Toàn Diện (2026-11-23)
+- **Yêu cầu của anh Trường**:
+  - *"KINI AI có chương trình vide coding không?. Thêm vào và nâng cấp cho tôi"* (nhận diện "vide coding" là thuật ngữ công nghệ toàn cầu **Vibe Coding** - Lập trình bằng ý tưởng không cần gõ code, đồng thời hỗ trợ cả Video/Canvas Animation Coding).
+- **Các giải pháp kỹ thuật đã triển khai thực tế 100%**:
+  1. **Nút Tab & Lối Tắt Vibe Coding Trên Thanh Điều Hướng Header (`static/index.html`)**:
+     - Bổ sung nút bấm `[✨ Vibe Coding]` ngay trên thanh chế độ View Mode Toggle cạnh `[💬 Chat]`, `[🎨 Tạo Ảnh AI]` và `[⚡ Studio IDE]`.
+     - Bổ sung Action Chip `[✨ Vibe Coding]` phát sáng gradient nổi bật ngay dưới ô nhập chat.
+     - Thêm lệnh nhanh `/vibe` trong menu Slash Commands Popup (`/`).
+  2. **Xây Dựng KINI Vibe Coding Studio Hub Modal (`modal-vibe-coding` & `static/vibe_templates.js`)**:
+     - Kho ứng dụng và game mini mẫu chạy thử 1 chạm (1-Click Run & Play):
+       + 🍬 **Quản Lý Đơn Kẹo ChipChip Mây & Gạo**: Tự động tính lạng sang kg, nhân giá tiền, tổng doanh thu chuẩn xác và in đơn hóa đơn.
+       + 🐥 **Flappy Bird Cute Edition**: Game chim bay physics mượt mà 60fps, âm thanh tổng hợp Web Audio API (nhảy, ăn điểm, game over).
+       + 🐍 **Cyberpunk Neon Snake 3D**: Rắn săn mồi phong cách neon phát sáng, âm thanh retro 8-bit.
+       + 🚀 **Bắn Ruồi Vũ Trụ (Space Defender)**: Chiến hạm bắn laser, né thiên thạch, nổ hạt pháo hoa.
+       + ⏳ **Pomodoro Focus & Lofi Ambience**: Đồng hồ bấm giờ năng suất làm việc.
+       + 🌌 **Bão Hạt Vũ Trụ 3D (Particle Motion Animation)**: Hiệu ứng hoạt họa hạt 3D cực mượt phản hồi theo chuột, phục vụ cả nhu cầu Video Coding / Canvas Animation.
+     - Ô tạo nhanh ứng dụng từ ý tưởng bất kỳ: Nhập ý tưởng và bấm `[⚡ Tạo Bằng Vibe AI]`.
+  3. **Tích Hợp Live Runner Trực Tiếp Trên Khối Mã Chat (`static/app.js`)**:
+     - Trên mọi khối mã HTML/JS sinh ra trong khung chat: Tự động hiển thị nút nổi bật **`✨ Vibe Runner (Live)`** và nút **`⬇️ Tải HTML`** để anh Trường tải file về máy và mở dùng vĩnh viễn trên trình duyệt không cần cài đặt.
+     - Nút `⬇️ Tải HTML` trên thanh công cụ của Live Web & Game Runner trong Studio Preview.
+  4. **Cải Tiến System Prompt Vibe Coding (`backend/gemini_client.py`)**:
+     - Huấn luyện KINI AI thành Siêu Trợ Lý Vibe Coding: Khi nhận lệnh `/vibe` hoặc yêu cầu làm app/game/tool, KINI AI luôn xuất mã nguồn HTML5/CSS3/JS độc lập 100%, không viết dở dang, tích hợp sẵn hiệu ứng âm thanh Web Audio API (không phụ thuộc file âm thanh ngoài).
+
+

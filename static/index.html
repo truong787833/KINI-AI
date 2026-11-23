@@ -130,8 +130,11 @@
                         <button class="btn-mode-tab" id="btn-mode-art" title="KINI Art Studio - Xưởng Sáng Tạo Ảnh & Logo AI">
                             <span>🎨</span> <span>Tạo Ảnh AI</span>
                         </button>
+                        <button class="btn-mode-tab btn-mode-vibe-tab" id="btn-mode-vibe" title="KINI Vibe Coding - Tạo App & Game Tức Thì Bằng Lời Nói">
+                            <span>✨</span> <span>Vibe Coding</span>
+                        </button>
                         <button class="btn-mode-tab" id="btn-mode-ide" title="Chế độ Antigravity Studio (Workspace + Code + Chat song song)">
-                            <span>⚡</span> <span>Antigravity Studio</span>
+                            <span>⚡</span> <span>Studio IDE</span>
                         </button>
                     </div>
                     <button class="btn-nav-action" id="btn-top-new-chat" title="Bắt đầu hội thoại mới">
@@ -274,6 +277,7 @@
                                     <span class="preview-title" id="ide-preview-title">🎮 Live Web App & Game Runner</span>
                                 </div>
                                 <div class="ide-preview-actions">
+                                    <button class="ide-action-btn primary" id="btn-preview-download" title="Tải file HTML về máy để mở dùng trực tiếp">⬇️ Tải HTML</button>
                                     <button class="ide-action-btn" id="btn-preview-reload" title="Chạy lại ứng dụng">▶️ Chạy lại</button>
                                     <button class="ide-action-btn" id="btn-preview-fullscreen" title="Toàn màn hình">⛶ Toàn màn hình</button>
                                     <button class="ide-action-btn" id="btn-preview-newtab" title="Mở trong tab trình duyệt mới">🔗 Mở tab mới</button>
@@ -371,7 +375,11 @@
                 <!-- Slash Command Popup Menu (/) -->
                 <div class="slash-command-menu" id="slash-command-menu" style="display: none;">
                     <div class="slash-menu-header">⚡ LỆNH NHANH (SLASH COMMANDS)</div>
-                    <div class="slash-item active" data-cmd="/game" data-desc="Lập trình Game tương tác (Snake, Flappy, Pong...)">
+                    <div class="slash-item active" data-cmd="/vibe" data-desc="✨ Vibe Coding - Tạo ngay Web App, Game từ ý tưởng và chạy trực tiếp">
+                        <span class="slash-cmd-badge">/vibe</span>
+                        <span class="slash-cmd-desc">✨ Vibe Coding - Tạo ngay Web App, Game từ ý tưởng</span>
+                    </div>
+                    <div class="slash-item" data-cmd="/game" data-desc="Lập trình Game tương tác (Snake, Flappy, Pong...)">
                         <span class="slash-cmd-badge">/game</span>
                         <span class="slash-cmd-desc">🎮 Lập trình Game tương tác (Snake, Flappy, Pong...)</span>
                     </div>
@@ -556,6 +564,9 @@
                 <div class="quick-pills-bar" id="quick-pills-bar">
                     <button class="quick-pill" data-action="chat">
                         <span>💬</span> Cuộc trò chuyện
+                    </button>
+                    <button class="quick-pill vibe-glow" data-action="vibe">
+                        <span>✨</span> Vibe Coding
                     </button>
                     <button class="quick-pill" data-action="game">
                         <span>🎮</span> Chơi Game
@@ -1021,7 +1032,59 @@
         </div>
     </div>
 
+    <!-- ============================================================
+         MODAL: KINI VIBE CODING STUDIO HUB
+         ============================================================ -->
+    <div class="modal" id="modal-vibe-coding" style="display: none;">
+        <div class="modal-dialog modal-xl vibe-coding-dialog">
+            <div class="modal-header">
+                <div class="vibe-modal-title-wrap">
+                    <span class="vibe-sparkle-icon">✨</span>
+                    <div>
+                        <h3 class="modal-title">KINI Vibe Coding Studio</h3>
+                        <p class="modal-subtitle">Tạo Ứng Dụng, Web App & Game Mini Tức Thì Chỉ Bằng Lời Nói (Live Runner)</p>
+                    </div>
+                </div>
+                <button class="modal-close" data-close="modal-vibe-coding">&times;</button>
+            </div>
+            <div class="modal-body vibe-coding-body">
+                <!-- Thanh Nhập Ý Tưởng Vibe Nhanh -->
+                <div class="vibe-prompt-creator-box">
+                    <div class="vibe-creator-title">💡 Bạn muốn tạo ứng dụng hay game gì hôm nay?</div>
+                    <div class="vibe-input-wrap">
+                        <input type="text" id="vibe-custom-prompt" class="form-input vibe-custom-input" placeholder="Ví dụ: Tạo cho tôi game bắn gà không gian, hoặc Web tính tiền đơn hàng chip chip...">
+                        <button class="btn btn-primary btn-vibe-generate" onclick="window.startVibeFromInput()">
+                            <span>⚡</span> Tạo Bằng Vibe AI
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Thanh Phân Loại Danh Mục Mẫu -->
+                <div class="vibe-tabs-bar">
+                    <button class="vibe-tab active" onclick="renderVibeTemplateCards('all'); this.parentElement.querySelectorAll('.vibe-tab').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+                        🌟 Tất Cả Mẫu Vibe
+                    </button>
+                    <button class="vibe-tab" onclick="renderVibeTemplateCards('app'); this.parentElement.querySelectorAll('.vibe-tab').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+                        📱 Web Apps & Quản Lý
+                    </button>
+                    <button class="vibe-tab" onclick="renderVibeTemplateCards('game'); this.parentElement.querySelectorAll('.vibe-tab').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+                        🎮 Arcade Mini Games
+                    </button>
+                    <button class="vibe-tab" onclick="renderVibeTemplateCards('video'); this.parentElement.querySelectorAll('.vibe-tab').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+                        🌌 Video & Canvas Animation
+                    </button>
+                </div>
+
+                <!-- Lưới Hiển Thị Các Mẫu Vibe -->
+                <div class="vibe-templates-grid" id="vibe-templates-grid">
+                    <!-- Render động từ vibe_templates.js -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/chart.min.js"></script>
-    <script src="/static/app.js?v=20261122_2007"></script>
+    <script src="/static/vibe_templates.js"></script>
+    <script src="/static/app.js?v=20261123_1700"></script>
 </body>
 </html>

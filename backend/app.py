@@ -291,7 +291,7 @@ async def chat_with_kini(
     try:
         past_msgs = database.get_conversation_messages(conv_id)
         if len(past_msgs) <= 2:
-            clean_title = re.sub(r'^/(agent|plan)\s*', '', message.strip(), flags=re.IGNORECASE)
+            clean_title = re.sub(r'^/(agent|plan|vibe)\s*', '', message.strip(), flags=re.IGNORECASE)
             if clean_title:
                 short_title = clean_title[:38] + ("..." if len(clean_title) > 38 else "")
                 database.update_conversation_title(conv_id, short_title)

@@ -169,6 +169,11 @@ function initNavigationAndModals() {
 
     // Antigravity IDE Mode vs Chat Mode Switcher
     document.getElementById("btn-mode-chat")?.addEventListener("click", () => switchViewMode("chat"));
+    document.getElementById("btn-mode-vibe")?.addEventListener("click", () => {
+        if (typeof window.openVibeCodingModal === "function") {
+            window.openVibeCodingModal();
+        }
+    });
     document.getElementById("btn-mode-ide")?.addEventListener("click", () => switchViewMode("ide"));
     document.getElementById("btn-sidebar-studio-btn")?.addEventListener("click", () => {
         closeSidebar();
@@ -194,7 +199,11 @@ function initNavigationAndModals() {
         pill.addEventListener("click", () => {
             const action = pill.dataset.action;
             const input = document.getElementById("main-user-input");
-            if (action === "game") {
+            if (action === "vibe") {
+                if (typeof window.openVibeCodingModal === "function") {
+                    window.openVibeCodingModal();
+                }
+            } else if (action === "game") {
                 input.value = "Lập trình một tựa game mini chơi trực tiếp trên web với đồ họa đẹp mắt và âm thanh sống động";
                 input.focus();
             } else if (action === "draw") {
@@ -2127,6 +2136,23 @@ function escapeAttr(text) {
 
 window.__KINI_ARTIFACTS = window.__KINI_ARTIFACTS || {};
 
+window.downloadArtifactHtml = function(artifactId) {
+    if (!window.__KINI_ARTIFACTS || !window.__KINI_ARTIFACTS[artifactId]) return;
+    const item = window.__KINI_ARTIFACTS[artifactId];
+    let content = item.code;
+    let filename = (item.lang === "js" ? "vibe_script.js" : "vibe_app.html");
+    const blob = new Blob([content], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (typeof showToast === "function") showToast("⬇️ Đã tải mã nguồn Vibe App về máy!");
+};
+
 window.launchArtifactRunner = function(artifactIdOrBtn) {
     let code = "";
     let lang = "html";
@@ -2326,7 +2352,8 @@ function formatMarkdown(text) {
                 const isRunnerCandidate = (lang && ['html', 'htm', 'xml', 'js', 'javascript', 'canvas'].includes(lang.toLowerCase())) ||
                                           code.includes('<canvas') || code.includes('<!DOCTYPE') || code.includes('<html');
                 const isPythonCandidate = (lang && ['python', 'py'].includes(lang.toLowerCase()));
-                const runnerBtn = isRunnerCandidate ? `<button class="btn-run-artifact" onclick="launchArtifactRunner('${artifactId}')" title="Mở trực tiếp trên Web Preview & Game Runner">🎮 Mở Web/Game Runner</button>` : "";
+                const runnerBtn = isRunnerCandidate ? `<button class="btn-run-artifact" onclick="launchArtifactRunner('${artifactId}')" title="Mở trực tiếp trên Web Preview & Game Runner">✨ Vibe Runner (Live)</button>` : "";
+                const downloadBtn = isRunnerCandidate ? `<button class="btn-download-html" onclick="downloadArtifactHtml('${artifactId}')" title="Tải file HTML về máy dùng trực tiếp">⬇️ Tải HTML</button>` : "";
                 const pythonBtn = isPythonCandidate ? `<button class="btn-run-code" onclick="executePythonSnippet(this, '${artifactId}')" title="Chạy mã Python và phân tích dữ liệu trực tiếp">▶️ Chạy mã</button>` : "";
 
                 return `<div class="code-block-wrapper">
@@ -2334,6 +2361,7 @@ function formatMarkdown(text) {
                         ${langLabel}
                         <div style="display:flex;align-items:center;">
                             ${pythonBtn}
+                            ${downloadBtn}
                             ${runnerBtn}
                             <button class="btn-copy-code" onclick="copyCodeBlock(this, \`${escapeAttr(codeText)}\`)" title="Sao chép code">📋 Sao chép</button>
                         </div>
@@ -2357,13 +2385,15 @@ function formatMarkdown(text) {
         const isRunnerCandidate = (lang && ['html', 'htm', 'xml', 'js', 'javascript', 'canvas'].includes(lang.toLowerCase())) ||
                                   code.includes('<canvas') || code.includes('<!DOCTYPE') || code.includes('<html');
         const isPythonCandidate = (lang && ['python', 'py'].includes(lang.toLowerCase()));
-        const runnerBtn = isRunnerCandidate ? `<button class="btn-run-artifact" onclick="launchArtifactRunner('${artifactId}')" title="Mở trực tiếp trên Web Preview & Game Runner">🎮 Mở Web/Game Runner</button>` : "";
+        const runnerBtn = isRunnerCandidate ? `<button class="btn-run-artifact" onclick="launchArtifactRunner('${artifactId}')" title="Mở trực tiếp trên Web Preview & Game Runner">✨ Vibe Runner (Live)</button>` : "";
+        const downloadBtn = isRunnerCandidate ? `<button class="btn-download-html" onclick="downloadArtifactHtml('${artifactId}')" title="Tải file HTML về máy dùng trực tiếp">⬇️ Tải HTML</button>` : "";
         const pythonBtn = isPythonCandidate ? `<button class="btn-run-code" onclick="executePythonSnippet(this, '${artifactId}')" title="Chạy mã Python và phân tích dữ liệu trực tiếp">▶️ Chạy mã</button>` : "";
         return `<div class="code-block-wrapper">
             <div class="code-block-header">
                 <span class="code-lang-label">${lang || ''}</span>
                 <div style="display:flex;align-items:center;">
                     ${pythonBtn}
+                    ${downloadBtn}
                     ${runnerBtn}
                     <button class="btn-copy-code" onclick="copyCodeBlock(this, \`${escapeAttr(code.trim())}\`)">📋 Sao chép</button>
                 </div>
@@ -3300,6 +3330,26 @@ function setupIdeEventListeners() {
     document.getElementById("ide-mode-data")?.addEventListener("click", () => switchIdeEditorTab("data"));
 
     // Các nút thao tác Web & Game Runner Preview Toolbar
+    document.getElementById("btn-preview-download")?.addEventListener("click", () => {
+        const frame = document.getElementById("ide-preview-frame");
+        let content = frame?.srcdoc || (window.ideEditor ? window.ideEditor.getValue() : "");
+        if (!content) {
+            if (typeof showToast === "function") showToast("⚠️ Chưa có mã nguồn ứng dụng để tải về.");
+            return;
+        }
+        const blob = new Blob([content], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const tabName = document.getElementById("ide-tab-name")?.textContent || "vibe_app.html";
+        a.download = tabName.endsWith(".html") ? tabName : (tabName + ".html");
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (typeof showToast === "function") showToast("⬇️ Đã tải file ứng dụng HTML về máy!");
+    });
+
     document.getElementById("btn-preview-reload")?.addEventListener("click", () => {
         const frame = document.getElementById("ide-preview-frame");
         if (!frame) return;
