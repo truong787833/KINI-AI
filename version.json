@@ -1,10 +1,17 @@
 {
-  "version": "4.2.0",
-  "build_number": 440,
-  "release_date": "2026-11-21",
+  "version": "4.3.0",
+  "build_number": 430,
+  "release_date": "2026-11-23",
   "channel": "stable",
-  "app_name": "KINI AI",
-  "latest_version": "4.2.0",
+  "app_name": "KINI AI Desktop",
+  "latest_version": "4.3.0",
+  "latest_build": 430,
   "has_update": false,
-  "changelog": []
+  "update_url": "",
+  "changelog": [
+    "Đóng gói Native Desktop EXE cho KINI AI (Windows App Mode)",
+    "Hệ thống cập nhật OTA Siêu Tốc (Lightweight Over-The-Air Update)",
+    "Nạp gói OTA .zip trực tiếp 1-chạm từ giao diện cài đặt",
+    "Cơ chế Chống Lặp Cập Nhật (Anti-loop) & Chống Phình Bộ Nhớ (Anti-bloat)"
+  ]
 }

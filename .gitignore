@@ -13,3 +13,7 @@ active_online_url.txt
 workspace/.sandbox/
 generated_audio/*
 *.mp3
+dist_ota/
+build_temp/
+*.exe
+!static/app_icon.ico

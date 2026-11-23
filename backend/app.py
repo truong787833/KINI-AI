@@ -27,6 +27,7 @@ from . import search_engine
 from . import agent_engine
 from . import math_verifier
 from . import image_editor
+from . import ota_updater
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -103,79 +104,100 @@ def rename_conversation(conv_id: str, data: dict):
     return {"success": True, "title": title}
 
 # ============================================================
-# HỆ THỐNG PHIÊN BẢN & CẬP NHẬT OTA (CHUẨN GOOGLE ANTIGRAVITY)
+# HỆ THỐNG PHIÊN BẢN & CẬP NHẬT OTA SIÊU TỐC (GOOGLE ANTIGRAVITY)
+# Tuân thủ: Chống lặp cập nhật 100% & Chống phình bộ nhớ
 # ============================================================
-VERSION_FILE = os.path.join(BASE_DIR, "version.json")
-
-def load_version_info() -> dict:
-    if os.path.exists(VERSION_FILE):
-        try:
-            with open(VERSION_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {
-        "version": "4.1.0",
-        "build_number": 410,
-        "release_date": "2026-11-21",
-        "channel": "stable",
-        "app_name": "KINI AI",
-        "latest_version": "4.2.0",
-        "has_update": True,
-        "changelog": []
-    }
-
-def save_version_info(data: dict):
-    try:
-        with open(VERSION_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Error saving version: {e}")
-
 @app.get("/api/system/version")
 def get_system_version():
-    return load_version_info()
+    return ota_updater.get_local_version()
 
 @app.post("/api/system/check-update")
-def check_for_updates():
-    info = load_version_info()
-    return {
-        "has_update": info.get("has_update", False),
-        "current_version": info.get("version", "4.1.0"),
-        "latest_version": info.get("latest_version", "4.2.0"),
-        "changelog": info.get("changelog", [])
-    }
+@app.post("/api/system/check-ota")
+def check_for_updates(data: dict = {}):
+    remote_url = data.get("remote_url")
+    return ota_updater.check_for_updates(remote_url=remote_url)
 
 @app.post("/api/system/apply-update")
-def apply_system_update():
-    info = load_version_info()
-    new_ver = info.get("latest_version", "4.2.0")
-    old_ver = info.get("version", "4.1.0")
+@app.post("/api/system/apply-ota")
+def apply_system_update(data: dict = {}):
+    # Tìm file zip OTA cục bộ nếu có
+    target_zip = data.get("zip_path")
+    if not target_zip:
+        default_ota_path = os.path.join(BASE_DIR, "latest_ota_package.zip")
+        alt_ota_path = os.path.join(BASE_DIR, "dist_ota", "latest_ota_package.zip")
+        if os.path.exists(default_ota_path):
+            target_zip = default_ota_path
+        elif os.path.exists(alt_ota_path):
+            target_zip = alt_ota_path
+
+    if target_zip and os.path.exists(target_zip):
+        success, message, new_info = ota_updater.apply_ota_zip(target_zip)
+        return {
+            "success": success,
+            "message": message,
+            "new_version": new_info.get("version"),
+            "build_number": new_info.get("build_number")
+        }
+    
+    # Fallback cập nhật cấu hình nếu không có file zip
+    info = ota_updater.get_local_version()
+    new_ver = info.get("latest_version", info.get("version", "4.3.0"))
+    old_ver = info.get("version", "4.3.0")
     info["version"] = new_ver
     info["has_update"] = False
-    info["build_number"] = info.get("build_number", 410) + 10
-    save_version_info(info)
+    info["build_number"] = info.get("build_number", 430) + 10
+    info["latest_build"] = info["build_number"]
+    ota_updater.save_local_version(info)
     return {
         "success": True,
         "old_version": old_ver,
         "new_version": new_ver,
+        "build_number": info["build_number"],
         "message": f"Đã cập nhật KINI AI lên phiên bản {new_ver} thành công!"
     }
 
+@app.post("/api/system/upload-ota")
+async def upload_ota_package(file: UploadFile = File(...)):
+    """Tải lên trực tiếp gói cập nhật OTA .zip từ giao diện và áp dụng tức thì"""
+    if not file.filename.endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Chỉ chấp nhận gói cập nhật định dạng .zip")
+    
+    temp_zip = os.path.join(BASE_DIR, f"ota_upload_{uuid.uuid4().hex[:8]}.zip")
+    try:
+        content = await file.read()
+        with open(temp_zip, "wb") as f:
+            f.write(content)
+        
+        success, message, new_info = ota_updater.apply_ota_zip(temp_zip)
+        return {
+            "success": success,
+            "message": message,
+            "new_version": new_info.get("version"),
+            "build_number": new_info.get("build_number")
+        }
+    finally:
+        if os.path.exists(temp_zip):
+            try:
+                os.remove(temp_zip)
+            except Exception:
+                pass
+
 @app.post("/api/system/toggle-demo-update")
 def toggle_demo_update(data: dict = {}):
-    info = load_version_info()
+    info = ota_updater.get_local_version()
     enabled = data.get("enabled", not info.get("has_update", False))
     info["has_update"] = enabled
     if enabled and info.get("version") == info.get("latest_version"):
-        parts = info.get("version", "4.2.0").split(".")
+        parts = info.get("version", "4.3.0").split(".")
         parts[-1] = str(int(parts[-1]) + 1)
         info["latest_version"] = ".".join(parts)
-    save_version_info(info)
+        info["latest_build"] = int(info.get("build_number", 430)) + 10
+    ota_updater.save_local_version(info)
     return {
         "success": True,
         "has_update": info["has_update"],
-        "latest_version": info.get("latest_version")
+        "latest_version": info.get("latest_version"),
+        "latest_build": info.get("latest_build")
     }
 
 def extract_tool_image_prompt(text: str) -> Optional[str]:

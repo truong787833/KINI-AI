@@ -840,12 +840,18 @@
                 <div class="settings-divider" style="margin: 18px 0 12px; border-top: 1px solid var(--border-color);"></div>
                 <div style="font-size: 0.76rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; margin-bottom: 8px;">HỆ THỐNG & PHIÊN BẢN (OTA SYSTEM)</div>
                 <div class="version-control-card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <div>
-                            <div style="font-size: 0.88rem; font-weight: 600; color: #f1f5f9;">Phiên bản hiện tại: <span id="settings-current-ver" style="color: #38bdf8;">v4.1.0</span></div>
-                            <small style="color: var(--text-muted); font-size: 0.75rem;">Kênh: Stable · Bản phát hành chính thức</small>
+                            <div style="font-size: 0.88rem; font-weight: 600; color: #f1f5f9;">Phiên bản hiện tại: <span id="settings-current-ver" style="color: #38bdf8;">v4.3.0</span> <span id="settings-build-num" style="color: #94a3b8; font-size: 0.75rem;">(Build 430)</span></div>
+                            <small style="color: var(--text-muted); font-size: 0.75rem;">Native Desktop EXE · Kênh: Stable · OTA Siêu Tốc</small>
                         </div>
-                        <button class="btn btn-outline" id="btn-settings-check-update" style="padding: 6px 12px; font-size: 0.8rem;">🔄 Kiểm tra bản mới</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-outline" id="btn-settings-check-update" style="padding: 6px 12px; font-size: 0.8rem;">🔄 Kiểm tra OTA</button>
+                            <label class="btn btn-outline" style="padding: 6px 12px; font-size: 0.8rem; cursor: pointer; margin: 0; display: inline-flex; align-items: center; gap: 4px;" title="Cài đặt nhanh bản vá cập nhật .zip">
+                                <span>📦 Nạp File OTA</span>
+                                <input type="file" id="input-ota-file" accept=".zip" style="display: none;">
+                            </label>
+                        </div>
                     </div>
                     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between;">
                         <span style="font-size: 0.8rem; color: #94a3b8;">🧪 Thử nghiệm nút "Restart to Update"</span>

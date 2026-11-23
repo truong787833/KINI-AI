@@ -1685,23 +1685,25 @@ function initSettings() {
 // ============================================================
 // HỆ THỐNG PHIÊN BẢN & CẬP NHẬT OTA (CHUẨN GOOGLE ANTIGRAVITY)
 // ============================================================
-let currentSystemVersion = "4.1.0";
-let latestSystemVersion = "4.2.0";
+let currentSystemVersion = "4.3.0";
+let latestSystemVersion = "4.3.0";
 
 async function initVersionSystem() {
     const btnRestartUpdate = document.getElementById("btn-restart-update");
     const settingsVerEl = document.getElementById("settings-current-ver");
+    const settingsBuildEl = document.getElementById("settings-build-num");
 
     try {
         const res = await fetch("/api/system/version");
         const data = await res.json();
-        currentSystemVersion = data.version || "4.1.0";
-        latestSystemVersion = data.latest_version || "4.2.0";
+        currentSystemVersion = data.version || "4.3.0";
+        latestSystemVersion = data.latest_version || currentSystemVersion;
 
         if (settingsVerEl) settingsVerEl.textContent = "v" + currentSystemVersion;
+        if (settingsBuildEl && data.build_number) settingsBuildEl.textContent = `(Build ${data.build_number})`;
 
         // Nếu có bản cập nhật mới -> Hiện nút 'Restart to Update →' chuẩn Antigravity
-        if (data.has_update) {
+        if (data.has_update && data.version !== data.latest_version) {
             if (btnRestartUpdate) {
                 btnRestartUpdate.style.display = "inline-flex";
             }
@@ -1718,6 +1720,42 @@ async function initVersionSystem() {
         }
     } catch (e) {
         console.warn("Lỗi kiểm tra phiên bản hệ thống:", e);
+    }
+
+    // Sự kiện nạp file OTA trực tiếp từ máy tính (.zip)
+    const otaFileInput = document.getElementById("input-ota-file");
+    if (otaFileInput && !otaFileInput.dataset.bound) {
+        otaFileInput.dataset.bound = "true";
+        otaFileInput.addEventListener("change", async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            if (!file.name.endsWith(".zip")) {
+                showToast("❌ Vui lòng chọn tệp gói cập nhật định dạng .zip");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            showToast(`📦 Đang nạp gói OTA ${file.name}...`);
+            try {
+                const res = await fetch("/api/system/upload-ota", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`🎉 Cập nhật OTA thành công lên v${data.new_version || "mới"}! Đang tải lại...`);
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    showToast(`❌ Cập nhật OTA thất bại: ${data.message || data.detail}`);
+                }
+            } catch(err) {
+                showToast("❌ Lỗi nạp OTA: " + err.message);
+            } finally {
+                otaFileInput.value = "";
+            }
+        });
     }
 
     // Sự kiện bấm nút "Restart to Update →" trên Navbar
@@ -1738,26 +1776,26 @@ async function initVersionSystem() {
         if (btnCancel) btnCancel.disabled = true;
 
         progFill.style.width = "25%";
-        progStatus.textContent = "📦 Đang tải gói OTA từ máy chủ...";
-        await new Promise(r => setTimeout(r, 600));
+        progStatus.textContent = "📦 Đang nạp gói cập nhật OTA siêu tốc...";
+        await new Promise(r => setTimeout(r, 400));
 
-        progFill.style.width = "65%";
-        progStatus.textContent = "⚡ Đang xác thực tệp tin và đồng bộ cơ sở dữ liệu...";
-        await new Promise(r => setTimeout(r, 700));
+        progFill.style.width = "70%";
+        progStatus.textContent = "⚡ Đang đồng bộ các tệp thay đổi và dọn dẹp bộ nhớ...";
+        await new Promise(r => setTimeout(r, 500));
 
         try {
             const res = await fetch("/api/system/apply-update", { method: "POST" });
             const data = await res.json();
             progFill.style.width = "100%";
-            progStatus.textContent = "🎉 Cập nhật thành công! Đang khởi động lại KINI AI...";
-            await new Promise(r => setTimeout(r, 800));
+            progStatus.textContent = "🎉 Cập nhật hoàn tất! Khởi động lại...";
+            await new Promise(r => setTimeout(r, 600));
 
             showToast("🚀 KINI AI đã được nâng cấp lên phiên bản " + (data.new_version || latestSystemVersion) + "!");
             closeModal("modal-update");
             if (btnRestartUpdate) btnRestartUpdate.style.display = "none";
             setTimeout(() => {
                 window.location.reload();
-            }, 600);
+            }, 500);
         } catch(err) {
             progStatus.textContent = "❌ Lỗi cập nhật: " + err.message;
             if (btnConfirm) btnConfirm.disabled = false;
@@ -1770,7 +1808,7 @@ async function initVersionSystem() {
         try {
             const res = await fetch("/api/system/check-update", { method: "POST" });
             const data = await res.json();
-            if (data.has_update) {
+            if (data.has_update && data.current_version !== data.latest_version) {
                 showToast("🚀 Phát hiện phiên bản mới: v" + data.latest_version + "! Nút 'Restart to Update' đã xuất hiện.");
                 if (btnRestartUpdate) btnRestartUpdate.style.display = "inline-flex";
             } else {
