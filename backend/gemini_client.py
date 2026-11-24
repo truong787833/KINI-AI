@@ -63,6 +63,13 @@ DEFAULT_SYSTEM_PROMPT = """[SYSTEM IDENTITY: KINI AI - TRỢ LÝ TRÍ TUỆ NHÂ
      * Đối với Video Coding / Hoạt Họa: Tự động lập trình Canvas 2D/3D chuyển động mượt mà 60fps với hiệu ứng hạt, pháo hoa, sóng âm, có hỗ trợ WebM MediaRecorder để quay/xuất video hoạt họa trực tiếp từ trình duyệt.
      * Luôn hướng dẫn: "Anh có thể bấm ngay nút **'✨ Vibe Runner (Live)'** ở góc trên khối mã để chơi/dùng thử ngay lập tức hoặc bấm **'⬇️ Tải HTML'** để lưu về máy nhé!"
 
+8. KHẢ NĂNG TẠO FILE TÀI LIỆU (WORD .DOCX, EXCEL .XLSX, BÁO CÁO TRÊN DESKTOP):
+   - KINI AI là AI Agent chạy cục bộ trên máy tính anh Trường. Khi anh Trường yêu cầu tạo file tài liệu Word (.docx), Excel (.xlsx), văn bản, báo cáo hoặc kế hoạch trên màn hình Desktop:
+     * Máy tính của anh Trường đã cài sẵn môi trường Python cùng thư viện `python-docx` và `openpyxl`.
+     * Đường dẫn Desktop của anh là: `os.path.join(os.path.expanduser('~'), 'Desktop')`.
+     * Hãy xuất mã Python hoàn chỉnh và tự động tạo ngay file tài liệu thật trên Desktop cho anh Trường để anh bấm mở xem được liền.
+     * TUYỆT ĐỐI KHÔNG BAO GIỜ nhầm lẫn giữa "màn hình desktop" với việc "vẽ tranh ảnh" FLUX.1!
+
 [COMMAND PROTOCOL]
 - Khi nhận lệnh: Phân tích -> Lập kế hoạch -> Thực thi -> Báo cáo kết quả.
 - TỰ ĐỘNG ĐỌC LINK TRANG WEB: Khi trong câu hỏi có chứa liên kết URL, hệ thống đã nạp nội dung trang web thực tế vào ngữ cảnh; hãy đọc hiểu sâu sắc để tóm tắt, giải thích và trích xuất số liệu chuẩn xác.
@@ -136,9 +143,32 @@ def is_image_request(text: str) -> bool:
     """Kiểm tra xem người dùng có đang yêu cầu vẽ tranh / tạo ảnh / làm logo / thiết kế poster / sửa ảnh / đổi thông tin ảnh không"""
     import unicodedata
     t = unicodedata.normalize('NFC', text.lower().strip())
-    
+
+    # 0. LOẠI TRỪ NGAY LẬP TỨC các yêu cầu về tài liệu, file văn bản, báo cáo, kế hoạch, code, hoặc desktop:
+    # Tuyệt đối không được nhầm lẫn giữa "màn hình" (desktop screen) với "hình" (picture/image)!
+    exclude_keywords = [
+        "docx", "doc", "word", "excel", "xlsx", "pdf", "file", "tệp", 
+        "báo cáo", "kế hoạch", "văn bản", "soạn thảo", "viết code", "script",
+        "màn hình desktop", "trên desktop", "ngoài desktop", "desktop"
+    ]
+    has_exclude = any(k in t for k in exclude_keywords)
+    has_explicit_draw = any(d in t for d in [
+        "vẽ ảnh", "vẽ bức ảnh", "vẽ tranh", "vẽ bức tranh", "vẽ hình", "vẽ logo", 
+        "tạo ảnh", "tạo bức ảnh", "sinh ảnh", "chụp ảnh", "vẽ cho anh", "vẽ cho tôi",
+        "vẽ giúp anh", "vẽ giúp tôi", "thiết kế logo", "làm logo"
+    ])
+    if has_exclude and not has_explicit_draw:
+        return False
+
+    # Thay thế các từ ghép tiếng Việt có chữ "hình" (màn hình, tình hình, mô hình, cấu hình...)
+    # để tránh bị regex \bhình\b khớp nhầm!
+    t_clean = re.sub(r'\bmàn\s+hình\b', 'desktop_display', t)
+    t_clean = re.sub(r'\btình\s+hình\b', 'situation_context', t_clean)
+    t_clean = re.sub(r'\bmô\s+hình\b', 'model_concept', t_clean)
+    t_clean = re.sub(r'\bcấu\s+hình\b', 'configuration_setting', t_clean)
+
     # 1. Bắt đầu bằng lệnh vẽ / tạo / thiết kế / sửa ảnh
-    if re.search(r'^(hãy\s+)?(vẽ|tạo\s+ảnh|tạo\s+logo|thiết\s+kế\s+logo|thiết\s+kế\s+poster|làm\s+logo|sửa\s+ảnh|chỉnh\s+sửa\s+ảnh|sửa\s+hình|sửa\s+logo|chỉnh\s+ảnh|remix\s+ảnh|làm\s+lại\s+ảnh)\b', t):
+    if re.search(r'^(hãy\s+)?(vẽ|tạo\s+ảnh|tạo\s+logo|thiết\s+kế\s+logo|thiết\s+kế\s+poster|làm\s+logo|sửa\s+ảnh|chỉnh\s+sửa\s+ảnh|sửa\s+hình|sửa\s+logo|chỉnh\s+ảnh|remix\s+ảnh|làm\s+lại\s+ảnh)\b', t_clean):
         return True
         
     # 2. Khớp các mẫu câu tạo/vẽ/thiết kế/sửa ảnh/logo/poster/banner
@@ -151,7 +181,7 @@ def is_image_request(text: str) -> bool:
         r'\b(đổi|thay|sửa)\s+(thành\s+số|thành\s+chữ)\s+\d+\b'
     ]
     for p in patterns:
-        if re.search(p, t):
+        if re.search(p, t_clean):
             return True
             
     # 3. Từ khóa thông dụng mở rộng

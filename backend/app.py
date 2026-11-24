@@ -527,7 +527,9 @@ async def chat_with_kini(
         "tự làm hết", "em tự làm", "tự động tạo", "làm luôn cho anh", "làm luôn", "tạo thành ứng dụng",
         "tạo ứng dụng", "làm ứng dụng", "bấm cái là vào xem", "bấm vào xem ngay", "xây dựng ứng dụng",
         "lập trình cho anh", "viết cho anh một web", "dựng cho anh một trang", "tạo web", "làm web",
-        "viết trang web", "tạo giao diện web"
+        "viết trang web", "tạo giao diện web", "tạo file docx", "tạo file word", "tạo file excel",
+        "tạo file trên desktop", "tạo trên desktop", "tạo file báo cáo", "làm bài báo cáo",
+        "làm 1 bài báo cáo", "làm kế hoạch", "tạo file kế hoạch", "tạo trên màn hình desktop"
     ]
     is_agent_cmd = (
         msg_low.startswith("/agent") or 
@@ -952,7 +954,10 @@ async def chat_with_kini_stream(
         "tạo thư mục", "tạo folder", "lập thư mục", "tạo cho tôi thư mục", "tạo tệp", "tạo file", 
         "viết file", "tạo dự án", "lập trình dự án", "tạo game", "làm game", "viết code game", 
         "viết script", "tạo script", "chạy lệnh", "agent hãy", "tự động làm", "tạo luôn cho tôi", 
-        "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm"
+        "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm",
+        "tạo file docx", "tạo file word", "tạo file excel", "tạo file trên desktop", "tạo trên desktop",
+        "tạo file báo cáo", "làm bài báo cáo", "làm 1 bài báo cáo", "làm kế hoạch", "tạo file kế hoạch",
+        "tạo trên màn hình desktop"
     ]
     is_agent_cmd = (msg_low.startswith("/agent") or any(k in msg_low for k in agent_keywords))
     active_agent_mode = (agent_mode.strip().lower() if agent_mode else "") or database.get_setting("agent_mode", "safe", client_id=cid)
