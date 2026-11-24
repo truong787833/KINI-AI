@@ -120,6 +120,11 @@
                 </div>
 
                 <div class="nav-right">
+                    <!-- Nút Thoát Studio IDE (Tự động hiện khi đang ở chế độ IDE) -->
+                    <button class="btn-top-exit-ide" id="btn-top-exit-ide" style="display: none;" title="Đóng Studio và quay lại giao diện Chat">
+                        <span>✕</span> Thoát Studio
+                    </button>
+
                     <button class="btn-restart-update" id="btn-restart-update" style="display: none;" title="Có bản cập nhật mới! Bấm để nâng cấp ngay">
                         Restart to Update →
                     </button>
@@ -251,6 +256,7 @@
                                 <button class="ide-action-btn primary" id="btn-ide-save-file" title="Lưu thay đổi (Ctrl+S)">💾 Lưu (Ctrl+S)</button>
                                 <button class="ide-action-btn" id="btn-toggle-chat" title="Ẩn/Hiện khung chat bên phải">💬 Ẩn Chat</button>
                                 <button class="ide-action-btn" id="btn-ide-maximize" title="Thu phóng khung soạn thảo">⤢</button>
+                                <button class="ide-action-btn" id="btn-exit-ide" title="Đóng Studio và quay lại giao diện Chat toàn màn hình" style="background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5; font-weight: 600; padding: 5px 12px; border-radius: 6px; cursor: pointer;">✕ Đóng Studio</button>
                             </div>
                         </div>
 
@@ -325,7 +331,10 @@
                             <span style="font-size:0.9rem;">💬</span>
                             <span>KHUNG CHAT KINI</span>
                         </div>
-                        <button class="ide-mini-btn btn-danger-hover" id="btn-close-chat-pane" title="Đóng khung chat (Ẩn ô này)">✕</button>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <button class="ide-mini-btn" id="btn-return-chat-from-header" title="Đóng Studio và mở rộng Chat toàn màn hình" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px; cursor: pointer;">✕ Thoát Studio</button>
+                            <button class="ide-mini-btn btn-danger-hover" id="btn-close-chat-pane" title="Ẩn/Hiện khung chat này">👁️ Ẩn Chat</button>
+                        </div>
                     </div>
                     <!-- Khung Chat Messages (Hiển thị khi bắt đầu trò chuyện) -->
                     <div class="chat-viewport" id="chat-viewport" style="display: none;">

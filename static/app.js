@@ -235,6 +235,11 @@ function initNavigationAndModals() {
     const mobileModelLabel = document.getElementById("mobile-model-label");
 
     if (modelDropdown) {
+        // Chống đóng khi click vào bên trong dropdown
+        modelDropdown.addEventListener("click", (e) => {
+            e.stopPropagation();
+        });
+
         if (modelBadge) {
             modelBadge.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -248,21 +253,42 @@ function initNavigationAndModals() {
             });
         }
 
+        // Khôi phục model đã chọn từ localStorage
+        const savedModel = localStorage.getItem("kini_selected_model");
+        if (savedModel) {
+            const targetOpt = document.querySelector(`.model-option[data-model="${savedModel}"]`);
+            if (targetOpt) {
+                document.querySelectorAll(".model-option").forEach(o => o.classList.remove("active"));
+                targetOpt.classList.add("active");
+                if (modelLabel) {
+                    if (savedModel === "flash-3.8") modelLabel.textContent = "Gemini 3.8 Flash";
+                    else if (savedModel === "pro") modelLabel.textContent = "Gemini Pro";
+                    else modelLabel.textContent = "Gemini Flash Lite";
+                }
+            }
+        }
+
         document.querySelectorAll(".model-option").forEach(opt => {
-            opt.addEventListener("click", () => {
+            opt.addEventListener("click", (e) => {
+                e.stopPropagation();
                 document.querySelectorAll(".model-option").forEach(o => o.classList.remove("active"));
                 opt.classList.add("active");
                 const m = opt.dataset.model;
-                if (modelLabel) {
-                    if (m === "flash-3.8") modelLabel.textContent = "Gemini 3.8 Flash";
-                    else if (m === "pro") modelLabel.textContent = "Gemini Pro";
-                    else modelLabel.textContent = "Gemini Flash Lite";
-                }
+                localStorage.setItem("kini_selected_model", m);
+                
+                let selectedName = "Gemini 3.8 Flash";
+                if (m === "flash-3.8") selectedName = "Gemini 3.8 Flash";
+                else if (m === "pro") selectedName = "Gemini Pro";
+                else selectedName = "Gemini Flash Lite";
+
+                if (modelLabel) modelLabel.textContent = selectedName;
                 if (mobileModelLabel) {
                     if (m === "flash-3.8") mobileModelLabel.textContent = "KINI 3.8 Flash";
                     else if (m === "pro") mobileModelLabel.textContent = "KINI Pro Deep";
                     else mobileModelLabel.textContent = "KINI Flash 3.1";
                 }
+                
+                showToast("⚡ Đã chuyển sang mô hình: " + selectedName);
                 modelDropdown.classList.remove("show");
             });
         });
@@ -274,6 +300,15 @@ function initNavigationAndModals() {
             }
         });
     }
+
+    // Sự kiện thoát Studio IDE quay về chế độ Chat bình thường
+    const handleExitStudio = () => {
+        switchViewMode("chat");
+        showToast("💬 Đã đóng Studio và quay lại giao diện Chat!");
+    };
+    document.getElementById("btn-top-exit-ide")?.addEventListener("click", handleExitStudio);
+    document.getElementById("btn-exit-ide")?.addEventListener("click", handleExitStudio);
+    document.getElementById("btn-return-chat-from-header")?.addEventListener("click", handleExitStudio);
 
     // Nút Cài đặt trên Top Nav Mobile
     document.getElementById("btn-top-settings")?.addEventListener("click", () => {
@@ -1974,8 +2009,34 @@ async function loadConversations(autoRestore = false) {
         // 2. Phân mục Projects / Thư mục dự án chuẩn Antigravity
         const projHeader = document.createElement("div");
         projHeader.className = "sidebar-section-title";
-        projHeader.innerHTML = `<span>Projects</span><span style="opacity:0.5; font-size:0.75rem;">☰ 📁+</span>`;
+        projHeader.innerHTML = `
+            <span>Dự Án & Phân Mục</span>
+            <button class="btn-sidebar-add-folder" id="btn-add-project-folder" title="Tạo Thư mục Dự án mới">
+                <span>📁＋</span> Mục mới
+            </button>
+        `;
         list.appendChild(projHeader);
+
+        // Sự kiện bấm nút "📁＋ Mục mới"
+        projHeader.querySelector("#btn-add-project-folder")?.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const newCat = prompt("Nhập tên mục / dự án mới (ví dụ: Bán Hàng, Luật Pháp, Lập Trình...):");
+            if (!newCat || !newCat.trim()) return;
+            const catName = newCat.trim();
+            try {
+                const res = await fetch("/api/conversations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title: `Đoạn chat mới (${catName})`, category: catName })
+                });
+                const data = await res.json();
+                showToast(`📁 Đã tạo mục mới: "${catName}"!`);
+                await loadConversations(false);
+                await switchConversation(data.id);
+            } catch (err) {
+                showToast("❌ Lỗi tạo mục mới: " + err.message);
+            }
+        });
 
         // Gom nhóm theo category (Thư mục dự án)
         const categories = {};
@@ -1988,7 +2049,32 @@ async function loadConversations(autoRestore = false) {
         for (const [catName, convArray] of Object.entries(categories)) {
             const folderTitle = document.createElement("div");
             folderTitle.className = "project-folder-title";
-            folderTitle.innerHTML = `<span class="folder-icon">📁</span> <span class="folder-name">${escapeHtml(catName)}</span>`;
+            folderTitle.innerHTML = `
+                <div class="folder-title-left">
+                    <span class="folder-icon">📁</span>
+                    <span class="folder-name">${escapeHtml(catName)}</span>
+                    <span class="folder-count">(${convArray.length})</span>
+                </div>
+                <button class="btn-folder-add-chat" data-cat="${escapeHtml(catName)}" title="Tạo đoạn chat mới trong mục ${escapeHtml(catName)}">＋</button>
+            `;
+            
+            folderTitle.querySelector(".btn-folder-add-chat")?.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                try {
+                    const res = await fetch("/api/conversations", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ title: `Đoạn chat mới (${catName})`, category: catName })
+                    });
+                    const data = await res.json();
+                    await loadConversations(false);
+                    await switchConversation(data.id);
+                    showToast(`✨ Tạo đoạn chat mới trong "${catName}"!`);
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+
             list.appendChild(folderTitle);
 
             const folderGroup = document.createElement("div");

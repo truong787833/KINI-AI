@@ -75,9 +75,16 @@ def get_conversations(request: Request):
 def create_new_conversation(data: dict, request: Request):
     cid = get_request_client_id(request)
     title = data.get("title", "Cuộc trò chuyện mới")
+    category = data.get("category", "haitruong").strip() or "haitruong"
     conv_id = str(uuid.uuid4())[:8]
-    database.create_conversation(conv_id, title, client_id=cid)
-    return {"id": conv_id, "title": title}
+    database.create_conversation(conv_id, title, category=category, client_id=cid)
+    return {"id": conv_id, "title": title, "category": category}
+
+@app.post("/api/conversations/{conv_id}/category")
+def set_conversation_category(conv_id: str, data: dict):
+    category = data.get("category", "haitruong").strip() or "haitruong"
+    database.update_conversation_category(conv_id, category)
+    return {"success": True, "category": category}
 
 @app.get("/api/conversations/{conv_id}/messages")
 def get_messages(conv_id: str, request: Request):

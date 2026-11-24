@@ -816,3 +816,30 @@
   4. **Kiểm thử nghiệm thu**:
      - Máy chủ `http://127.0.0.1:8000/` trả về HTTP 200 cho `index.html`, `style.css` và `app.js`.
      - Đóng gói OTA thành công: `dist_ota/latest_ota_package.zip` và `dist_ota/update_v4.3.1.zip` dung lượng chỉ **2.35 MB** sẵn sàng áp dụng.
+
+### Mốc Nâng Cấp: Khắc Phục Nút Thoát Studio IDE, Sửa Lỗi Chọn Model & Thêm Tính Năng Tạo Thư Mục Projects (2026-11-24)
+- **Tình huống & Phản ánh của anh Trường**:
+  - Gửi ảnh chụp màn hình đang bị kẹt trong màn hình Studio IDE (CodeMirror + Terminal) và hỏi: *"sao không tắt được bảng này"*.
+  - Trước đó hỏi: *"kiểm tra lại các mục này. sao không tạo được mục mới và chọn được model"* (ảnh chụp mục Projects chỉ có 1 folder `haitruong`, nút `📁+` không bấm được; thanh chọn model `Gemini 3.8 Flash ▾` không mở hoặc không chọn được model).
+- **Nguyên nhân gốc rễ (Root Cause Analysis)**:
+  1. *Lỗi kẹt trong Studio IDE*: Trong giao diện IDE, nút đóng ở khung chat `btn-close-chat-pane` chỉ thực hiện ẩn/hiện khung chat (`collapsed`) thay vì thoát Studio, đồng thời trên thanh công cụ IDE và Topbar hoàn toàn thiếu nút "Thoát / Đóng Studio", khiến người dùng không có cách nào quay lại giao diện chat 1 cột bình thường.
+  2. *Lỗi menu chọn model*: Trong `static/style.css`, cú pháp CSS của `.model-dropdown-menu` bị lỗi dấu ngoặc nhọn đóng thừa và duplicate rule (`box-shadow`), làm trình duyệt vô hiệu hóa class `.model-dropdown-menu.show`. Đồng thời, sự kiện click vào dropdown chưa có `stopPropagation()`, dẫn đến sự kiện click bị bắt bởi document và tự động đóng menu trước khi người dùng kịp chọn model.
+  3. *Lỗi không tạo được mục mới*: Nút `📁+` trong tiêu đề Projects ở Sidebar trước đây chỉ là một thẻ `<span>` tĩnh không gắn sự kiện click. Backend `app.py` và `database.py` cũng chưa có endpoint và hàm cập nhật/tạo danh mục dự án mới (`category`).
+- **Các giải pháp kỹ thuật đã triển khai thực tế 100%**:
+  1. **Nút Thoát Studio IDE Đa Điểm (`static/index.html`, `static/style.css`, `static/app.js`)**:
+     - Thêm nút **`[✕ Thoát Studio]`** phát sáng nổi bật trên thanh Topbar (tự động hiện khi ở chế độ IDE).
+     - Thêm nút **`[✕ Đóng Studio]`** màu đỏ trên thanh công cụ soạn thảo Code Editor.
+     - Thêm nút **`[✕ Thoát Studio]`** ngay trên tiêu đề khung chat bên phải.
+     - Tất cả các nút đều gọi hàm `switchViewMode("chat")` để đóng ngay bảng Studio, khôi phục giao diện Chat 1 cột toàn màn hình sạch sẽ.
+  2. **Khắc Phục Hoàn Toàn Menu Chọn Model (`static/style.css`, `static/app.js`)**:
+     - Sửa triệt để lỗi cú pháp CSS, thiết lập `z-index: 99999 !important` và `display: block !important` khi class `.show` được kích hoạt.
+     - Bổ sung `e.stopPropagation()` khi bấm vào dropdown và từng option.
+     - Tự động lưu model được chọn vào `localStorage` và cập nhật ngay lập tức tiêu đề model (`Gemini 3.8 Flash`, `Gemini Pro`, `Gemini Flash Lite`), có thông báo Toast xác nhận tức thì.
+  3. **Hoàn Thiện Tính Năng Tạo Thư Mục Dự Án Mới (Projects 📁＋)**:
+     - Biến nút `📁＋ Mục mới` trên Sidebar thành nút bấm tương tác hoàn chỉnh.
+     - Khi bấm vào, hệ thống mở hộp thoại nhập tên mục mới (ví dụ: *Bán Hàng*, *Luật Biên Phòng*, *Lập Trình*...).
+     - Backend (`backend/app.py` & `backend/database.py`): Bổ sung hàm `update_conversation_category`, hỗ trợ lưu trường `category` vào SQLite và tạo endpoint `POST /api/conversations/{conv_id}/category`.
+     - Mỗi thư mục dự án trên Sidebar có thêm nút `＋` riêng để tạo nhanh cuộc trò chuyện bên trong thư mục đó, kèm hiển thị số lượng chat `(x)`.
+  4. **Kiểm thử & Đóng gói OTA**:
+     - Cú pháp JavaScript và Python kiểm tra đạt 100% chuẩn (0 lỗi).
+     - Đóng gói bản vá OTA siêu nhẹ **`v4.3.2 (Build 432)`** (`latest_ota_package.zip` dung lượng 2.35 MB).

@@ -172,6 +172,14 @@ def update_conversation_title(conv_id: str, title: str):
     conn.commit()
     conn.close()
 
+def update_conversation_category(conv_id: str, category: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE conversations SET category = ?, updated_at = ? WHERE id = ?",
+                (category.strip(), datetime.now().isoformat(), conv_id))
+    conn.commit()
+    conn.close()
+
 def toggle_conversation_pin(conv_id: str) -> bool:
     conn = get_connection()
     cur = conn.cursor()

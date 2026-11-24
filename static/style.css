@@ -244,6 +244,27 @@ body::before {
     align-items: center;
 }
 
+.btn-sidebar-add-folder {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-sidebar-add-folder:hover {
+    background: rgba(78, 128, 238, 0.2);
+    border-color: rgba(78, 128, 238, 0.5);
+    color: #fff;
+}
+
 .conv-list {
     flex: 1;
     overflow-y: auto;
@@ -258,12 +279,40 @@ body::before {
 .project-folder-title {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
     padding: 8px 8px 4px;
     font-size: 0.78rem;
     font-weight: 600;
     color: #94a3b8;
     cursor: default;
+}
+
+.folder-title-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.folder-count {
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+.btn-folder-add-chat {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-folder-add-chat:hover {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
 }
 
 .project-folder-group {
@@ -1343,23 +1392,22 @@ body::before {
 .model-dropdown-menu {
     display: none;
     position: absolute;
-    bottom: calc(100% + 10px);
+    bottom: calc(100% + 12px);
     left: 0;
     right: auto;
     background: var(--bg-surface-elevated, #1a1d2e);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: var(--radius-md, 14px);
     padding: 8px;
-    width: 290px;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.1);
-    z-index: 100;
-}
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
-    z-index: 50;
+    width: 310px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.2);
+    z-index: 99999;
 }
 
 .model-dropdown-menu.show {
-    display: block;
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .model-option {
@@ -5453,4 +5501,32 @@ body::before {
         gap: 10px;
         margin-top: 20px;
     }
+}
+
+/* ============================================================
+   NÚT THOÁT STUDIO IDE TRÊN TOP NAVBAR
+   ============================================================ */
+.btn-top-exit-ide {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-top-exit-ide:hover {
+    background: #ef4444;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+.app-container.mode-ide .btn-top-exit-ide {
+    display: inline-flex !important;
 }
