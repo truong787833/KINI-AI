@@ -5530,3 +5530,225 @@ body::before {
 .app-container.mode-ide .btn-top-exit-ide {
     display: inline-flex !important;
 }
+
+/* ============================================================
+   BẢNG ĐIỀU KHIỂN HỆ THỐNG (KINI CONTROL CENTER)
+   ============================================================ */
+.control-center-dialog {
+    max-width: 860px;
+    width: 95%;
+}
+
+.cc-health-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 14px 20px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.cc-health-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cc-health-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 10px #10b981;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.cc-health-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #34d399;
+}
+
+.cc-health-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.cc-telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.cc-telemetry-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.cc-telemetry-card:hover {
+    border-color: var(--accent-cyan);
+    transform: translateY(-2px);
+}
+
+.cc-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.cc-card-name {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    flex: 1;
+}
+
+.cc-card-val {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.cc-prog-track {
+    background: rgba(255, 255, 255, 0.08);
+    height: 6px;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.cc-prog-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #00f2fe);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+
+.cc-prog-ram {
+    background: linear-gradient(90deg, #8b5cf6, #ec4899);
+}
+
+.cc-prog-disk {
+    background: linear-gradient(90deg, #10b981, #06b6d4);
+}
+
+.cc-card-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.cc-actions-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 12px;
+}
+
+.cc-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.cc-action-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    gap: 16px;
+}
+
+.cc-action-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 4px;
+}
+
+.cc-action-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.cc-action-btn {
+    white-space: nowrap;
+    padding: 7px 16px;
+    font-size: 0.82rem;
+    border-radius: var(--radius-full);
+}
+
+.badge-status-ready {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.cc-log-section {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+
+.cc-log-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.cc-log-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.cc-check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.82rem;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.cc-check-icon {
+    font-size: 0.9rem;
+}
+
+.cc-check-title {
+    font-weight: 600;
+    color: var(--text-main);
+    margin-right: 6px;
+}
+
+.cc-check-detail {
+    color: var(--text-muted);
+}
+

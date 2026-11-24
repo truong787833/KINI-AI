@@ -62,6 +62,10 @@
             </div>
 
             <div class="sidebar-footer">
+                <button class="sidebar-menu-btn" id="btn-open-control-center">
+                    <span class="menu-icon">🎛️</span>
+                    <span>Bảng Điều Khiển Hệ Thống</span>
+                </button>
                 <button class="sidebar-menu-btn" id="btn-sidebar-studio-btn">
                     <span class="menu-icon">💻</span>
                     <span>Studio Workspace</span>
@@ -1081,6 +1085,139 @@
     </div>
 
     <!-- ============================================================
+         MODAL: BẢNG ĐIỀU KHIỂN HỆ THỐNG (KINI CONTROL CENTER)
+         ============================================================ -->
+    <div class="modal" id="modal-control-center" style="display: none;">
+        <div class="modal-dialog modal-lg control-center-dialog">
+            <div class="modal-header">
+                <div class="vibe-modal-title-wrap">
+                    <span class="vibe-sparkle-icon">🎛️</span>
+                    <div>
+                        <h3 class="modal-title">Bảng Điều Khiển Hệ Thống KINI AI</h3>
+                        <p class="modal-subtitle">Giám sát tài nguyên máy tính, dọn rác bộ nhớ, sao lưu dữ liệu & tự chữa lành</p>
+                    </div>
+                </div>
+                <button class="modal-close" data-close="modal-control-center">&times;</button>
+            </div>
+            <div class="modal-body control-center-body">
+                <!-- Banner Tình trạng Sức khỏe Hệ thống -->
+                <div class="cc-health-banner" id="cc-health-banner">
+                    <div class="cc-health-status">
+                        <span class="cc-health-dot" id="cc-health-dot"></span>
+                        <div>
+                            <div class="cc-health-title" id="cc-health-title">Hệ thống đang hoạt động tối ưu 100%</div>
+                            <div class="cc-health-desc" id="cc-health-desc">Tất cả 5 thư mục cốt lõi, SQLite DB và cấu hình đều đạt chuẩn</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" id="btn-cc-run-selfcheck">
+                        <span>🔍</span> Quét & Tự Chữa Lỗi
+                    </button>
+                </div>
+
+                <!-- Lưới Thông Số Phần Cứng Thực Tế -->
+                <div class="cc-telemetry-grid">
+                    <div class="cc-telemetry-card">
+                        <div class="cc-card-header">
+                            <span class="cc-card-icon">⚡</span>
+                            <span class="cc-card-name">CPU Sử Dụng</span>
+                            <span class="cc-card-val" id="cc-val-cpu">--%</span>
+                        </div>
+                        <div class="cc-prog-track">
+                            <div class="cc-prog-bar" id="cc-bar-cpu" style="width: 0%;"></div>
+                        </div>
+                        <div class="cc-card-sub" id="cc-sub-cpu">Bộ xử lý đa luồng</div>
+                    </div>
+
+                    <div class="cc-telemetry-card">
+                        <div class="cc-card-header">
+                            <span class="cc-card-icon">🧠</span>
+                            <span class="cc-card-name">Bộ Nhớ RAM</span>
+                            <span class="cc-card-val" id="cc-val-ram">--%</span>
+                        </div>
+                        <div class="cc-prog-track">
+                            <div class="cc-prog-bar cc-prog-ram" id="cc-bar-ram" style="width: 0%;"></div>
+                        </div>
+                        <div class="cc-card-sub" id="cc-sub-ram">Đang tải...</div>
+                    </div>
+
+                    <div class="cc-telemetry-card">
+                        <div class="cc-card-header">
+                            <span class="cc-card-icon">💾</span>
+                            <span class="cc-card-name">Ổ Đĩa H: (KINI AI)</span>
+                            <span class="cc-card-val" id="cc-val-diskh">--%</span>
+                        </div>
+                        <div class="cc-prog-track">
+                            <div class="cc-prog-bar cc-prog-disk" id="cc-bar-diskh" style="width: 0%;"></div>
+                        </div>
+                        <div class="cc-card-sub" id="cc-sub-diskh">Trống: -- GB</div>
+                    </div>
+
+                    <div class="cc-telemetry-card">
+                        <div class="cc-card-header">
+                            <span class="cc-card-icon">💽</span>
+                            <span class="cc-card-name">Ổ C: (Hệ Điều Hành)</span>
+                            <span class="cc-card-val" id="cc-val-diskc">--%</span>
+                        </div>
+                        <div class="cc-prog-track">
+                            <div class="cc-prog-bar cc-prog-disk" id="cc-bar-diskc" style="width: 0%;"></div>
+                        </div>
+                        <div class="cc-card-sub" id="cc-sub-diskc">Trống: -- GB</div>
+                    </div>
+                </div>
+
+                <!-- Lưới Hành Động Quản Trị Hệ Thống -->
+                <div class="cc-actions-section-title">⚡ Thao Tác Quản Trị Nhanh</div>
+                <div class="cc-actions-grid">
+                    <div class="cc-action-card">
+                        <div class="cc-action-info">
+                            <div class="cc-action-name">🧹 Dọn Dẹp Rác & Cache</div>
+                            <div class="cc-action-desc">Xóa file tạm OTA, script tạm `_run_*.py` và cache Python để chống phình to dung lượng.</div>
+                        </div>
+                        <button class="btn btn-primary cc-action-btn" id="btn-cc-clean-cache">
+                            <span>🧹</span> Dọn Ngay
+                        </button>
+                    </div>
+
+                    <div class="cc-action-card">
+                        <div class="cc-action-info">
+                            <div class="cc-action-name">💾 Sao Lưu Cơ Sở Dữ Liệu</div>
+                            <div class="cc-action-desc">Tạo bản sao lưu snapshot tức thì cho cơ sở dữ liệu `kini_ai.db` vào thư mục `backups/`.</div>
+                        </div>
+                        <button class="btn btn-success cc-action-btn" id="btn-cc-backup-db">
+                            <span>💾</span> Sao Lưu
+                        </button>
+                    </div>
+
+                    <div class="cc-action-card">
+                        <div class="cc-action-info">
+                            <div class="cc-action-name">🐍 Python Execution Sandbox</div>
+                            <div class="cc-action-desc">Môi trường chạy mã trực tiếp trên máy với Python 3.14.7 và vẽ đồ thị tự động.</div>
+                        </div>
+                        <span class="badge-status-ready">🟢 Sẵn Sàng</span>
+                    </div>
+                </div>
+
+                <!-- Bảng Hiển Thị Chi Tiết Nhật Ký / Tự Kiểm Tra -->
+                <div class="cc-log-section">
+                    <div class="cc-log-header">
+                        <span>📋 Kết Quả Kiểm Tra Chi Tiết:</span>
+                        <span class="cc-log-time" id="cc-log-time">Cập nhật lúc: Vừa xong</span>
+                    </div>
+                    <div class="cc-log-content" id="cc-log-content">
+                        <!-- Render các mục tự kiểm tra từ API -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" data-close="modal-control-center">Đóng</button>
+                <button class="btn btn-primary" id="btn-cc-refresh-all">
+                    <span>🔄</span> Làm Mới Thông Số
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
          MODAL: KINI VIBE CODING STUDIO HUB
          ============================================================ -->
     <div class="modal" id="modal-vibe-coding" style="display: none;">
@@ -1133,6 +1270,6 @@
 
     <script src="/static/chart.min.js"></script>
     <script src="/static/vibe_templates.js"></script>
-    <script src="/static/app.js?v=20261123_1700"></script>
+    <script src="/static/app.js?v=20261124_1048"></script>
 </body>
 </html>

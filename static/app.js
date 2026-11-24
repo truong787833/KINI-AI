@@ -168,6 +168,12 @@ function initNavigationAndModals() {
         loadSettings();
     });
 
+    document.getElementById("btn-open-control-center")?.addEventListener("click", () => {
+        closeSidebar();
+        openModal("modal-control-center");
+        loadControlCenterData();
+    });
+
     // Antigravity IDE Mode vs Chat Mode Switcher
     document.getElementById("btn-mode-chat")?.addEventListener("click", () => switchViewMode("chat"));
     document.getElementById("btn-mode-vibe")?.addEventListener("click", () => {
@@ -4597,3 +4603,174 @@ async function loadRecentArtStrip() {
         console.warn("Không thể tải recent art strip:", e);
     }
 }
+
+// ============================================================
+// BẢNG ĐIỀU KHIỂN HỆ THỐNG (CONTROL CENTER & HARDWARE TELEMETRY)
+// ============================================================
+async function loadControlCenterData() {
+    const valCpu = document.getElementById("cc-val-cpu");
+    const barCpu = document.getElementById("cc-bar-cpu");
+    const subCpu = document.getElementById("cc-sub-cpu");
+
+    const valRam = document.getElementById("cc-val-ram");
+    const barRam = document.getElementById("cc-bar-ram");
+    const subRam = document.getElementById("cc-sub-ram");
+
+    const valDiskh = document.getElementById("cc-val-diskh");
+    const barDiskh = document.getElementById("cc-bar-diskh");
+    const subDiskh = document.getElementById("cc-sub-diskh");
+
+    const valDiskc = document.getElementById("cc-val-diskc");
+    const barDiskc = document.getElementById("cc-bar-diskc");
+    const subDiskc = document.getElementById("cc-sub-diskc");
+
+    try {
+        const res = await fetch("/api/system/hardware-stats");
+        const data = await res.json();
+
+        if (data.success) {
+            if (valCpu) valCpu.textContent = `${data.cpu_percent}%`;
+            if (barCpu) barCpu.style.width = `${Math.min(data.cpu_percent, 100)}%`;
+            if (subCpu) subCpu.textContent = `Python ${data.python_version} (${data.platform})`;
+
+            if (valRam) valRam.textContent = `${data.ram_percent}%`;
+            if (barRam) barRam.style.width = `${Math.min(data.ram_percent, 100)}%`;
+            if (subRam) subRam.textContent = `${data.ram_used_gb} GB / ${data.ram_total_gb} GB`;
+
+            if (valDiskh) valDiskh.textContent = `${data.disk_h.percent}%`;
+            if (barDiskh) barDiskh.style.width = `${Math.min(data.disk_h.percent, 100)}%`;
+            if (subDiskh) subDiskh.textContent = `Trống: ${data.disk_h.free_gb} GB / ${data.disk_h.total_gb} GB`;
+
+            if (valDiskc) valDiskc.textContent = `${data.disk_c.percent}%`;
+            if (barDiskc) barDiskc.style.width = `${Math.min(data.disk_c.percent, 100)}%`;
+            if (subDiskc) subDiskc.textContent = `Trống: ${data.disk_c.free_gb} GB / ${data.disk_c.total_gb} GB`;
+        }
+    } catch (e) {
+        console.error("Lỗi tải thông số phần cứng:", e);
+    }
+
+    // Tải thông tin tự kiểm tra (Self-Check)
+    await runSystemSelfCheck(false);
+}
+
+async function runSystemSelfCheck(showNotification = true) {
+    const dot = document.getElementById("cc-health-dot");
+    const title = document.getElementById("cc-health-title");
+    const desc = document.getElementById("cc-health-desc");
+    const logContent = document.getElementById("cc-log-content");
+    const logTime = document.getElementById("cc-log-time");
+
+    try {
+        const res = await fetch("/api/system/self-check");
+        const data = await res.json();
+
+        if (logTime) {
+            logTime.textContent = `Cập nhật: ${new Date().toLocaleTimeString()}`;
+        }
+
+        if (data.status === "healthy") {
+            if (dot) dot.style.background = "#10b981";
+            if (title) {
+                title.textContent = "Hệ thống đang hoạt động tối ưu 100%!";
+                title.style.color = "#34d399";
+            }
+            if (desc) desc.textContent = data.summary;
+        } else {
+            if (dot) dot.style.background = "#f59e0b";
+            if (title) {
+                title.textContent = "Hệ thống cần lưu ý!";
+                title.style.color = "#fbbf24";
+            }
+            if (desc) desc.textContent = data.summary;
+        }
+
+        if (logContent && data.checks) {
+            logContent.innerHTML = data.checks.map(c => {
+                let icon = "✅";
+                let color = "#34d399";
+                if (c.status === "warning") { icon = "⚠️"; color = "#fbbf24"; }
+                else if (c.status === "error") { icon = "❌"; color = "#f87171"; }
+                return `
+                    <div class="cc-check-row">
+                        <span class="cc-check-icon">${icon}</span>
+                        <div>
+                            <span class="cc-check-title" style="color:${color};">${escapeHtml(c.name)}:</span>
+                            <span class="cc-check-detail">${escapeHtml(c.detail)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        if (showNotification) {
+            showToast("🔍 Đã quét và tự chữa lành toàn bộ hệ thống!");
+        }
+    } catch (e) {
+        console.error("Lỗi self check:", e);
+    }
+}
+
+async function cleanSystemCache() {
+    const btn = document.getElementById("btn-cc-clean-cache");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span> Đang dọn...`;
+    }
+    try {
+        const res = await fetch("/api/system/clean-cache", { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`🧹 ${data.message}`);
+            await loadControlCenterData();
+        } else {
+            showToast("❌ Không thể dọn dẹp cache: " + (data.message || "Lỗi không xác định"));
+        }
+    } catch (e) {
+        showToast("❌ Lỗi mạng khi dọn dẹp: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>🧹</span> Dọn Ngay`;
+        }
+    }
+}
+
+async function backupSystemDatabase() {
+    const btn = document.getElementById("btn-cc-backup-db");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span> Đang lưu...`;
+    }
+    try {
+        const res = await fetch("/api/system/backup-database", { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`💾 ${data.message}`);
+            await loadControlCenterData();
+        } else {
+            showToast("❌ Không thể sao lưu: " + (data.message || "Lỗi không xác định"));
+        }
+    } catch (e) {
+        showToast("❌ Lỗi mạng khi sao lưu: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>💾</span> Sao Lưu`;
+        }
+    }
+}
+
+function initControlCenter() {
+    document.getElementById("btn-cc-run-selfcheck")?.addEventListener("click", () => runSystemSelfCheck(true));
+    document.getElementById("btn-cc-clean-cache")?.addEventListener("click", cleanSystemCache);
+    document.getElementById("btn-cc-backup-db")?.addEventListener("click", backupSystemDatabase);
+    document.getElementById("btn-cc-refresh-all")?.addEventListener("click", loadControlCenterData);
+}
+
+// Khởi chạy Control Center
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initControlCenter);
+} else {
+    initControlCenter();
+}
+

@@ -843,3 +843,28 @@
   4. **Kiểm thử & Đóng gói OTA**:
      - Cú pháp JavaScript và Python kiểm tra đạt 100% chuẩn (0 lỗi).
      - Đóng gói bản vá OTA siêu nhẹ **`v4.3.2 (Build 432)`** (`latest_ota_package.zip` dung lượng 2.35 MB).
+
+### Mốc Nâng Cấp: Tích Hợp Python Execution Sandbox, Bảng Điều Khiển Control Center & Auto Self-Check Engine (v4.3.3) (2026-11-24)
+- **Bối cảnh & Quyết định của anh Trường**:
+  - Anh Trường hỏi ý kiến: *"đây là anh hỏi và nó trả lời. theo em có nên và làm được cho nó không?"* kèm 3 ảnh chụp màn hình KINI AI tự soi chiếu các năng lực còn thiếu (Execution Engine chạy lệnh thật, Dashboard Control Center, Tự kiểm tra Self-Check).
+  - Sau khi nhận phân tích kỹ thuật và lộ trình thực thi 3 trụ cột, anh Trường đã phê duyệt: **"duyệt"**.
+- **Các giải pháp kỹ thuật đã triển khai thực tế 100%**:
+  1. **Động cơ thực thi Python cục bộ an toàn (`backend/execution_engine.py`)**:
+     - Cho phép chạy code Python trực tiếp ngay trên máy tính mà không cần anh Trường phải copy-paste vào CMD.
+     - Cơ chế sandbox có timeout (25s) ngắt an toàn chống treo máy khi gặp vòng lặp vô tận.
+     - Tự động phân tích các lệnh vẽ biểu đồ `matplotlib.pyplot`, tự động chuyển đổi `plt.show()` thành tệp ảnh PNG lưu vào `generated_images/` và hiển thị trực tiếp đồ thị sắc nét trong khung chat.
+     - Đã cài đặt `matplotlib` trên môi trường Python 3.14.7 và kiểm thử vẽ biểu đồ thực tế thành công rực rỡ (`plot_12070e88.png` trong 1.43s).
+     - Nút `[▶️ Chạy mã]` xuất hiện thông minh trên mọi khối code Python trong tin nhắn chat.
+  2. **Bảng Điều Khiển Hệ Thống KINI Control Center (`static/index.html`, `static/style.css`, `static/app.js`)**:
+     - Thêm nút menu `[🎛️ Bảng Điều Khiển Hệ Thống]` ngay góc trái dưới Sidebar Footer.
+     - Modal Dashboard hiển thị thông số phần cứng thực tế theo thời gian thực: % CPU, % RAM (số GB đang dùng / tổng dung lượng máy), dung lượng trống ổ đĩa `H:` (KINI AI) và ổ đĩa `C:` (Hệ điều hành Windows).
+     - Thao tác 1-chạm `[🧹 Dọn Dẹp Ngay]`: Xóa sạch cache, file tạm OTA, script tạm `_run_*.py` và cache Python để chống phình to dung lượng bộ nhớ.
+     - Thao tác 1-chạm `[💾 Sao Lưu]`: Tạo bản snapshot tức thì của toàn bộ cơ sở dữ liệu `kini_ai.db` vào thư mục `backups/`.
+  3. **Động cơ Tự Kiểm Tra & Chữa Lỗi (`backend/self_checker.py`)**:
+     - Tự động kiểm tra tính toàn vẹn của 5 thư mục cốt lõi (`generated_images`, `generated_audio`, `backups`, `workspace`, `dist_ota`), cơ sở dữ liệu SQLite, file cấu hình `version.json` và Gemini API key.
+     - Tự động phục hồi hoặc tạo lại nếu phát hiện thiếu mà không bao giờ làm app bị lỗi hay gián đoạn.
+  4. **Kiểm thử & Đóng gói OTA v4.3.3**:
+     - Kiểm thử biên dịch Python và cú pháp JavaScript bằng Node.js đạt chuẩn 100% (0 lỗi).
+     - Đóng gói bản phát hành OTA siêu nhẹ **`v4.3.3 (Build 435)`** (`dist_ota/latest_ota_package.zip`, dung lượng 2.35 MB).
+     - Đảm bảo 100% quy tắc Chống Lặp Cập Nhật (`has_update: false`) và Chống Phình Dung Lượng.
+

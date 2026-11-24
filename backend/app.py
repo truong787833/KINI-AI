@@ -28,6 +28,8 @@ from . import agent_engine
 from . import math_verifier
 from . import image_editor
 from . import ota_updater
+from . import execution_engine
+from . import self_checker
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -1501,80 +1503,7 @@ def execute_python_code_interpreter(data: dict):
     code = data.get("code", "").strip()
     if not code:
         raise HTTPException(status_code=400, detail="Mã nguồn không được để trống")
-    
-    sandbox_dir = os.path.join(agent_engine.WORKSPACE_DIR, ".sandbox")
-    os.makedirs(sandbox_dir, exist_ok=True)
-    snippet_id = uuid.uuid4().hex[:8]
-    script_file = os.path.join(sandbox_dir, f"snippet_{snippet_id}.py")
-    
-    # Tiền xử lý code: Nếu có matplotlib.pyplot, tự động thiết lập non-interactive backend (Agg) để lưu ảnh mà không treo GUI
-    if "matplotlib" in code or "plt." in code:
-        header_mpl = "import matplotlib\nmatplotlib.use('Agg')\n"
-        full_script = header_mpl + code
-    else:
-        full_script = code
-        
-    with open(script_file, "w", encoding="utf-8") as f:
-        f.write(full_script)
-        
-    start_time = time.time()
-    try:
-        proc = subprocess.run(
-            [sys.executable, script_file],
-            cwd=agent_engine.WORKSPACE_DIR,
-            capture_output=True,
-            text=True,
-            timeout=18,
-            encoding="utf-8",
-            errors="replace"
-        )
-        elapsed = round(time.time() - start_time, 3)
-        
-        # Quét các file ảnh mới tạo trong vòng 20s qua trong workspace (ví dụ plt.savefig)
-        generated_plots = []
-        for root, _, files in os.walk(agent_engine.WORKSPACE_DIR):
-            if ".sandbox" in root:
-                continue
-            for f in files:
-                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.svg')):
-                    f_path = os.path.join(root, f)
-                    try:
-                        if os.path.getmtime(f_path) >= start_time - 1:
-                            rel = os.path.relpath(f_path, agent_engine.WORKSPACE_DIR).replace("\\", "/")
-                            generated_plots.append(f"/api/workspace/raw?path={urllib.parse.quote(rel)}")
-                    except Exception:
-                        pass
-                        
-        return {
-            "success": proc.returncode == 0,
-            "stdout": proc.stdout,
-            "stderr": proc.stderr,
-            "returncode": proc.returncode,
-            "elapsed": elapsed,
-            "plots": generated_plots[:4]
-        }
-    except subprocess.TimeoutExpired:
-        return {
-            "success": False,
-            "stdout": "",
-            "stderr": "⚠️ Quá thời gian thực thi (Timeout 18 giây). Vui lòng tối ưu vòng lặp hoặc thuật toán.",
-            "returncode": -1,
-            "elapsed": 18.0,
-            "plots": []
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "stdout": "",
-            "stderr": f"Lỗi thực thi: {str(e)}",
-            "returncode": -1,
-            "elapsed": 0.0,
-            "plots": []
-        }
-    finally:
-        if os.path.exists(script_file):
-            try: os.remove(script_file)
-            except: pass
+    return execution_engine.run_python_code(code, timeout_sec=25)
 
 # ============================================================
 # 5.4. DEEP RESEARCH STRATEGIC DOSSIER & REPORT ENGINE
@@ -1711,3 +1640,171 @@ def set_agent_mode(data: dict, request: Request):
         mode = "safe"
     database.set_setting("agent_mode", mode, client_id=cid)
     return {"success": True, "agent_mode": mode}
+
+# ============================================================
+# 7. HỆ THỐNG ĐIỀU KHIỂN & THỰC THI (CONTROL CENTER & RUNNER)
+# ============================================================
+@app.post("/api/system/run-python")
+def run_python_endpoint(data: dict):
+    """
+    Thực thi mã nguồn Python cục bộ trên máy và trả về kết quả console/hình ảnh.
+    """
+    code = data.get("code", "")
+    timeout = int(data.get("timeout", 25))
+    res = execution_engine.run_python_code(code, timeout_sec=timeout)
+    return res
+
+@app.get("/api/system/self-check")
+def self_check_endpoint():
+    """
+    Tự động kiểm tra tính toàn vẹn hệ thống và tự chữa lành các thành phần thiếu.
+    """
+    return self_checker.run_system_self_check()
+
+@app.get("/api/system/hardware-stats")
+def get_hardware_stats():
+    """
+    Thu thập thông số phần cứng thực tế (CPU, RAM, Ổ đĩa H: và C:, SQLite, Uptime).
+    """
+    import shutil
+    cpu_percent = 0.0
+    ram_percent = 0.0
+    ram_used_gb = 0.0
+    ram_total_gb = 0.0
+
+    try:
+        import psutil
+        cpu_percent = round(psutil.cpu_percent(interval=0.1), 1)
+        vmem = psutil.virtual_memory()
+        ram_percent = round(vmem.percent, 1)
+        ram_used_gb = round(vmem.used / (1024**3), 2)
+        ram_total_gb = round(vmem.total / (1024**3), 2)
+    except Exception:
+        pass
+
+    # Ổ đĩa H: (KINI AI)
+    h_disk = {"total_gb": 0, "free_gb": 0, "used_gb": 0, "percent": 0}
+    try:
+        h_usage = shutil.disk_usage("H:\\")
+        h_disk["total_gb"] = round(h_usage.total / (1024**3), 1)
+        h_disk["free_gb"] = round(h_usage.free / (1024**3), 1)
+        h_disk["used_gb"] = round(h_usage.used / (1024**3), 1)
+        h_disk["percent"] = round((h_usage.used / h_usage.total) * 100, 1)
+    except Exception:
+        pass
+
+    # Ổ đĩa C: (Hệ điều hành)
+    c_disk = {"total_gb": 0, "free_gb": 0, "used_gb": 0, "percent": 0}
+    try:
+        c_usage = shutil.disk_usage("C:\\")
+        c_disk["total_gb"] = round(c_usage.total / (1024**3), 1)
+        c_disk["free_gb"] = round(c_usage.free / (1024**3), 1)
+        c_disk["used_gb"] = round(c_usage.used / (1024**3), 1)
+        c_disk["percent"] = round((c_usage.used / c_usage.total) * 100, 1)
+    except Exception:
+        pass
+
+    # Thông tin Database
+    db_path = os.path.join(BASE_DIR, "kini_ai.db")
+    db_size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2) if os.path.exists(db_path) else 0
+
+    # Thông tin Backups
+    backup_dir = os.path.join(BASE_DIR, "backups")
+    os.makedirs(backup_dir, exist_ok=True)
+    backups = [f for f in os.listdir(backup_dir) if f.endswith(".db") or f.endswith(".zip")]
+
+    return {
+        "success": True,
+        "cpu_percent": cpu_percent,
+        "ram_percent": ram_percent,
+        "ram_used_gb": ram_used_gb,
+        "ram_total_gb": ram_total_gb,
+        "disk_h": h_disk,
+        "disk_c": c_disk,
+        "db_size_mb": db_size_mb,
+        "backup_count": len(backups),
+        "python_version": sys.version.split()[0],
+        "platform": sys.platform
+    }
+
+@app.post("/api/system/clean-cache")
+def clean_cache_endpoint():
+    """
+    Dọn dẹp rác, cache, file tạm theo chuẩn Chống phình to dung lượng.
+    """
+    freed_bytes = 0
+    cleaned_items = []
+
+    # 1. Dọn thư mục tools/ota_temp
+    ota_temp = os.path.join(BASE_DIR, "tools", "ota_temp")
+    if os.path.exists(ota_temp):
+        for root, dirs, files in os.walk(ota_temp):
+            for f in files:
+                fp = os.path.join(root, f)
+                try:
+                    freed_bytes += os.path.getsize(fp)
+                    os.remove(fp)
+                except Exception:
+                    pass
+        cleaned_items.append("Thư mục ota_temp")
+
+    # 2. Dọn file script tạm trong workspace: _run_*.py
+    ws_dir = os.path.join(BASE_DIR, "workspace")
+    if os.path.exists(ws_dir):
+        for f in os.listdir(ws_dir):
+            if f.startswith("_run_") and f.endswith(".py"):
+                fp = os.path.join(ws_dir, f)
+                try:
+                    freed_bytes += os.path.getsize(fp)
+                    os.remove(fp)
+                except Exception:
+                    pass
+        cleaned_items.append("Script chạy tạm thời (workspace)")
+
+    # 3. Dọn file __pycache__
+    for root, dirs, files in os.walk(BASE_DIR):
+        if "__pycache__" in root:
+            for f in files:
+                fp = os.path.join(root, f)
+                try:
+                    freed_bytes += os.path.getsize(fp)
+                    os.remove(fp)
+                except Exception:
+                    pass
+
+    cleaned_mb = round(freed_bytes / (1024 * 1024), 2)
+    return {
+        "success": True,
+        "freed_bytes": freed_bytes,
+        "freed_mb": cleaned_mb,
+        "message": f"Đã dọn dẹp thành công {cleaned_mb} MB bộ nhớ đệm và tệp tin rác!",
+        "cleaned_items": cleaned_items
+    }
+
+@app.post("/api/system/backup-database")
+def backup_database_endpoint():
+    """
+    Tạo bản sao lưu tức thì của cơ sở dữ liệu SQLite kini_ai.db
+    """
+    import shutil
+    db_path = os.path.join(BASE_DIR, "kini_ai.db")
+    if not os.path.exists(db_path):
+        return {"success": False, "message": "Không tìm thấy cơ sở dữ liệu để sao lưu."}
+
+    backup_dir = os.path.join(BASE_DIR, "backups")
+    os.makedirs(backup_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"kini_ai_backup_{timestamp}.db"
+    dest_path = os.path.join(backup_dir, backup_filename)
+
+    shutil.copy2(db_path, dest_path)
+    size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 2)
+
+    return {
+        "success": True,
+        "backup_filename": backup_filename,
+        "size_mb": size_mb,
+        "backup_path": dest_path,
+        "message": f"Đã sao lưu SQLite thành công: {backup_filename} ({size_mb} MB)"
+    }
+
