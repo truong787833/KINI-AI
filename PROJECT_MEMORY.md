@@ -787,3 +787,32 @@
      - Kiểm thử tải gói OTA và áp dụng tự động: Thành công 100%, file zip được xóa sạch ngay lập tức (Anti-bloat), trạng thái `has_update: false` (Anti-loop).
      - Kiểm thử endpoint `/api/system/version`: Trả về `v4.3.0` (Build 430).
      - Bộ chạy `KINI_AI.exe` đã nằm ngay tại thư mục gốc sẵn sàng click đúp mở dùng.
+
+### Mốc Nâng Cấp: Tái Cấu Trúc Giao Diện Chuẩn Tối Giản & Tích Hợp Interactive Canvas Sidecar (2026-11-24)
+- **Yêu cầu của anh Trường**:
+  - *"em ơi, anh cảm thấy KINI AI hoạt động và các nút bấm, giao diện, mục sắp xếp và làm việc vẫn còn rất khó hiểu, không phù hợp. em kiểm tra lại và định hướng làm sao cho chuẩn được không?."*
+  - Khi được tham mưu định hướng chuẩn Google Gemini 2026 & Claude 3.7 Canvas, anh duyệt: *"em hãy làm cho anh"*.
+- **Mục tiêu kỹ thuật**:
+  1. Xóa bỏ hoàn toàn tình trạng "bội thực tính năng": loại bỏ thanh 4 tab phân mảnh trên Topbar và menu giả lập tài khoản Google rườm rà.
+  2. Xây dựng Bảng Canvas Song Song (`#kini-canvas-panel`): khi người dùng bấm chạy Web App, Game mini hay Vibe code, bảng Canvas tự động trượt mở bên phải màn hình để chơi và dùng trực tiếp (Live Preview & Runner), trong khi khung chat bên trái vẫn mở để ra lệnh chỉnh sửa.
+  3. Tối ưu Hero Screen (màn hình chào): Lời chào ấm áp cá nhân hóa *"Chào anh Trường! Em có thể giúp gì cho anh hôm nay?"* cùng 3 Thẻ Tác Vụ Cốt Lõi (Hỏi đáp cố vấn, Xưởng ảnh/logo 3D, Vibe coding & Game).
+  4. Giữ không gian trò chuyện thông thoáng: Ẩn thanh Action Chips cố định để khung chat tập trung 100% vào nội dung trả lời.
+  5. Đảm bảo bảo toàn 100% các tính năng mạnh mẽ bên trong, đồng bộ phiên bản `v4.3.1 (Build 431)` và đóng gói gói OTA siêu nhẹ `latest_ota_package.zip` (2.35 MB).
+- **Các giải pháp kỹ thuật đã triển khai thực tế 100%**:
+  1. **Tinh Giản Topbar (`static/index.html`)**:
+     - Gỡ bỏ thanh chia 4 chế độ tab rườm rà (`[💬 Chat] [🎨 Tạo Ảnh] [✨ Vibe] [⚡ Studio IDE]`).
+     - Gỡ bỏ flyout đa tài khoản giả lập, chuẩn hóa thành Badge Định Danh Duy Nhất: **👑 Anh Trường (Pro)**.
+     - Topbar giờ chỉ giữ lại: Nút Toggle Sidebar `☰`, Logo KINI AI, Breadcrumb tên đoạn chat, Nút `[+ Đoạn chat mới]`, Nút `[⚙️ Cài đặt]` và Badge Anh Trường.
+  2. **Bảng Canvas Sidecar Tương Tác Trực Tiếp (`static/index.html` & `static/style.css`)**:
+     - Tạo module `#kini-canvas-panel` với thanh công cụ đầy đủ:
+       + `📱 Mobile` / `💻 Desktop`: Đổi nhanh tỉ lệ màn hình xem trước (375px chuẩn điện thoại hoặc 100% PC).
+       + `🔄 Chạy lại`: Làm mới ứng dụng/game tức thì.
+       + `⬇️ Tải HTML`: Tải file mã nguồn về máy tính để mở offline vĩnh viễn.
+       + `⛶ Toàn màn hình`: Phóng to ứng dụng trải nghiệm trọn vẹn.
+       + `✕ Đóng`: Thu gọn Canvas mượt mà, đưa giao diện Chat về 1 cột chính giữa rộng rãi.
+  3. **Nâng Cấp Động Cơ Chạy Code & Runner (`static/app.js`)**:
+     - Viết lại hàm `window.launchArtifactRunner`: Không còn ép người dùng chuyển sang giao diện IDE 3 cột phức tạp, mà mở thẳng ứng dụng trong Bảng Canvas bên cạnh.
+     - Bổ sung hàm `window.setQuickPrompt`: Click vào thẻ gợi ý sẽ tự động điền câu lệnh vào khung chat và tự co giãn chiều cao textarea.
+  4. **Kiểm thử nghiệm thu**:
+     - Máy chủ `http://127.0.0.1:8000/` trả về HTTP 200 cho `index.html`, `style.css` và `app.js`.
+     - Đóng gói OTA thành công: `dist_ota/latest_ota_package.zip` và `dist_ota/update_v4.3.1.zip` dung lượng chỉ **2.35 MB** sẵn sàng áp dụng.

@@ -70,6 +70,7 @@ function initApp() {
     try { initVersionSystem(); } catch(e) { console.error("initVersionSystem:", e); }
     try { initDeviceIdentity(); } catch(e) { console.error("initDeviceIdentity:", e); }
     try { initArtStudio(); } catch(e) { console.error("initArtStudio:", e); }
+    try { initKiniCanvas(); } catch(e) { console.error("initKiniCanvas:", e); }
 }
 
 // ============================================================
@@ -2191,12 +2192,69 @@ window.downloadArtifactHtml = function(artifactId) {
     if (typeof showToast === "function") showToast("⬇️ Đã tải mã nguồn Vibe App về máy!");
 };
 
+// ============================================================
+// HỆ THỐNG KINI INTERACTIVE CANVAS & VIBE RUNNER (CHUẨN CLAUDE ARTIFACTS)
+// Vừa chat vừa xem Live App bên phải - không chia tab phức tạp
+// ============================================================
+window.__ACTIVE_CANVAS_CODE = "";
+window.__ACTIVE_CANVAS_TITLE = "Live Web App / Game";
+window.__ACTIVE_CANVAS_LANG = "html";
+
+window.setQuickPrompt = function(text) {
+    const input = document.getElementById("main-user-input");
+    if (!input) return;
+    input.value = text;
+    input.focus();
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 180) + "px";
+};
+
+window.openKiniCanvas = function(code, title = "✨ Interactive Canvas", lang = "html") {
+    const canvasPanel = document.getElementById("kini-canvas-panel");
+    const canvasFrame = document.getElementById("kini-canvas-frame");
+    const canvasTitle = document.getElementById("kini-canvas-title");
+    
+    if (!canvasPanel || !canvasFrame) return;
+
+    window.__ACTIVE_CANVAS_CODE = code;
+    window.__ACTIVE_CANVAS_TITLE = title;
+    window.__ACTIVE_CANVAS_LANG = lang;
+
+    if (canvasTitle) canvasTitle.textContent = title;
+
+    const isJs = (lang && (lang.toLowerCase() === "js" || lang.toLowerCase() === "javascript")) || 
+                 (!code.includes("<html") && !code.includes("<!DOCTYPE") && 
+                  (code.includes("canvas") || code.includes("function") || code.includes("const ") || code.includes("let ")));
+
+    if (isJs) {
+        canvasFrame.removeAttribute("src");
+        canvasFrame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:12px;background:#0d1117;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:95vh;}canvas{background:#000;border:1px solid #334155;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:block;max-width:100%;}</style></head><body><canvas id="canvas" width="600" height="400"></canvas><script>${code}<\/script></body></html>`;
+    } else {
+        canvasFrame.removeAttribute("src");
+        canvasFrame.srcdoc = code;
+    }
+
+    canvasPanel.style.display = "flex";
+    showToast("✨ Đã mở Live Canvas bên cạnh!");
+};
+
+window.closeKiniCanvas = function() {
+    const canvasPanel = document.getElementById("kini-canvas-panel");
+    if (canvasPanel) {
+        canvasPanel.style.display = "none";
+        canvasPanel.classList.remove("fullscreen");
+    }
+};
+
 window.launchArtifactRunner = function(artifactIdOrBtn) {
     let code = "";
     let lang = "html";
-    if (typeof artifactIdOrBtn === "string" && window.__KINI_ARTIFACTS[artifactIdOrBtn]) {
+    let title = "✨ Live Web App / Game Runner";
+
+    if (typeof artifactIdOrBtn === "string" && window.__KINI_ARTIFACTS && window.__KINI_ARTIFACTS[artifactIdOrBtn]) {
         code = window.__KINI_ARTIFACTS[artifactIdOrBtn].code;
         lang = window.__KINI_ARTIFACTS[artifactIdOrBtn].lang || "html";
+        title = window.__KINI_ARTIFACTS[artifactIdOrBtn].title || title;
     } else if (artifactIdOrBtn && artifactIdOrBtn.nodeType) {
         const wrapper = artifactIdOrBtn.closest(".code-block-wrapper");
         code = wrapper ? wrapper.querySelector("code")?.textContent || "" : "";
@@ -2206,34 +2264,66 @@ window.launchArtifactRunner = function(artifactIdOrBtn) {
 
     if (!code) return;
 
-    switchViewMode("ide");
-    switchIdeEditorTab("preview");
-
-    const frame = document.getElementById("ide-preview-frame");
-    const previewTitle = document.getElementById("ide-preview-title");
-    const isJs = (lang && (lang.toLowerCase() === "js" || lang.toLowerCase() === "javascript")) || (!code.includes("<html") && !code.includes("<!DOCTYPE") && (code.includes("canvas") || code.includes("function") || code.includes("const ") || code.includes("let ")));
-
-    if (previewTitle) {
-        previewTitle.textContent = isJs ? "🎮 Game/Script Runner (Canvas JS)" : "🌐 Live Web App Artifact";
-    }
-
-    if (frame) {
-        if (isJs) {
-            frame.removeAttribute("src");
-            frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:12px;background:#0d1117;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:95vh;}canvas{background:#000;border:1px solid #334155;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:block;}</style></head><body><canvas id="canvas" width="600" height="400"></canvas><script>${code}<\/script></body></html>`;
-        } else {
-            frame.removeAttribute("src");
-            frame.srcdoc = code;
-        }
-    }
-    setIdeCode(code, isJs ? "javascript" : "htmlmixed");
-    const tabName = document.getElementById("ide-tab-name");
-    if (tabName) tabName.textContent = isJs ? "artifact_runner.js" : "artifact_runner.html";
-    const btnPrev = document.getElementById("ide-mode-preview");
-    if (btnPrev) btnPrev.style.display = "inline-block";
-    showToast("🎮 Đã nạp vào Live Web/Game Runner!");
-    appendTerminalLog("[RUNNER]: Khởi chạy Live Web/Game Runner từ tin nhắn chat.", "success");
+    // Mở trực tiếp trên Bảng Canvas Song Song hiện đại (Chuẩn Claude Artifacts)
+    openKiniCanvas(code, title, lang);
 };
+
+function initKiniCanvas() {
+    const canvasPanel = document.getElementById("kini-canvas-panel");
+    const canvasFrame = document.getElementById("kini-canvas-frame");
+    const btnClose = document.getElementById("btn-canvas-close");
+    const btnReload = document.getElementById("btn-canvas-reload");
+    const btnDownload = document.getElementById("btn-canvas-download");
+    const btnFullscreen = document.getElementById("btn-canvas-fullscreen");
+    const btnViewport = document.getElementById("btn-canvas-viewport");
+    const frameContainer = document.getElementById("canvas-frame-container");
+
+    btnClose?.addEventListener("click", () => {
+        closeKiniCanvas();
+    });
+
+    btnReload?.addEventListener("click", () => {
+        if (!canvasFrame || !window.__ACTIVE_CANVAS_CODE) return;
+        const code = window.__ACTIVE_CANVAS_CODE;
+        const lang = window.__ACTIVE_CANVAS_LANG || "html";
+        const isJs = (lang && (lang.toLowerCase() === "js" || lang.toLowerCase() === "javascript")) || 
+                     (!code.includes("<html") && !code.includes("<!DOCTYPE") && 
+                      (code.includes("canvas") || code.includes("function") || code.includes("const ") || code.includes("let ")));
+
+        if (isJs) {
+            canvasFrame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:12px;background:#0d1117;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:95vh;}canvas{background:#000;border:1px solid #334155;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:block;max-width:100%;}</style></head><body><canvas id="canvas" width="600" height="400"></canvas><script>${code}<\/script></body></html>`;
+        } else {
+            canvasFrame.srcdoc = code;
+        }
+        showToast("🔄 Đã làm mới ứng dụng!");
+    });
+
+    btnDownload?.addEventListener("click", () => {
+        if (!window.__ACTIVE_CANVAS_CODE) return;
+        const blob = new Blob([window.__ACTIVE_CANVAS_CODE], { type: "text/html;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        const titleSlug = (window.__ACTIVE_CANVAS_TITLE || "kini_app").toLowerCase().replace(/[^a-z0-9]/g, "_");
+        a.download = `${titleSlug}.html`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast("⬇️ Đã tải file HTML về máy!");
+    });
+
+    btnFullscreen?.addEventListener("click", () => {
+        if (!canvasPanel) return;
+        canvasPanel.classList.toggle("fullscreen");
+        btnFullscreen.textContent = canvasPanel.classList.contains("fullscreen") ? "⤢ Thu nhỏ" : "⛶";
+    });
+
+    btnViewport?.addEventListener("click", () => {
+        if (!frameContainer) return;
+        frameContainer.classList.toggle("mobile-view");
+        const isMobile = frameContainer.classList.contains("mobile-view");
+        btnViewport.textContent = isMobile ? "💻 Desktop" : "📱 Mobile";
+        showToast(isMobile ? "📱 Chuyển sang kích thước điện thoại" : "💻 Chuyển sang kích thước máy tính");
+    });
+}
 
 // ============================================================
 // HỆ THỐNG BIỂU ĐỒ DỮ LIỆU TƯƠNG TÁC (CHART.JS INTERACTIVE ENGINE)
