@@ -4308,35 +4308,39 @@ async function initDeviceIdentity() {
     }
 
     // Đăng xuất khỏi thiết bị
-    if (btnLogout) {
-        btnLogout.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            if (confirm("Anh có chắc muốn đăng xuất tài khoản khỏi thiết bị này không?")) {
-                try {
-                    const res = await fetch("/api/auth/logout", { method: "POST" });
-                    if (res.ok) {
-                        const data = await res.json();
-                        currentDeviceIdentity = data;
-                        renderDeviceIdentityUI(data);
-                        if (flyout) flyout.style.display = "none";
-                        showToast("🚪 Đã đăng xuất tài khoản thành công!");
-                    }
-                } catch (err) {
-                    showToast("Lỗi khi đăng xuất: " + err.message, "error");
+    const handleLogoutAction = async (e) => {
+        if (e) e.stopPropagation();
+        if (confirm("Anh có chắc muốn đăng xuất tài khoản khỏi thiết bị này không?")) {
+            try {
+                const res = await fetch("/api/auth/logout", { method: "POST" });
+                if (res.ok) {
+                    const data = await res.json();
+                    currentDeviceIdentity = data;
+                    renderDeviceIdentityUI(data);
+                    if (flyout) flyout.style.display = "none";
+                    showToast("🚪 Đã đăng xuất tài khoản thành công!");
                 }
+            } catch (err) {
+                showToast("Lỗi khi đăng xuất: " + err.message, "error");
             }
-        });
-    }
+        }
+    };
+
+    const btnQuickLogout = document.getElementById("btn-quick-logout");
+    if (btnLogout) btnLogout.addEventListener("click", handleLogoutAction);
+    if (btnQuickLogout) btnQuickLogout.addEventListener("click", handleLogoutAction);
 
     // Mở modal đăng nhập từ flyout
-    if (btnOpenLoginFromFlyout) {
-        btnOpenLoginFromFlyout.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (flyout) flyout.style.display = "none";
-            const modalAuth = document.getElementById("modal-auth-login");
-            if (modalAuth) modalAuth.style.display = "flex";
-        });
-    }
+    const handleOpenLoginAction = (e) => {
+        if (e) e.stopPropagation();
+        if (flyout) flyout.style.display = "none";
+        const modalAuth = document.getElementById("modal-auth-login");
+        if (modalAuth) modalAuth.style.display = "flex";
+    };
+
+    const btnQuickOpenLogin = document.getElementById("btn-quick-open-login");
+    if (btnOpenLoginFromFlyout) btnOpenLoginFromFlyout.addEventListener("click", handleOpenLoginAction);
+    if (btnQuickOpenLogin) btnQuickOpenLogin.addEventListener("click", handleOpenLoginAction);
 
     // Đăng nhập nhanh 1-chạm Chủ Nhân
     if (btnLoginQuickOwner) {

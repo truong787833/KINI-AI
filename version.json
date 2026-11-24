@@ -1,14 +1,15 @@
 {
   "version": "4.3.6",
-  "build_number": 438,
+  "build_number": 439,
   "release_date": "2026-11-24",
   "channel": "stable",
   "app_name": "KINI AI Desktop",
   "latest_version": "4.3.6",
-  "latest_build": 438,
+  "latest_build": 439,
   "has_update": false,
   "update_url": "",
   "changelog": [
+    "Sua loi neo toa do flyout ho so tren Topbar, hien thi ro rang nut Dang Xuat va Dang Nhap (v4.3.6)",
     "Tich hop he thong Dang Nhap va Dang Xuat tai khoan, dang nhap 1-cham Chu Nhan (v4.3.6)",
     "Nang cap dong co giong doc Dual-Engine Turbo TTS, fallback Web Speech sieu toc chong im lang (v4.3.5)",
     "Quy hoach man hinh khoi dau Hero khong bi che, loai bo thanh ngang gay xau duoi prompt (v4.3.4)",

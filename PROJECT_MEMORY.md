@@ -927,7 +927,12 @@
      - KINI AI gọi trực tiếp Google Gemini API chính hãng từ Google qua thư viện `google-genai` và REST API của Google DeepMind.
      - Bộ chọn model chuẩn xác gồm: `Gemini 3.8 Flash` (Chuẩn Antigravity thế hệ mới nhất), `Gemini 3.1 Flash Lite` (Phản hồi siêu tốc 0.8s), và `Gemini 3.1 Pro Preview` (Suy luận chuyên sâu).
      - Hỗ trợ nhập API Key riêng của bất kỳ tài khoản Gmail nào lấy từ Google AI Studio (`aistudio.google.com`) để sử dụng hạn mức riêng chuẩn xác 100%.
-  4. **Đóng gói OTA v4.3.6 (Build 438)**:
+  4. **Đóng gói OTA v4.3.6 (Build 439) & Khắc phục Lỗi Neo Tọa Độ (Anchor Positioning)**:
+     - *Nguyên nhân lỗi nhấp vào không thấy hiện*: Do thẻ `.google-profile-flyout` trước đó là con trực tiếp của `.nav-right` (không có `position: relative`), nên trình duyệt tính `top: calc(100% + 10px)` theo `.main-content` (100vh), làm bảng flyout bị đẩy tuột xuống đáy màn hình và bị `overflow: hidden` che mất.
+     - *Khắc phục triệt để*:
+       + Bọc `#btn-user-profile` và `#google-profile-flyout` vào thẻ wrapper riêng `.user-profile-nav-wrapper` có `position: relative`.
+       + Bổ sung thanh công cụ thao tác nhanh 2 nút nổi bật ngay trên đầu flyout: `[＋ Đăng Nhập Khác]` và `[🚪 Đăng Xuất]`.
+       + Thiết lập `.top-nav` có `position: relative; z-index: 1000`, flyout có `z-index: 10000; max-height: calc(100vh - 75px); overflow-y: auto`.
      - Gói OTA siêu nhẹ `dist_ota/latest_ota_package.zip` (2.36 MB).
      - Đồng bộ phiên bản 100%, chống lặp cập nhật (`has_update: false`) và chống phình dung lượng.
 

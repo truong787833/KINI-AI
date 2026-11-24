@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261124_1145">
+    <link rel="stylesheet" href="/static/style.css?v=20261124_1158">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -141,82 +141,95 @@
                     <button class="btn-icon mobile-settings-btn" id="btn-top-settings" title="Cài Đặt & Tuỳ Chỉnh Hệ Thống">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     </button>
-                    <!-- Badge Chủ Nhân Chuẩn Mực: Anh Trường -->
-                    <div class="user-pill google-profile-pill" id="btn-user-profile" title="Chủ nhân: Anh Trường (Bấm để xem/sửa xưng hô)">
-                        <div class="user-header-avatar" id="user-header-avatar">👑</div>
-                        <span class="user-name" id="user-header-name">Anh Trường</span>
-                        <span class="badge-pro-pill" id="user-header-pro">Pro</span>
-                    </div>
+                    <!-- Wrapper Định Vị Tuyệt Đối Cho Profile Pill & Profile Flyout -->
+                    <div class="user-profile-nav-wrapper" id="user-profile-nav-wrapper">
+                        <!-- Badge Chủ Nhân Chuẩn Mực: Anh Trường -->
+                        <div class="user-pill google-profile-pill" id="btn-user-profile" title="Chủ nhân: Anh Trường (Bấm để xem/sửa xưng hô & tài khoản)">
+                            <div class="user-header-avatar" id="user-header-avatar">👑</div>
+                            <span class="user-name" id="user-header-name">Anh Trường</span>
+                            <span class="badge-pro-pill" id="user-header-pro">Pro</span>
+                        </div>
 
-                    <!-- GOOGLE GEMINI STYLE PROFILE FLYOUT -->
-                    <div class="google-profile-flyout" id="google-profile-flyout" style="display: none;">
-                        <div class="g-profile-header">
-                            <button class="btn-g-close" id="btn-close-g-profile" title="Đóng">✕</button>
-                            <div class="g-active-card">
-                                <div class="g-active-avatar-wrap">
-                                    <div class="g-active-avatar" id="g-flyout-avatar">T</div>
-                                    <span class="g-avatar-edit-icon" id="btn-edit-identity-from-flyout" title="Cài đặt xưng hô cho thiết bị này">✏️</span>
-                                </div>
-                                <div class="g-active-info">
-                                    <div class="g-active-name" id="g-flyout-name">Truong Hai</div>
-                                    <div class="g-active-email" id="g-flyout-email">haitruongproqt1@gmail.com</div>
-                                    <div class="g-active-badge-row">
-                                        <span class="badge-pro-pill" id="g-flyout-pro-badge">Pro</span>
-                                        <span class="g-device-tag" id="g-flyout-device-tag">👑 Thiết bị Chủ Nhân</span>
+                        <!-- GOOGLE GEMINI STYLE PROFILE FLYOUT -->
+                        <div class="google-profile-flyout" id="google-profile-flyout" style="display: none;">
+                            <div class="g-profile-header">
+                                <button class="btn-g-close" id="btn-close-g-profile" title="Đóng">✕</button>
+                                <div class="g-active-card">
+                                    <div class="g-active-avatar-wrap">
+                                        <div class="g-active-avatar" id="g-flyout-avatar">T</div>
+                                        <span class="g-avatar-edit-icon" id="btn-edit-identity-from-flyout" title="Cài đặt xưng hô cho thiết bị này">✏️</span>
+                                    </div>
+                                    <div class="g-active-info">
+                                        <div class="g-active-name" id="g-flyout-name">Truong Hai</div>
+                                        <div class="g-active-email" id="g-flyout-email">haitruongproqt1@gmail.com</div>
+                                        <div class="g-active-badge-row">
+                                            <span class="badge-pro-pill" id="g-flyout-pro-badge">Pro</span>
+                                            <span class="g-device-tag" id="g-flyout-device-tag">👑 Thiết bị Chủ Nhân</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="g-identity-status-box" id="g-identity-status-box">
-                            <div class="g-status-text">Thiết bị đang nhận diện: <strong id="g-status-call-name">Anh Trường</strong></div>
-                            <div class="g-status-sub" id="g-status-sub-text">KINI AI sẽ luôn xưng <strong>"Em"</strong> và nạp toàn bộ ký ức.</div>
-                        </div>
-
-                        <div class="g-accounts-list">
-                            <div class="g-account-item active" id="g-acc-item-pro" onclick="selectDeviceProfile('pro')">
-                                <div class="g-acc-avatar">T</div>
-                                <div class="g-acc-details">
-                                    <div class="g-acc-name">Truong Hai <span class="badge-pro-mini">Pro</span></div>
-                                    <div class="g-acc-email">haitruongproqt1@gmail.com</div>
-                                </div>
-                                <span class="g-acc-badge">Đang dùng</span>
+                            <div class="g-identity-status-box" id="g-identity-status-box">
+                                <div class="g-status-text">Thiết bị đang nhận diện: <strong id="g-status-call-name">Anh Trường</strong></div>
+                                <div class="g-status-sub" id="g-status-sub-text">KINI AI sẽ luôn xưng <strong>"Em"</strong> và nạp toàn bộ ký ức.</div>
                             </div>
 
-                            <div class="g-account-item" id="g-acc-item-default" onclick="selectDeviceProfile('default')">
-                                <div class="g-acc-avatar default-avatar">T</div>
-                                <div class="g-acc-details">
-                                    <div class="g-acc-name">Hải Trường</div>
-                                    <div class="g-acc-email">haitruongpro94@gmail.com</div>
-                                </div>
-                                <span class="g-acc-badge default">Mặc định</span>
+                            <!-- Thanh Thao Tác Nhanh: Đăng Nhập & Đăng Xuất Nổi Bật -->
+                            <div class="g-flyout-quick-bar" style="display: flex; gap: 8px; margin: 10px 0 12px;">
+                                <button class="btn btn-outline" id="btn-quick-open-login" style="flex: 1; padding: 7px 10px; font-size: 0.8rem; border-color: #38bdf8; color: #38bdf8; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                                    <span>＋</span> Đăng Nhập Khác
+                                </button>
+                                <button class="btn btn-outline" id="btn-quick-logout" style="flex: 1; padding: 7px 10px; font-size: 0.8rem; border-color: rgba(239, 68, 68, 0.5); color: #f87171; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                                    <span>🚪</span> Đăng Xuất
+                                </button>
                             </div>
 
-                            <div class="g-account-item" id="g-acc-item-guest" onclick="selectDeviceProfile('guest')">
-                                <div class="g-acc-avatar guest">👤</div>
-                                <div class="g-acc-details">
-                                    <div class="g-acc-name">Chế độ Khách (Người khác dùng)</div>
-                                    <div class="g-acc-email">Tùy chỉnh tên gọi riêng & xưng hô lịch sự</div>
+                            <div class="g-accounts-list">
+                                <div class="g-account-item active" id="g-acc-item-pro" onclick="selectDeviceProfile('pro')">
+                                    <div class="g-acc-avatar">T</div>
+                                    <div class="g-acc-details">
+                                        <div class="g-acc-name">Truong Hai <span class="badge-pro-mini">Pro</span></div>
+                                        <div class="g-acc-email">haitruongproqt1@gmail.com</div>
+                                    </div>
+                                    <span class="g-acc-badge">Đang dùng</span>
                                 </div>
-                                <span class="g-acc-badge guest">Khách</span>
+
+                                <div class="g-account-item" id="g-acc-item-default" onclick="selectDeviceProfile('default')">
+                                    <div class="g-acc-avatar default-avatar">T</div>
+                                    <div class="g-acc-details">
+                                        <div class="g-acc-name">Hải Trường</div>
+                                        <div class="g-acc-email">haitruongpro94@gmail.com</div>
+                                    </div>
+                                    <span class="g-acc-badge default">Mặc định</span>
+                                </div>
+
+                                <div class="g-account-item" id="g-acc-item-guest" onclick="selectDeviceProfile('guest')">
+                                    <div class="g-acc-avatar guest">👤</div>
+                                    <div class="g-acc-details">
+                                        <div class="g-acc-name">Chế độ Khách (Người khác dùng)</div>
+                                        <div class="g-acc-email">Tùy chỉnh tên gọi riêng & xưng hô lịch sự</div>
+                                    </div>
+                                    <span class="g-acc-badge guest">Khách</span>
+                                </div>
+
+                                <div class="g-account-item g-btn-add-account" id="btn-open-login-from-flyout" style="cursor: pointer; border-style: dashed;">
+                                    <div class="g-acc-avatar" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8;">＋</div>
+                                    <div class="g-acc-details">
+                                        <div class="g-acc-name" style="color: #38bdf8;">Đăng Nhập Tài Khoản Khác</div>
+                                        <div class="g-acc-email">Sử dụng tài khoản Gmail hoặc hồ sơ riêng</div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="g-account-item g-btn-add-account" id="btn-open-login-from-flyout" style="cursor: pointer; border-style: dashed;">
-                                <div class="g-acc-avatar" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8;">＋</div>
-                                <div class="g-acc-details">
-                                    <div class="g-acc-name" style="color: #38bdf8;">Đăng Nhập Tài Khoản Khác</div>
-                                    <div class="g-acc-email">Sử dụng tài khoản Gmail hoặc hồ sơ riêng</div>
-                                </div>
+                            <div class="g-profile-actions">
+                                <button class="g-btn-action" id="btn-custom-identity-settings">
+                                    <span>⚙️</span> Cài đặt cách xưng hô cho thiết bị này
+                                </button>
+                                <button class="g-btn-action btn-danger-hover" id="btn-action-logout" style="color: #f87171; border-color: rgba(239, 68, 68, 0.3);">
+                                    <span>🚪</span> Đăng Xuất Khỏi Thiết Bị
+                                </button>
                             </div>
-                        </div>
-
-                        <div class="g-profile-actions">
-                            <button class="g-btn-action" id="btn-custom-identity-settings">
-                                <span>⚙️</span> Cài đặt cách xưng hô cho thiết bị này
-                            </button>
-                            <button class="g-btn-action btn-danger-hover" id="btn-action-logout" style="color: #f87171; border-color: rgba(239, 68, 68, 0.3);">
-                                <span>🚪</span> Đăng Xuất Khỏi Thiết Bị
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1327,6 +1340,6 @@
 
     <script src="/static/chart.min.js"></script>
     <script src="/static/vibe_templates.js"></script>
-    <script src="/static/app.js?v=20261124_1145"></script>
+    <script src="/static/app.js?v=20261124_1158"></script>
 </body>
 </html>
