@@ -272,12 +272,16 @@ function initNavigationAndModals() {
         if (modelBadge) {
             modelBadge.addEventListener("click", (e) => {
                 e.stopPropagation();
+                const usageCard = document.getElementById("usage-flyout-card");
+                if (usageCard) usageCard.style.display = "none";
                 modelDropdown.classList.toggle("show");
             });
         }
         if (mobileModelPill) {
             mobileModelPill.addEventListener("click", (e) => {
                 e.stopPropagation();
+                const usageCard = document.getElementById("usage-flyout-card");
+                if (usageCard) usageCard.style.display = "none";
                 modelDropdown.classList.toggle("show");
             });
         }
@@ -352,7 +356,11 @@ function initNavigationAndModals() {
     if (btnUsage && usageCard) {
         btnUsage.addEventListener("click", async (e) => {
             e.stopPropagation();
-            if (usageCard.style.display === "none") {
+            // Đóng menu chọn model ngay lập tức để tránh lỗi chèn đè giao diện
+            const modelDropdown = document.getElementById("model-dropdown-menu");
+            if (modelDropdown) modelDropdown.classList.remove("show");
+
+            if (usageCard.style.display === "none" || !usageCard.style.display) {
                 await refreshUsageStats();
                 usageCard.style.display = "block";
             } else {
@@ -1149,11 +1157,14 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
     if (displayModel === "gemini-3.8-flash") formattedModelName = "Gemini 3.8 Flash";
     else if (displayModel === "gemini-3.5-flash") formattedModelName = "Gemini 3.5 Flash";
     else if (displayModel === "gemini-3.1-flash-lite") formattedModelName = "Gemini 3.1 Flash Lite";
-    else if (displayModel === "gemini-3.1-pro-preview") formattedModelName = "Gemini Pro Deep";
+    else if (displayModel === "gemini-flash-lite-latest") formattedModelName = "Gemini Flash Lite";
+    else if (displayModel === "gemini-2.5-pro" || displayModel === "gemini-3.1-pro-preview") formattedModelName = "Gemini Pro";
+    else if (displayModel === "None") formattedModelName = "Hệ thống";
 
     let fallbackHint = "";
-    if (extraData && extraData.fallback_from_38) {
-        fallbackHint = ` <span style="opacity:0.85;font-size:11px;color:#38bdf8;font-style:italic;" title="Google AI Studio giới hạn Gemini 3.8 Flash ở mức 20 lượt/ngày trên Free Tier. KINI đã tự động chuyển tiếp sang mô hình ổn định để không gián đoạn trò chuyện.">(Tự chuyển từ 3.8)</span>`;
+    if (extraData && (extraData.is_fallback || extraData.fallback_from_38 || extraData.fallback_reason)) {
+        const reasonText = extraData.fallback_reason || "Google Gemini 3.8 Flash / Pro tạm thời quá tải (503), KINI đã tự động chuyển sang Flash Lite để phản hồi ngay lập tức.";
+        fallbackHint = ` <span style="opacity:0.9;font-size:11px;color:#f59e0b;background:rgba(245,158,11,0.15);padding:1px 6px;border-radius:4px;border:1px solid rgba(245,158,11,0.3);margin-left:4px;" title="${escapeAttr(reasonText)}">⚠️ (Dự phòng do Google 503)</span>`;
     }
 
     row.innerHTML = `
@@ -1165,7 +1176,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
                 ${proposalCardHtml}
             </div>
             <div class="msg-actions">
-                <span class="msg-model-badge" title="Mô hình thực tế từ Google API">⚡ ${escapeHtml(formattedModelName)}${fallbackHint}</span>
+                <span class="msg-model-badge" title="Mô hình xử lý thực tế từ Google AI API">⚡ ${escapeHtml(formattedModelName)}${fallbackHint}</span>
                 ${agentActionsHtml}
                 <button class="btn-msg-action btn-speak" title="Đọc bằng giọng nói tiếng Việt">
                     <span class="action-icon">🔊</span> Nghe đọc
@@ -4582,10 +4593,22 @@ function renderDeviceIdentityUI(data) {
         }
     }
 
-    if (hName) hName.textContent = !isLoggedIn ? "Đăng Nhập" : (data.is_owner ? "Truong Hai" : (data.user_name || "Khách"));
-    if (hAvatar) hAvatar.textContent = !isLoggedIn ? "👤" : (data.is_owner ? "👑" : (data.user_name || "T").substring(0, 1).toUpperCase());
+    if (hName) hName.textContent = !isLoggedIn ? "Đăng Nhập" : (data.is_owner ? (data.user_name || "Anh Trường") : (data.user_name || "Khách"));
+    if (hAvatar) hAvatar.textContent = !isLoggedIn ? "👤" : (data.is_owner ? "👑" : (data.user_name || "U").substring(0, 1).toUpperCase());
     if (hPro) {
         hPro.style.display = (isLoggedIn && data.is_pro) ? "inline-block" : "none";
+    }
+
+    // Cập nhật câu chào Hero theo danh tính
+    const heroTitle = document.getElementById("hero-title");
+    if (heroTitle) {
+        if (data.is_owner) {
+            heroTitle.textContent = "Chào anh Trường! Em có thể giúp gì cho anh hôm nay?";
+        } else if (isLoggedIn && data.user_call_name) {
+            heroTitle.textContent = `Chào ${data.user_call_name}! KINI AI có thể giúp gì cho bạn hôm nay?`;
+        } else {
+            heroTitle.textContent = "Chào bạn! KINI AI có thể giúp gì cho bạn hôm nay?";
+        }
     }
 
     // Flyout Card
@@ -4597,9 +4620,9 @@ function renderDeviceIdentityUI(data) {
     const statusCall = document.getElementById("g-status-call-name");
     const statusSub = document.getElementById("g-status-sub-text");
 
-    if (fAvatar) fAvatar.textContent = !isLoggedIn ? "👤" : (data.user_name || "T").substring(0, 1).toUpperCase();
-    if (fName) fName.textContent = !isLoggedIn ? "Chưa đăng nhập" : (data.is_owner ? "Truong Hai" : (data.user_name || "Khách"));
-    if (fEmail) fEmail.textContent = !isLoggedIn ? "Bấm nút bên dưới để đăng nhập" : (data.user_email || (data.is_owner ? "haitruongproqt1@gmail.com" : "Chưa liên kết email"));
+    if (fAvatar) fAvatar.textContent = !isLoggedIn ? "👤" : (data.user_name || "U").substring(0, 1).toUpperCase();
+    if (fName) fName.textContent = !isLoggedIn ? "Chưa đăng nhập" : (data.is_owner ? (data.user_name || "Anh Trường") : (data.user_name || "Khách"));
+    if (fEmail) fEmail.textContent = !isLoggedIn ? "Bấm nút bên dưới để đăng nhập" : (data.user_email || "Chưa liên kết email");
     if (fBadge) fBadge.style.display = (isLoggedIn && data.is_pro) ? "inline-block" : "none";
     if (fTag) {
         if (!isLoggedIn) {

@@ -82,7 +82,7 @@ def init_db():
     if "is_pinned" not in existing_conv_cols:
         cur.execute("ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0")
     if "category" not in existing_conv_cols:
-        cur.execute("ALTER TABLE conversations ADD COLUMN category TEXT DEFAULT 'haitruong'")
+        cur.execute("ALTER TABLE conversations ADD COLUMN category TEXT DEFAULT 'Chung'")
     if "client_id" not in existing_conv_cols:
         cur.execute("ALTER TABLE conversations ADD COLUMN client_id TEXT DEFAULT 'master'")
 
@@ -155,7 +155,7 @@ def get_conversation_messages(conv_id: str, client_id: str = "master") -> List[D
     conn.close()
     return [dict(r) for r in rows]
 
-def create_conversation(conv_id: str, title: str, category: str = "haitruong", client_id: str = "master"):
+def create_conversation(conv_id: str, title: str, category: str = "Chung", client_id: str = "master"):
     now = datetime.now().isoformat()
     conn = get_connection()
     cur = conn.cursor()

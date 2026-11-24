@@ -66,7 +66,19 @@ def get_request_client_id(request: Request) -> str:
     cid = request.headers.get("x-client-id", "").strip()
     if not cid:
         cid = request.query_params.get("client_id", "").strip()
-    return cid if cid else "master"
+
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+    
+    if cid:
+        # Nếu client_id là "master" nhưng KHÔNG PHẢI chạy trên localhost (ví dụ gọi qua Cloudflare tunnel)
+        # thì TUYỆT ĐỐI KHÔNG cho phép mạo danh master!
+        if cid == "master" and not is_local:
+            return "guest_remote"
+        return cid
+    
+    # Nếu không có cid gửi lên: chỉ localhost mới được là master
+    return "master" if is_local else "guest_remote"
 
 @app.get("/api/conversations")
 def get_conversations(request: Request):
@@ -77,14 +89,14 @@ def get_conversations(request: Request):
 def create_new_conversation(data: dict, request: Request):
     cid = get_request_client_id(request)
     title = data.get("title", "Cuộc trò chuyện mới")
-    category = data.get("category", "haitruong").strip() or "haitruong"
+    category = data.get("category", "Chung").strip() or "Chung"
     conv_id = str(uuid.uuid4())[:8]
     database.create_conversation(conv_id, title, category=category, client_id=cid)
     return {"id": conv_id, "title": title, "category": category}
 
 @app.post("/api/conversations/{conv_id}/category")
 def set_conversation_category(conv_id: str, data: dict):
-    category = data.get("category", "haitruong").strip() or "haitruong"
+    category = data.get("category", "Chung").strip() or "Chung"
     database.update_conversation_category(conv_id, category)
     return {"success": True, "category": category}
 
@@ -255,9 +267,34 @@ async def chat_with_kini(
     is_voice_live: Optional[str] = Form("0")
 ):
     cid = get_request_client_id(request)
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "0", client_id=cid)
+    user_email = database.get_setting("user_email", "", client_id=cid).strip().lower()
+    user_call_name = database.get_setting("user_call_name", "", client_id=cid).strip()
+    is_truong = (cid == "master" and is_local) and (
+        (user_email == "haitruongproqt1@gmail.com") or 
+        (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"])
+    )
+
     api_key = database.get_setting("gemini_api_key", "", client_id=cid)
-    if not api_key:
+    if not api_key and is_truong:
         api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+    
+    # Check API Key for streaming chat_with_kini_stream
+    if not api_key:
+        no_key_reply = (
+            "⚠️ **Chưa cấu hình Google Gemini API Key:**\n\n"
+            "Để bắt đầu sử dụng KINI AI, bạn vui lòng nhập khóa API Key riêng của mình (hoàn toàn miễn phí 100%):\n"
+            "1. Truy cập [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) và đăng nhập Gmail.\n"
+            "2. Bấm **Create API Key** và sao chép mã khóa.\n"
+            "3. Bấm vào nút **⚙ Cài Đặt & API Key** ở góc dưới bên trái màn hình rồi dán vào nhé!"
+        )
+        database.add_message(conv_id, "assistant", no_key_reply, client_id=cid)
+        async def no_key_streamer():
+            yield f"data: {json.dumps({'type': 'chunk', 'text': no_key_reply})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'reply': no_key_reply, 'model_used': 'None'})}\n\n"
+        return StreamingResponse(no_key_streamer(), media_type="text/event-stream")
     
     file_display_url = ""
     file_display_name = ""
@@ -847,9 +884,34 @@ async def chat_with_kini_stream(
     is_voice_live: Optional[str] = Form("0")
 ):
     cid = get_request_client_id(request)
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "0", client_id=cid)
+    user_email = database.get_setting("user_email", "", client_id=cid).strip().lower()
+    user_call_name = database.get_setting("user_call_name", "", client_id=cid).strip()
+    is_truong = (cid == "master" and is_local) and (
+        (user_email == "haitruongproqt1@gmail.com") or 
+        (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"])
+    )
+
     api_key = database.get_setting("gemini_api_key", "", client_id=cid)
-    if not api_key:
+    if not api_key and is_truong:
         api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+    
+    # Check API Key for streaming chat_with_kini_stream
+    if not api_key:
+        no_key_reply = (
+            "⚠️ **Chưa cấu hình Google Gemini API Key:**\n\n"
+            "Để bắt đầu sử dụng KINI AI, bạn vui lòng nhập khóa API Key riêng của mình (hoàn toàn miễn phí 100%):\n"
+            "1. Truy cập [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) và đăng nhập Gmail.\n"
+            "2. Bấm **Create API Key** và sao chép mã khóa.\n"
+            "3. Bấm vào nút **⚙ Cài Đặt & API Key** ở góc dưới bên trái màn hình rồi dán vào nhé!"
+        )
+        database.add_message(conv_id, "assistant", no_key_reply, client_id=cid)
+        async def no_key_streamer():
+            yield f"data: {json.dumps({'type': 'chunk', 'text': no_key_reply})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'reply': no_key_reply, 'model_used': 'None'})}\n\n"
+        return StreamingResponse(no_key_streamer(), media_type="text/event-stream")
     
     file_display_url = ""
     file_display_name = ""
@@ -1160,7 +1222,16 @@ async def chat_with_kini_stream(
                     daemon=True
                 ).start()
 
-                yield f"data: {json.dumps({'type': 'done', 'reply': final_text, 'model_used': model_used})}\n\n"
+                done_payload = {
+                    'type': 'done', 
+                    'reply': final_text, 
+                    'model_used': model_used,
+                    'is_fallback': item.get('is_fallback', False),
+                    'fallback_reason': item.get('fallback_reason', ''),
+                    'target_model': item.get('target_model', ''),
+                    'fallback_from_38': item.get('fallback_from_38', False)
+                }
+                yield f"data: {json.dumps(done_payload)}\n\n"
 
     return StreamingResponse(chat_sse_streamer(), media_type="text/event-stream")
 
@@ -1569,9 +1640,35 @@ async def execute_deep_research_endpoint(request: Request, data: dict):
         raise HTTPException(status_code=400, detail="Vui lòng nhập chủ đề nghiên cứu sâu.")
         
     cid = get_request_client_id(request)
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "0", client_id=cid)
+    user_email = database.get_setting("user_email", "", client_id=cid).strip().lower()
+    user_call_name = database.get_setting("user_call_name", "", client_id=cid).strip()
+    is_truong = (cid == "master" and is_local) and (
+        (user_email == "haitruongproqt1@gmail.com") or 
+        (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"])
+    )
+
     api_key = database.get_setting("gemini_api_key", "", client_id=cid)
-    if not api_key:
+    if not api_key and is_truong:
         api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+    
+    # Check API Key for non-streaming chat_with_kini
+    if not api_key:
+        no_key_reply = (
+            "⚠️ **Chưa cấu hình Google Gemini API Key:**\n\n"
+            "Để bắt đầu sử dụng KINI AI, bạn vui lòng nhập khóa API Key riêng của mình (hoàn toàn miễn phí 100%):\n"
+            "1. Truy cập [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) và đăng nhập Gmail.\n"
+            "2. Bấm **Create API Key** và sao chép mã khóa.\n"
+            "3. Bấm vào nút **⚙ Cài Đặt & API Key** ở góc dưới bên trái màn hình rồi dán vào nhé!"
+        )
+        database.add_message(conv_id, "assistant", no_key_reply, client_id=cid)
+        return {
+            "success": False,
+            "reply": no_key_reply,
+            "require_api_key": True
+        }
         
     database.add_message(conv_id, "user", f"🔬 [Nghiên Cứu Sâu - Deep Research]: {topic}", client_id=cid)
     
@@ -1595,22 +1692,29 @@ async def execute_deep_research_endpoint(request: Request, data: dict):
 @app.get("/api/device/identity")
 def get_device_identity(request: Request):
     cid = get_request_client_id(request)
-    # Kiểm tra xem thiết bị này đã từng hoàn tất Onboarding / Thiết lập danh tính chưa
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+
     has_configured_val = database.get_setting("identity_configured", "0", client_id=cid)
     has_configured = (has_configured_val == "1")
 
-    is_logged_in_val = database.get_setting("is_logged_in", "1" if has_configured and cid == "master" else "0", client_id=cid)
+    # Chỉ tự động đăng nhập là chủ nhân nếu chạy trên local/desktop và đúng cid == 'master'
+    is_local_master = (cid == "master" and is_local)
+    is_logged_in_val = database.get_setting("is_logged_in", "1" if is_local_master else "0", client_id=cid)
     is_logged_in = is_logged_in_val == "1"
 
-    is_owner_val = database.get_setting("is_owner", "1" if has_configured and cid == "master" else "0", client_id=cid)
-    user_email = database.get_setting("user_email", "haitruongproqt1@gmail.com" if (has_configured and is_owner_val == "1") else "", client_id=cid).strip()
-    user_call_name = database.get_setting("user_call_name", "Anh Trường" if (has_configured and is_owner_val == "1") else "Bạn", client_id=cid).strip()
-    user_name = database.get_setting("user_name", "Truong Hai" if (has_configured and is_owner_val == "1") else "Khách", client_id=cid).strip()
-    ai_call_name = database.get_setting("ai_call_name", "Em" if (has_configured and is_owner_val == "1") else "Tôi", client_id=cid).strip()
-    
-    # Chỉ xác định là chủ nhân anh Trường nếu đúng tài khoản của anh
-    is_owner = is_logged_in and ((user_email.lower() == "haitruongproqt1@gmail.com") or (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"]))
-    
+    is_owner_val = database.get_setting("is_owner", "1" if is_local_master else "0", client_id=cid)
+    user_email = database.get_setting("user_email", "haitruongproqt1@gmail.com" if is_local_master else "", client_id=cid).strip()
+    user_call_name = database.get_setting("user_call_name", "Anh Trường" if is_local_master else "Bạn", client_id=cid).strip()
+    user_name = database.get_setting("user_name", "Truong Hai" if is_local_master else "Khách", client_id=cid).strip()
+    ai_call_name = database.get_setting("ai_call_name", "Em" if is_local_master else "Tôi", client_id=cid).strip()
+
+    # Chỉ công nhận là chủ nhân nếu đúng trên máy localhost/desktop và khớp thông tin chủ nhân
+    is_owner = is_logged_in and is_local_master and (
+        (user_email.lower() == "haitruongproqt1@gmail.com") or 
+        (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"])
+    )
+
     return {
         "client_id": cid,
         "is_logged_in": is_logged_in,
@@ -1626,14 +1730,29 @@ def get_device_identity(request: Request):
 @app.post("/api/auth/login")
 def auth_login(request: Request, data: dict):
     """
-    Đăng nhập tài khoản (Chủ nhân hoặc tài khoản Gmail / người dùng khác).
+    Đăng nhập tài khoản. Người dùng trên web luôn có hồ sơ và API Key riêng biệt 100%.
     """
     cid = get_request_client_id(request)
-    is_owner = bool(data.get("is_owner", False))
-    user_name = data.get("user_name", "Truong Hai" if is_owner else "Khách").strip() or ("Truong Hai" if is_owner else "Khách")
-    user_email = data.get("user_email", "haitruongproqt1@gmail.com" if is_owner else "").strip()
-    user_call_name = data.get("user_call_name", "Anh Trường" if is_owner else "Bạn").strip() or "Bạn"
-    ai_call_name = data.get("ai_call_name", "Em" if is_owner else "Tôi").strip() or "Em"
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+
+    raw_email = data.get("user_email", "").strip().lower()
+    raw_owner = bool(data.get("is_owner", False))
+
+    # Bảo vệ an toàn: Chỉ máy localhost/desktop mới được đăng nhập vai trò chủ nhân Anh Trường
+    if (raw_owner or raw_email == "haitruongproqt1@gmail.com") and (is_local or cid == "master"):
+        is_owner = True
+        user_name = data.get("user_name", "Truong Hai").strip() or "Truong Hai"
+        user_email = "haitruongproqt1@gmail.com"
+        user_call_name = "Anh Trường"
+        ai_call_name = "Em"
+    else:
+        is_owner = False
+        user_name = data.get("user_name", "Khách").strip() or "Khách"
+        user_email = raw_email if raw_email != "haitruongproqt1@gmail.com" else ""
+        user_call_name = data.get("user_call_name", "Bạn").strip() or "Bạn"
+        ai_call_name = data.get("ai_call_name", "Tôi").strip() or "Tôi"
+
     api_key = data.get("api_key", "").strip()
 
     database.set_setting("is_logged_in", "1", client_id=cid)
@@ -1687,11 +1806,24 @@ def auth_logout(request: Request):
 @app.post("/api/device/identity")
 def update_device_identity(request: Request, data: dict):
     cid = get_request_client_id(request)
-    is_owner = bool(data.get("is_owner", False))
-    user_name = data.get("user_name", "Truong Hai" if is_owner else "Khách").strip()
-    user_call_name = data.get("user_call_name", "Anh Trường" if is_owner else "Bạn").strip()
-    ai_call_name = data.get("ai_call_name", "Em" if is_owner else "Tôi").strip()
-    user_email = data.get("user_email", "haitruongproqt1@gmail.com" if is_owner else "").strip()
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+
+    raw_owner = bool(data.get("is_owner", False))
+    raw_email = data.get("user_email", "").strip().lower()
+
+    if (raw_owner or raw_email == "haitruongproqt1@gmail.com") and (is_local or cid == "master"):
+        is_owner = True
+        user_name = data.get("user_name", "Truong Hai").strip() or "Truong Hai"
+        user_call_name = "Anh Trường"
+        ai_call_name = "Em"
+        user_email = "haitruongproqt1@gmail.com"
+    else:
+        is_owner = False
+        user_name = data.get("user_name", "Khách").strip() or "Khách"
+        user_call_name = data.get("user_call_name", "Bạn").strip() or "Bạn"
+        ai_call_name = data.get("ai_call_name", "Tôi").strip() or "Tôi"
+        user_email = raw_email if raw_email != "haitruongproqt1@gmail.com" else ""
     
     database.set_setting("is_logged_in", "1", client_id=cid)
     database.set_setting("is_owner", "1" if is_owner else "0", client_id=cid)
@@ -1719,22 +1851,46 @@ def update_device_identity(request: Request, data: dict):
 @app.get("/api/settings")
 def read_settings(request: Request):
     cid = get_request_client_id(request)
-    api_k = database.get_setting("gemini_api_key", "", client_id=cid)
-    is_using_master_key = False
-    if not api_k:
-        api_k = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
-        is_using_master_key = True
-    saved_persona = database.get_setting("custom_persona", "", client_id=cid)
-    persona = saved_persona if saved_persona else database.get_setting("custom_persona", gemini_client.DEFAULT_SYSTEM_PROMPT, client_id="master")
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+    
+    # Kiểm tra xem có phải tài khoản chính chủ của anh Trường trên máy cá nhân không
+    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "0", client_id=cid)
+    user_email = database.get_setting("user_email", "", client_id=cid).strip().lower()
+    user_call_name = database.get_setting("user_call_name", "", client_id=cid).strip()
+    is_truong = (cid == "master" and is_local) and (
+        (user_email == "haitruongproqt1@gmail.com") or 
+        (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"])
+    )
+
+    if is_truong:
+        api_k = database.get_setting("gemini_api_key", "", client_id=cid) or database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+        saved_persona = database.get_setting("custom_persona", "", client_id=cid)
+        persona = saved_persona if saved_persona else gemini_client.DEFAULT_SYSTEM_PROMPT
+    else:
+        # Người dùng khác / Khách trên web: TUYỆT ĐỐI KHÔNG DÙNG CHUNG KEY VÀ KHÔNG LỘ PERSONA CỦA ANH TRƯỜNG!
+        api_k = database.get_setting("gemini_api_key", "", client_id=cid)
+        saved_persona = database.get_setting("custom_persona", "", client_id=cid)
+        user_call = user_call_name or "Bạn"
+        ai_call = database.get_setting("ai_call_name", "Tôi", client_id=cid) or "Tôi"
+        u_name = database.get_setting("user_name", "Người dùng", client_id=cid) or "Người dùng"
+        
+        default_guest_persona = f"""[SYSTEM IDENTITY: KINI AI - TRỢ LÝ TRÍ TUỆ NHÂN TẠO CÁ NHÂN]
+- Tên: KINI AI.
+- Người dùng: "{u_name}".
+- Xưng hô: Gọi người dùng là "{user_call}", tự xưng là "{ai_call}".
+- Nhiệm vụ: Hỗ trợ giải đáp, tra cứu thông tin, lập trình, tính toán số liệu và sáng tạo nội dung chính xác, khách quan."""
+        persona = saved_persona if saved_persona else default_guest_persona
+
     agent_mode = database.get_setting("agent_mode", "safe", client_id=cid)
     return {
-        "gemini_api_key": api_k if cid == "master" else ("●●●●●● (Kế thừa từ máy chủ)" if api_k else ""),
+        "gemini_api_key": api_k,
         "has_api_key": bool(api_k),
-        "is_using_master_key": is_using_master_key,
+        "is_using_master_key": False,
         "custom_persona": persona,
         "agent_mode": agent_mode,
         "client_id": cid,
-        "is_master": cid == "master"
+        "is_master": is_truong
     }
 
 @app.post("/api/settings")

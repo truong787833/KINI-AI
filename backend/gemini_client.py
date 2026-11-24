@@ -417,10 +417,18 @@ def ask_gemini(
                 except Exception:
                     pass
 
+                is_fb = (model_name != models_to_try[0])
+                fb_reason = ""
+                if is_fb:
+                    fb_reason = f"Mô hình {models_to_try[0]} từ Google tạm thời quá tải hoặc chạm hạn mức, KINI đã chuyển tiếp sang {model_name} để phản hồi liền mạch."
+
                 return {
                     "success": True,
                     "reply": text,
                     "model_used": model_name,
+                    "target_model": models_to_try[0],
+                    "is_fallback": is_fb,
+                    "fallback_reason": fb_reason,
                     "fallback_from_38": (model_mode in ["flash-3.8", "gemini-3.8-flash"] and model_name != "gemini-3.8-flash"),
                     "usage": data.get("usageMetadata", {})
                 }
@@ -537,10 +545,18 @@ def ask_gemini_stream(
                                     continue
 
                 if accumulated_text:
+                    is_fb = (model_name != models_to_try[0])
+                    fb_reason = ""
+                    if is_fb:
+                        fb_reason = f"Mô hình {models_to_try[0]} từ Google tạm thời quá tải hoặc chạm hạn mức, KINI đã chuyển tiếp sang {model_name} để phản hồi liền mạch."
+
                     yield {
                         "done": True,
                         "full_text": accumulated_text,
                         "model_used": model_name,
+                        "target_model": models_to_try[0],
+                        "is_fallback": is_fb,
+                        "fallback_reason": fb_reason,
                         "fallback_from_38": (model_mode in ["flash-3.8", "gemini-3.8-flash"] and model_name != "gemini-3.8-flash")
                     }
                     return
