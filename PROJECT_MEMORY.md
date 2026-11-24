@@ -868,3 +868,23 @@
      - Đóng gói bản phát hành OTA siêu nhẹ **`v4.3.3 (Build 435)`** (`dist_ota/latest_ota_package.zip`, dung lượng 2.35 MB).
      - Đảm bảo 100% quy tắc Chống Lặp Cập Nhật (`has_update: false`) và Chống Phình Dung Lượng.
 
+### Mốc Tinh Chỉnh: Quy Hoạch Màn Hình Khởi Đầu (Hero Section) & Xóa Bỏ Thanh Ngang Gây Xấu (v4.3.4) (2026-11-24)
+- **Tình huống & Phản ánh của anh Trường**:
+  - Gửi ảnh chụp màn hình khi tạo mới đoạn chat:
+    1. Các thẻ gợi ý tác vụ (`Hỏi Đáp & Trợ Lý`, `Xưởng Ảnh & Logo 3D`, `Vibe Coding & Game`) bị khung nhập lệnh đè lên, che mất một nửa nội dung.
+    2. Xuất hiện thanh ngang (`quick-pills-bar`) chứa các nút nhỏ (`Cuộc trò chuyện`, `Vibe Coding`, `Chơi Game`, `Vẽ tranh & Logo 3D`, `Kế hoạch (/plan)`) tràn ra dưới đáy nhìn rất xấu và chật chội.
+- **Giải pháp kỹ thuật triển khai thực tế 100%**:
+  1. **Khắc phục triệt để hiện tượng che khuất màn hình khởi đầu**:
+     - Cấu hình lại `.hero-section`: Đặt `padding-bottom: 170px`, `overflow-y: auto`, `min-height: 0` để đảm bảo toàn bộ nội dung (Logo, Lời chào, Flavour, 4 Thẻ gợi ý) luôn hiển thị trọn vẹn 100% phía trên khung nhập lệnh, cách khung nhập lệnh ít nhất 50px - 100px.
+     - Vô hiệu hóa lớp phủ bóng mờ `prompt-bottom-shade` khi đang ở màn hình khởi đầu (`#hero-section:not([style*="display: none"]) ~ .prompt-bottom-shade { display: none !important; }`), giúp giao diện sáng rõ và không bị mờ chữ.
+  2. **Xóa bỏ vĩnh viễn thanh ngang gây xấu (`quick-pills-bar`)**:
+     - Gỡ bỏ hoàn toàn thanh ngang thừa thãi dưới đáy khung nhập (`display: none !important`).
+     - Tích hợp toàn diện các tác vụ vào **4 Thẻ Định Hướng Cân Đối** ngay trên màn hình chào đón:
+       + `💬 Hỏi Đáp & Trợ Lý`: Tra cứu văn bản, giải toán, đọc tài liệu Word/Excel/PDF.
+       + `🎨 Xưởng Ảnh & Logo 3D`: Thiết kế logo 3D, sáng tạo tranh nghệ thuật FLUX sắc nét.
+       + `✨ Vibe Coding & Game`: Tạo Game mini, Web App tương tác tức thì và mở Canvas chơi liền.
+       + `📋 Kế Hoạch & Agent (/plan)`: Lên kế hoạch đa bước, phân tích kiến trúc phần mềm chuyên sâu.
+  3. **Đóng gói OTA v4.3.4 (Build 436)**:
+     - Gói OTA siêu nhẹ `dist_ota/latest_ota_package.zip` (2.35 MB) sẵn sàng nạp ngay.
+     - Tuân thủ 100% quy tắc Chống Lặp Cập Nhật (`has_update: false`) và Chống Phình Bộ Nhớ.
+

@@ -718,7 +718,7 @@ function checkInitialHero() {
     if (!messages || !messages.children || messages.children.length === 0) {
         if (hero) hero.style.display = "flex";
         if (viewport) viewport.style.display = "none";
-        if (quickPills) quickPills.style.display = "flex";
+        if (quickPills) quickPills.style.display = "none";
     } else {
         if (hero) hero.style.display = "none";
         if (viewport) viewport.style.display = "block";
