@@ -1293,8 +1293,47 @@ function editAgentProposal(taskPrompt) {
 }
 
 // ============================================================
-// 3. GIỌNG ĐỌC AI & THU ÂM TIẾNG VIỆT
+// 3. GIỌNG ĐỌC AI & THU ÂM TIẾNG VIỆT (DUAL-ENGINE TURBO TTS)
 // ============================================================
+function speakWithBrowserSpeech(text, onEndCallback) {
+    if (!('speechSynthesis' in window)) {
+        if (onEndCallback) onEndCallback();
+        return;
+    }
+    try {
+        window.speechSynthesis.cancel();
+        const cleanText = text.replace(/[*_#`~[\]]/g, '').replace(/https?:\/\/\S+/g, '').substring(0, 300).trim();
+        if (!cleanText) {
+            if (onEndCallback) onEndCallback();
+            return;
+        }
+        const utter = new SpeechSynthesisUtterance(cleanText);
+        utter.lang = 'vi-VN';
+        utter.rate = 1.15;
+
+        const voices = window.speechSynthesis.getVoices();
+        const viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VI'));
+        if (viVoice) utter.voice = viVoice;
+
+        let finished = false;
+        const finish = () => {
+            if (!finished) {
+                finished = true;
+                if (onEndCallback) onEndCallback();
+            }
+        };
+
+        utter.onend = finish;
+        utter.onerror = finish;
+        setTimeout(finish, 12000); // Ngắt an toàn
+
+        window.speechSynthesis.speak(utter);
+    } catch(e) {
+        console.warn("Lỗi Web Speech API:", e);
+        if (onEndCallback) onEndCallback();
+    }
+}
+
 async function handleSpeakText(text, btnElement) {
     if (currentAudioPlayer) {
         currentAudioPlayer.pause();
@@ -1307,11 +1346,16 @@ async function handleSpeakText(text, btnElement) {
 
     try {
         const voiceType = document.getElementById("setting-tts-voice")?.value || "female";
+        const ttsController = new AbortController();
+        const ttsTimer = setTimeout(() => ttsController.abort(), 3200);
+
         const res = await fetch("/api/tts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: text, voice: voiceType })
+            body: JSON.stringify({ text: text, voice: voiceType }),
+            signal: ttsController.signal
         });
+        clearTimeout(ttsTimer);
         const data = await res.json();
 
         if (data.audio_url) {
@@ -1325,19 +1369,28 @@ async function handleSpeakText(text, btnElement) {
                 currentAudioPlayer = null;
             };
             audio.onerror = () => {
+                speakWithBrowserSpeech(text, () => {
+                    btnElement.classList.remove("speaking");
+                    btnElement.innerHTML = `<span class="action-icon">🔊</span> Nghe đọc`;
+                });
+            };
+            audio.play().catch(() => {
+                speakWithBrowserSpeech(text, () => {
+                    btnElement.classList.remove("speaking");
+                    btnElement.innerHTML = `<span class="action-icon">🔊</span> Nghe đọc`;
+                });
+            });
+        } else {
+            speakWithBrowserSpeech(text, () => {
                 btnElement.classList.remove("speaking");
                 btnElement.innerHTML = `<span class="action-icon">🔊</span> Nghe đọc`;
-            };
-            audio.play();
-        } else {
-            alert("Không thể tạo giọng đọc: " + (data.error || "Lỗi không xác định"));
-            btnElement.classList.remove("speaking");
-            btnElement.innerHTML = `<span class="action-icon">🔊</span> Nghe đọc`;
+            });
         }
     } catch (e) {
-        alert("Lỗi phát âm thanh: " + e.message);
-        btnElement.classList.remove("speaking");
-        btnElement.innerHTML = `<span class="action-icon">🔊</span> Nghe đọc`;
+        speakWithBrowserSpeech(text, () => {
+            btnElement.classList.remove("speaking");
+            btnElement.innerHTML = `<span class="action-icon">🔊</span> Nghe đọc`;
+        });
     }
 }
 
@@ -4109,49 +4162,61 @@ async function processVoiceLiveTurn(userSpokenText) {
         
         appendVoiceLiveTranscript("assistant", reply);
 
-        // Gọi TTS để đọc câu trả lời
+        // Gọi TTS để đọc câu trả lời với cơ chế đa tầng (Không bao giờ bị câm hoặc chậm trễ)
         voiceLiveState = "speaking";
         setVoiceLiveOrbState("speaking", "KINI AI đang trả lời...");
-        
-        const ttsRes = await fetch("/api/tts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                text: reply.substring(0, 250), 
-                voice: "female",
-                is_voice_live: true
-            })
-        });
-        const ttsData = await ttsRes.json();
-        
-        if (ttsData.success && ttsData.audio_url) {
-            voiceLiveAudio = new Audio(ttsData.audio_url);
-            // TĂNG TỐC ĐỘ ĐỌC 15% - Giọng đọc lưu loát, năng động, loại bỏ cảm giác chậm chạp
-            voiceLiveAudio.playbackRate = 1.15;
-            
-            const resumeListening = () => {
-                if (voiceLiveActive) {
-                    setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
-                    setTimeout(() => {
-                        voiceLiveIsProcessing = false;
-                        voiceLiveState = "listening";
-                        startVoiceLiveListening();
-                    }, 400); // 400ms buffer tránh micro bắt tiếng vọng còn sót lại từ loa
-                }
-            };
 
-            voiceLiveAudio.onended = resumeListening;
-            voiceLiveAudio.onerror = resumeListening;
-            await voiceLiveAudio.play();
-        } else {
-            setTimeout(() => {
-                if (voiceLiveActive) {
+        let audioPlayed = false;
+
+        const resumeListening = () => {
+            if (voiceLiveActive) {
+                setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
+                setTimeout(() => {
                     voiceLiveIsProcessing = false;
                     voiceLiveState = "listening";
-                    setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
                     startVoiceLiveListening();
-                }
-            }, 1500);
+                }, 350);
+            }
+        };
+
+        const ttsController = new AbortController();
+        const ttsTimeoutId = setTimeout(() => ttsController.abort(), 2600);
+
+        try {
+            const ttsRes = await fetch("/api/tts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    text: reply.substring(0, 250), 
+                    voice: "female",
+                    is_voice_live: true
+                }),
+                signal: ttsController.signal
+            });
+            clearTimeout(ttsTimeoutId);
+            const ttsData = await ttsRes.json();
+
+            if (ttsData.success && ttsData.audio_url && voiceLiveActive) {
+                audioPlayed = true;
+                voiceLiveAudio = new Audio(ttsData.audio_url);
+                voiceLiveAudio.playbackRate = 1.15;
+
+                voiceLiveAudio.onended = resumeListening;
+                voiceLiveAudio.onerror = () => {
+                    speakWithBrowserSpeech(reply, resumeListening);
+                };
+                await voiceLiveAudio.play().catch(() => {
+                    speakWithBrowserSpeech(reply, resumeListening);
+                });
+            }
+        } catch (ttsErr) {
+            clearTimeout(ttsTimeoutId);
+            console.warn("TTS máy chủ phản hồi chậm hoặc lỗi, phát ngay qua Web Speech API:", ttsErr);
+        }
+
+        // Nếu máy chủ TTS không phát được hoặc timeout -> Dùng ngay Browser Speech (0ms trễ, không bao giờ im lặng)
+        if (!audioPlayed && voiceLiveActive) {
+            speakWithBrowserSpeech(reply, resumeListening);
         }
 
     } catch(err) {

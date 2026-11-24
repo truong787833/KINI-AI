@@ -1119,10 +1119,11 @@ async def chat_with_kini_stream(
 async def text_to_speech(data: dict):
     text = data.get("text", "").strip()
     voice = data.get("voice", "female")
+    is_live = bool(data.get("is_voice_live", False))
     if not text:
         raise HTTPException(status_code=400, detail="Vui lòng cung cấp văn bản cần đọc.")
     
-    result = await tts_service.generate_vietnamese_audio_async(text, voice_type=voice)
+    result = await tts_service.generate_vietnamese_audio_async(text, voice_type=voice, is_voice_live=is_live)
     if result.get("success"):
         return result
     raise HTTPException(status_code=500, detail=result.get("error", "Lỗi tạo giọng đọc"))
