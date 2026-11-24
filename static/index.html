@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261122_2007">
+    <link rel="stylesheet" href="/static/style.css?v=20261124_1145">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -200,11 +200,22 @@
                                 </div>
                                 <span class="g-acc-badge guest">Khách</span>
                             </div>
+
+                            <div class="g-account-item g-btn-add-account" id="btn-open-login-from-flyout" style="cursor: pointer; border-style: dashed;">
+                                <div class="g-acc-avatar" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8;">＋</div>
+                                <div class="g-acc-details">
+                                    <div class="g-acc-name" style="color: #38bdf8;">Đăng Nhập Tài Khoản Khác</div>
+                                    <div class="g-acc-email">Sử dụng tài khoản Gmail hoặc hồ sơ riêng</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="g-profile-actions">
                             <button class="g-btn-action" id="btn-custom-identity-settings">
                                 <span>⚙️</span> Cài đặt cách xưng hô cho thiết bị này
+                            </button>
+                            <button class="g-btn-action btn-danger-hover" id="btn-action-logout" style="color: #f87171; border-color: rgba(239, 68, 68, 0.3);">
+                                <span>🚪</span> Đăng Xuất Khỏi Thiết Bị
                             </button>
                         </div>
                     </div>
@@ -1068,6 +1079,69 @@
     </div>
 
     <!-- ============================================================
+         MODAL: ĐĂNG NHẬP TÀI KHOẢN (KINI AI AUTH LOGIN)
+         ============================================================ -->
+    <div class="modal" id="modal-auth-login" style="display: none;">
+        <div class="modal-dialog modal-md auth-login-dialog">
+            <div class="modal-header">
+                <div class="vibe-modal-title-wrap">
+                    <span class="vibe-sparkle-icon">🔑</span>
+                    <div>
+                        <h3 class="modal-title">Đăng Nhập Tài Khoản KINI AI</h3>
+                        <p class="modal-subtitle">Xác thực danh tính chủ nhân, nạp ký ức riêng & kích hoạt hạn mức Gemini Pro</p>
+                    </div>
+                </div>
+                <button class="modal-close" data-close="modal-auth-login">&times;</button>
+            </div>
+            <div class="modal-body auth-login-body">
+                <!-- Nút Đăng Nhập 1-Chạm Nhanh cho Chủ Nhân (Anh Trường) -->
+                <div class="auth-quick-owner-card" id="btn-login-quick-owner" title="Bấm để đăng nhập nhanh với vai trò Chủ Nhân">
+                    <div class="auth-owner-avatar">👑</div>
+                    <div class="auth-owner-info">
+                        <div class="auth-owner-name">Truong Hai <span class="badge-pro-mini">Pro VIP</span></div>
+                        <div class="auth-owner-email">haitruongproqt1@gmail.com</div>
+                        <div class="auth-owner-note">Tự động xưng "Em", nạp 100% ký ức dài hạn và mở toàn quyền máy chủ</div>
+                    </div>
+                    <span class="auth-owner-arrow">➔</span>
+                </div>
+
+                <div class="identity-divider-line"><span>HOẶC ĐĂNG NHẬP BẰNG TÀI KHOẢN GMAIL / TÊN RIÊNG</span></div>
+
+                <div class="auth-form-fields">
+                    <div class="form-group">
+                        <label>Họ và Tên:</label>
+                        <input type="text" id="input-login-name" class="form-input" placeholder="Ví dụ: Hải Trường, Tuấn, Lan...">
+                    </div>
+                    <div class="form-group">
+                        <label>Địa chỉ Email (Gmail):</label>
+                        <input type="email" id="input-login-email" class="form-input" placeholder="Ví dụ: haitruongproqt1@gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label>KINI AI nên gọi bạn là:</label>
+                        <input type="text" id="input-login-call" class="form-input" placeholder="Ví dụ: Anh Trường, Chị Lan, Bạn...">
+                    </div>
+                    <div class="form-group">
+                        <label>KINI AI nên tự xưng là:</label>
+                        <select id="select-login-ai-call" class="form-input">
+                            <option value="Em">Em (Thân mật, tôn trọng)</option>
+                            <option value="Tôi">Tôi (Lịch sự, khách quan)</option>
+                            <option value="KINI AI">KINI AI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Google Gemini API Key riêng (Tùy chọn):</label>
+                        <input type="password" id="input-login-apikey" class="form-input" placeholder="Dán mã API Key nếu muốn dùng quota riêng của Gmail này">
+                        <div class="form-help" style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Để trống nếu muốn sử dụng API Key máy chủ có sẵn.</div>
+                    </div>
+                    <button class="btn btn-primary" id="btn-submit-login" style="width: 100%; margin-top: 10px; padding: 10px 0;">
+                        <span>🚀</span> Đăng Nhập & Kích Hoạt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
          MODAL: BẢNG ĐIỀU KHIỂN HỆ THỐNG (KINI CONTROL CENTER)
          ============================================================ -->
     <div class="modal" id="modal-control-center" style="display: none;">
@@ -1253,6 +1327,6 @@
 
     <script src="/static/chart.min.js"></script>
     <script src="/static/vibe_templates.js"></script>
-    <script src="/static/app.js?v=20261124_1125"></script>
+    <script src="/static/app.js?v=20261124_1145"></script>
 </body>
 </html>

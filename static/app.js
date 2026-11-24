@@ -4248,11 +4248,20 @@ async function initDeviceIdentity() {
     const btnCloseModal = modalIdentity?.querySelector(".modal-close");
     const btnQuickOwner = document.getElementById("btn-quick-set-owner");
     const btnSaveCustom = document.getElementById("btn-save-custom-identity");
+    const btnLogout = document.getElementById("btn-action-logout");
+    const btnOpenLoginFromFlyout = document.getElementById("btn-open-login-from-flyout");
+    const btnLoginQuickOwner = document.getElementById("btn-login-quick-owner");
+    const btnSubmitLogin = document.getElementById("btn-submit-login");
 
     // 1. Toggle Profile Flyout khi click vào User Pill
     if (btnProfile && flyout) {
         btnProfile.addEventListener("click", (e) => {
             e.stopPropagation();
+            if (currentDeviceIdentity && !currentDeviceIdentity.is_logged_in) {
+                const modalAuth = document.getElementById("modal-auth-login");
+                if (modalAuth) modalAuth.style.display = "flex";
+                return;
+            }
             const isShown = flyout.style.display === "block";
             flyout.style.display = isShown ? "none" : "block";
         });
@@ -4298,6 +4307,104 @@ async function initDeviceIdentity() {
         });
     }
 
+    // Đăng xuất khỏi thiết bị
+    if (btnLogout) {
+        btnLogout.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (confirm("Anh có chắc muốn đăng xuất tài khoản khỏi thiết bị này không?")) {
+                try {
+                    const res = await fetch("/api/auth/logout", { method: "POST" });
+                    if (res.ok) {
+                        const data = await res.json();
+                        currentDeviceIdentity = data;
+                        renderDeviceIdentityUI(data);
+                        if (flyout) flyout.style.display = "none";
+                        showToast("🚪 Đã đăng xuất tài khoản thành công!");
+                    }
+                } catch (err) {
+                    showToast("Lỗi khi đăng xuất: " + err.message, "error");
+                }
+            }
+        });
+    }
+
+    // Mở modal đăng nhập từ flyout
+    if (btnOpenLoginFromFlyout) {
+        btnOpenLoginFromFlyout.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (flyout) flyout.style.display = "none";
+            const modalAuth = document.getElementById("modal-auth-login");
+            if (modalAuth) modalAuth.style.display = "flex";
+        });
+    }
+
+    // Đăng nhập nhanh 1-chạm Chủ Nhân
+    if (btnLoginQuickOwner) {
+        btnLoginQuickOwner.addEventListener("click", async () => {
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        is_owner: true,
+                        user_name: "Truong Hai",
+                        user_email: "haitruongproqt1@gmail.com",
+                        user_call_name: "Anh Trường",
+                        ai_call_name: "Em"
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    currentDeviceIdentity = data;
+                    renderDeviceIdentityUI(data);
+                    const modalAuth = document.getElementById("modal-auth-login");
+                    if (modalAuth) modalAuth.style.display = "none";
+                    showToast("👑 Chào mừng Anh Trường đã đăng nhập thành công!");
+                }
+            } catch (err) {
+                showToast("Lỗi đăng nhập: " + err.message, "error");
+            }
+        });
+    }
+
+    // Form Đăng nhập Gmail / Tài khoản riêng
+    if (btnSubmitLogin) {
+        btnSubmitLogin.addEventListener("click", async () => {
+            const name = document.getElementById("input-login-name")?.value.trim() || "Thành viên";
+            const email = document.getElementById("input-login-email")?.value.trim() || "";
+            const callName = document.getElementById("input-login-call")?.value.trim() || "Bạn";
+            const aiCall = document.getElementById("select-login-ai-call")?.value || "Tôi";
+            const apiKey = document.getElementById("input-login-apikey")?.value.trim() || "";
+
+            const isOwner = email.toLowerCase().includes("haitruong") || callName.toLowerCase().includes("trường");
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        is_owner: isOwner,
+                        user_name: name,
+                        user_email: email,
+                        user_call_name: callName,
+                        ai_call_name: aiCall,
+                        api_key: apiKey
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    currentDeviceIdentity = data;
+                    renderDeviceIdentityUI(data);
+                    const modalAuth = document.getElementById("modal-auth-login");
+                    if (modalAuth) modalAuth.style.display = "none";
+                    showToast(`✅ Đăng nhập thành công! Chào ${data.user_call_name || name}.`);
+                }
+            } catch (err) {
+                showToast("Lỗi đăng nhập: " + err.message, "error");
+            }
+        });
+    }
+
     // 3. Tùy chọn 1 chạm: Tôi là Anh Trường (Chủ nhân & Creator)
     if (btnQuickOwner) {
         btnQuickOwner.addEventListener("click", async () => {
@@ -4340,15 +4447,28 @@ async function loadDeviceIdentity() {
 function renderDeviceIdentityUI(data) {
     if (!data) return;
 
+    const isLoggedIn = data.is_logged_in !== false;
+
     // Header Pill
     const hAvatar = document.getElementById("user-header-avatar");
     const hName = document.getElementById("user-header-name");
     const hPro = document.getElementById("user-header-pro");
+    const btnProfile = document.getElementById("btn-user-profile");
 
-    if (hName) hName.textContent = data.is_owner ? "Truong Hai" : (data.user_name || "Khách");
-    if (hAvatar) hAvatar.textContent = (data.user_name || "T").substring(0, 1).toUpperCase();
+    if (btnProfile) {
+        if (!isLoggedIn) {
+            btnProfile.classList.add("pill-logged-out");
+            btnProfile.title = "Chưa đăng nhập (Bấm để đăng nhập tài khoản KINI AI)";
+        } else {
+            btnProfile.classList.remove("pill-logged-out");
+            btnProfile.title = data.is_owner ? `Chủ nhân: ${data.user_call_name || data.user_name} (Bấm để xem/sửa xưng hô & tài khoản)` : `Tài khoản: ${data.user_name}`;
+        }
+    }
+
+    if (hName) hName.textContent = !isLoggedIn ? "Đăng Nhập" : (data.is_owner ? "Truong Hai" : (data.user_name || "Khách"));
+    if (hAvatar) hAvatar.textContent = !isLoggedIn ? "👤" : (data.is_owner ? "👑" : (data.user_name || "T").substring(0, 1).toUpperCase());
     if (hPro) {
-        hPro.style.display = data.is_pro ? "inline-block" : "none";
+        hPro.style.display = (isLoggedIn && data.is_pro) ? "inline-block" : "none";
     }
 
     // Flyout Card
@@ -4360,18 +4480,26 @@ function renderDeviceIdentityUI(data) {
     const statusCall = document.getElementById("g-status-call-name");
     const statusSub = document.getElementById("g-status-sub-text");
 
-    if (fAvatar) fAvatar.textContent = (data.user_name || "T").substring(0, 1).toUpperCase();
-    if (fName) fName.textContent = data.is_owner ? "Truong Hai" : (data.user_name || "Khách");
-    if (fEmail) fEmail.textContent = data.user_email || (data.is_owner ? "haitruongproqt1@gmail.com" : "Chưa liên kết email");
-    if (fBadge) fBadge.style.display = data.is_pro ? "inline-block" : "none";
+    if (fAvatar) fAvatar.textContent = !isLoggedIn ? "👤" : (data.user_name || "T").substring(0, 1).toUpperCase();
+    if (fName) fName.textContent = !isLoggedIn ? "Chưa đăng nhập" : (data.is_owner ? "Truong Hai" : (data.user_name || "Khách"));
+    if (fEmail) fEmail.textContent = !isLoggedIn ? "Bấm nút bên dưới để đăng nhập" : (data.user_email || (data.is_owner ? "haitruongproqt1@gmail.com" : "Chưa liên kết email"));
+    if (fBadge) fBadge.style.display = (isLoggedIn && data.is_pro) ? "inline-block" : "none";
     if (fTag) {
-        fTag.textContent = data.is_owner ? "👑 Thiết bị Chủ Nhân" : "👤 Thiết bị Khách";
-        fTag.style.color = data.is_owner ? "#00f2fe" : "#fbbf24";
-        fTag.style.borderColor = data.is_owner ? "rgba(0, 242, 254, 0.3)" : "rgba(245, 158, 11, 0.3)";
+        if (!isLoggedIn) {
+            fTag.textContent = "⚡ Chế độ Khách (Chưa đăng nhập)";
+            fTag.style.color = "#94a3b8";
+            fTag.style.borderColor = "rgba(148, 163, 184, 0.3)";
+        } else {
+            fTag.textContent = data.is_owner ? "👑 Thiết bị Chủ Nhân" : "👤 Thiết bị Khách";
+            fTag.style.color = data.is_owner ? "#00f2fe" : "#fbbf24";
+            fTag.style.borderColor = data.is_owner ? "rgba(0, 242, 254, 0.3)" : "rgba(245, 158, 11, 0.3)";
+        }
     }
-    if (statusCall) statusCall.textContent = data.user_call_name || (data.is_owner ? "Anh Trường" : "Bạn");
+    if (statusCall) statusCall.textContent = !isLoggedIn ? "Khách vãng lai" : (data.user_call_name || (data.is_owner ? "Anh Trường" : "Bạn"));
     if (statusSub) {
-        if (data.is_owner) {
+        if (!isLoggedIn) {
+            statusSub.innerHTML = `Hãy đăng nhập để KINI AI nạp lại ký ức cá nhân và mở toàn bộ đặc quyền Pro.`;
+        } else if (data.is_owner) {
             statusSub.innerHTML = `KINI AI sẽ luôn xưng <strong>"Em"</strong> và nạp toàn bộ ký ức dài hạn.`;
         } else {
             statusSub.innerHTML = `KINI AI sẽ xưng <strong>"${escapeHtml(data.ai_call_name || 'Tôi')}"</strong> và gọi bạn là <strong>"${escapeHtml(data.user_call_name || 'Bạn')}"</strong>.`;
@@ -4380,7 +4508,9 @@ function renderDeviceIdentityUI(data) {
 
     // Active item trong danh sách
     document.querySelectorAll(".g-account-item").forEach(item => item.classList.remove("active"));
-    if (data.is_owner) {
+    if (!isLoggedIn) {
+        document.getElementById("g-acc-item-guest")?.classList.add("active");
+    } else if (data.is_owner) {
         if (data.user_email === "haitruongpro94@gmail.com") {
             document.getElementById("g-acc-item-default")?.classList.add("active");
         } else {

@@ -5544,6 +5544,92 @@ body::before {
 }
 
 /* ============================================================
+   AUTH LOGIN MODAL & LOGGED OUT STATE
+   ============================================================ */
+.auth-login-dialog {
+    max-width: 520px;
+    width: 95%;
+}
+
+.auth-quick-owner-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(168, 85, 247, 0.18));
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    margin-bottom: 16px;
+}
+
+.auth-quick-owner-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(56, 189, 248, 0.3);
+    border-color: #38bdf8;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(168, 85, 247, 0.28));
+}
+
+.auth-owner-avatar {
+    font-size: 26px;
+    flex-shrink: 0;
+}
+
+.auth-owner-info {
+    flex: 1;
+}
+
+.auth-owner-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.auth-owner-email {
+    font-size: 0.8rem;
+    color: #38bdf8;
+    margin-top: 2px;
+}
+
+.auth-owner-note {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+    line-height: 1.35;
+}
+
+.auth-owner-arrow {
+    font-size: 1.2rem;
+    color: #38bdf8;
+    transition: transform 0.2s ease;
+}
+
+.auth-quick-owner-card:hover .auth-owner-arrow {
+    transform: translateX(4px);
+}
+
+.user-pill.pill-logged-out {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+    animation: pulseBorder 2.5s infinite;
+}
+
+@keyframes pulseBorder {
+    0%, 100% { border-color: rgba(239, 68, 68, 0.35); }
+    50% { border-color: rgba(239, 68, 68, 0.8); }
+}
+
+.user-pill.pill-logged-out:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #ffffff;
+}
+
+/* ============================================================
    NÚT THOÁT STUDIO IDE TRÊN TOP NAVBAR
    ============================================================ */
 .btn-top-exit-ide {

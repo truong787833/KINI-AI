@@ -908,3 +908,27 @@
      - Gói OTA siêu nhẹ `dist_ota/latest_ota_package.zip` (2.36 MB).
      - Tuân thủ 100% quy tắc Chống Lặp Cập Nhật (`has_update: false`) và Chống Phình Dung Lượng.
 
+### Mốc Hoàn Thiện: Tích Hợp Hệ Thống Đăng Nhập / Đăng Xuất & Hỗ Trợ Đăng Nhập Gmail / 1-Chạm Chủ Nhân (v4.3.6) (2026-11-24)
+- **Tình huống & Thắc mắc của anh Trường**:
+  - Anh Trường thắc mắc về tài khoản ở góc phải trên cùng (`Truong Hai Pro`):
+    1. *"tài khoản có đăng xuất, đăng nhập được đâu?"* (Nút hồ sơ trước đây chỉ mở flyout xem thông tin và đổi xưng hô chứ chưa có nút Đăng xuất / Đăng nhập thực tế).
+    2. *"và có đăng nhập bằng tài khoản gmail không vậy?"* (Muốn biết có thể đăng nhập bằng tài khoản Gmail của mình hay không).
+    3. *"và có thể sử dụng chuẩn xác các model gemini không"* (Muốn biết KINI AI có kết nối chuẩn xác các model Gemini của Google không).
+- **Giải pháp kỹ thuật & Tính năng triển khai thực tế 100%**:
+  1. **Tính năng Đăng Xuất (`POST /api/auth/logout`)**:
+     - Bổ sung nút `[🚪 Đăng Xuất Khỏi Thiết Bị]` màu đỏ nổi bật trong flyout hồ sơ tài khoản.
+     - Khi bấm đăng xuất, hệ thống chuyển sang chế độ Khách (`is_logged_in: False`, `user_name: 'Khách'`, `user_call_name: 'Bạn'`, `ai_call_name: 'Tôi'`).
+     - Huy hiệu trên Topbar tự động chuyển thành `[👤 Đăng Nhập]` với viền đỏ phát sáng mời gọi đăng nhập. Ký ức cá nhân và đặc quyền Pro được khóa lại an toàn.
+  2. **Tính năng Đăng Nhập Đa Năng (`POST /api/auth/login`)**:
+     - Tích hợp Modal Đăng nhập `#modal-auth-login` hiện đại:
+       + **Đăng nhập 1-chạm Chủ Nhân VIP**: Thẻ `👑 Truong Hai (Pro VIP)` dành riêng cho anh Trường. Bấm 1 chạm là ngay lập tức kích hoạt lại toàn bộ danh tính, quyền lực máy chủ, tự động xưng `Em` - gọi `Anh Trường` và nạp 100% ký ức dài hạn.
+       + **Đăng nhập bằng Gmail / Tên riêng**: Form nhập Họ tên, Địa chỉ Gmail cá nhân (`haitruongproqt1@gmail.com`), cách xưng hô tùy chọn và ô nhập Google Gemini API Key riêng nếu muốn dùng quota độc lập của tài khoản Gmail đó.
+  3. **Về khả năng sử dụng chuẩn xác các Model Gemini**:
+     - KINI AI gọi trực tiếp Google Gemini API chính hãng từ Google qua thư viện `google-genai` và REST API của Google DeepMind.
+     - Bộ chọn model chuẩn xác gồm: `Gemini 3.8 Flash` (Chuẩn Antigravity thế hệ mới nhất), `Gemini 3.1 Flash Lite` (Phản hồi siêu tốc 0.8s), và `Gemini 3.1 Pro Preview` (Suy luận chuyên sâu).
+     - Hỗ trợ nhập API Key riêng của bất kỳ tài khoản Gmail nào lấy từ Google AI Studio (`aistudio.google.com`) để sử dụng hạn mức riêng chuẩn xác 100%.
+  4. **Đóng gói OTA v4.3.6 (Build 438)**:
+     - Gói OTA siêu nhẹ `dist_ota/latest_ota_package.zip` (2.36 MB).
+     - Đồng bộ phiên bản 100%, chống lặp cập nhật (`has_update: false`) và chống phình dung lượng.
+
+

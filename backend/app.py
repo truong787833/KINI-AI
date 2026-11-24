@@ -1538,14 +1538,17 @@ async def execute_deep_research_endpoint(request: Request, data: dict):
     }
 
 # ============================================================
-# 5.5. QUẢN LÝ DANH TÍNH THIẾT BỊ & XƯNG HÔ (DEVICE IDENTITY)
+# 5.5. QUẢN LÝ TÀI KHOẢN, ĐĂNG NHẬP / ĐĂNG XUẤT & DANH TÍNH
 # ============================================================
 @app.get("/api/device/identity")
 def get_device_identity(request: Request):
     cid = get_request_client_id(request)
-    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "", client_id=cid)
-    # Nếu chưa cấu hình trên thiết bị này, mặc định là owner nếu cid là master
-    is_owner = is_owner_val != "0"
+    is_logged_in_val = database.get_setting("is_logged_in", "1" if cid == "master" else "0", client_id=cid)
+    is_logged_in = is_logged_in_val == "1"
+
+    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "0", client_id=cid)
+    is_owner = is_owner_val == "1" and is_logged_in
+
     user_name = database.get_setting("user_name", "Truong Hai" if is_owner else "Khách", client_id=cid)
     user_call_name = database.get_setting("user_call_name", "Anh Trường" if is_owner else "Bạn", client_id=cid)
     ai_call_name = database.get_setting("ai_call_name", "Em" if is_owner else "Tôi", client_id=cid)
@@ -1554,13 +1557,75 @@ def get_device_identity(request: Request):
     
     return {
         "client_id": cid,
+        "is_logged_in": is_logged_in,
+        "is_owner": is_owner,
+        "user_name": user_name if is_logged_in else "Khách",
+        "user_call_name": user_call_name if is_logged_in else "Bạn",
+        "ai_call_name": ai_call_name if is_logged_in else "Tôi",
+        "user_email": user_email if is_logged_in else "",
+        "is_pro": is_owner and is_logged_in,
+        "has_configured": has_configured == "1"
+    }
+
+@app.post("/api/auth/login")
+def auth_login(request: Request, data: dict):
+    """
+    Đăng nhập tài khoản (Chủ nhân hoặc tài khoản Gmail / người dùng khác).
+    """
+    cid = get_request_client_id(request)
+    is_owner = bool(data.get("is_owner", False))
+    user_name = data.get("user_name", "Truong Hai" if is_owner else "Khách").strip() or ("Truong Hai" if is_owner else "Khách")
+    user_email = data.get("user_email", "haitruongproqt1@gmail.com" if is_owner else "").strip()
+    user_call_name = data.get("user_call_name", "Anh Trường" if is_owner else "Bạn").strip() or "Bạn"
+    ai_call_name = data.get("ai_call_name", "Em" if is_owner else "Tôi").strip() or "Em"
+    api_key = data.get("api_key", "").strip()
+
+    database.set_setting("is_logged_in", "1", client_id=cid)
+    database.set_setting("is_owner", "1" if is_owner else "0", client_id=cid)
+    database.set_setting("user_name", user_name, client_id=cid)
+    database.set_setting("user_email", user_email, client_id=cid)
+    database.set_setting("user_call_name", user_call_name, client_id=cid)
+    database.set_setting("ai_call_name", ai_call_name, client_id=cid)
+    database.set_setting("identity_configured", "1", client_id=cid)
+
+    if api_key:
+        database.set_setting("gemini_api_key", api_key, client_id=cid)
+
+    return {
+        "success": True,
+        "is_logged_in": True,
         "is_owner": is_owner,
         "user_name": user_name,
+        "user_email": user_email,
         "user_call_name": user_call_name,
         "ai_call_name": ai_call_name,
-        "user_email": user_email,
         "is_pro": is_owner,
-        "has_configured": has_configured == "1"
+        "message": f"Chào mừng {user_call_name} đã đăng nhập thành công!"
+    }
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request):
+    """
+    Đăng xuất tài khoản khỏi thiết bị, chuyển về chế độ Khách.
+    """
+    cid = get_request_client_id(request)
+    database.set_setting("is_logged_in", "0", client_id=cid)
+    database.set_setting("is_owner", "0", client_id=cid)
+    database.set_setting("user_name", "Khách", client_id=cid)
+    database.set_setting("user_call_name", "Bạn", client_id=cid)
+    database.set_setting("ai_call_name", "Tôi", client_id=cid)
+    database.set_setting("user_email", "", client_id=cid)
+
+    return {
+        "success": True,
+        "is_logged_in": False,
+        "is_owner": False,
+        "user_name": "Khách",
+        "user_call_name": "Bạn",
+        "ai_call_name": "Tôi",
+        "user_email": "",
+        "is_pro": False,
+        "message": "Đã đăng xuất tài khoản thành công."
     }
 
 @app.post("/api/device/identity")
@@ -1572,6 +1637,7 @@ def update_device_identity(request: Request, data: dict):
     ai_call_name = data.get("ai_call_name", "Em" if is_owner else "Tôi").strip()
     user_email = data.get("user_email", "haitruongproqt1@gmail.com" if is_owner else "").strip()
     
+    database.set_setting("is_logged_in", "1", client_id=cid)
     database.set_setting("is_owner", "1" if is_owner else "0", client_id=cid)
     database.set_setting("user_name", user_name, client_id=cid)
     database.set_setting("user_call_name", user_call_name, client_id=cid)
@@ -1582,6 +1648,7 @@ def update_device_identity(request: Request, data: dict):
     return {
         "success": True,
         "client_id": cid,
+        "is_logged_in": True,
         "is_owner": is_owner,
         "user_name": user_name,
         "user_call_name": user_call_name,
