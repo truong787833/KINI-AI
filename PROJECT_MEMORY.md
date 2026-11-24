@@ -342,30 +342,33 @@
      - Dữ liệu hoàn toàn khớp thực tế, minh bạch nguồn gốc và thời gian.
 
 
-### Mốc Nâng Cấp: Kiến Trúc Siêu Trí Tuệ Tìm Kiếm & Dẫn Chứng Đa Nguồn (Universal Deep Intelligence Engine)
+### Mốc Nâng Cấp: Cô Lập Bảo Mật Danh Tính 100%, Bản EXE Cài Đặt Độc Lập & Minh Bạch Mô Hình AI (v4.4.0)
+- **Ngày thực hiện**: 24/11/2026.
 - **Yêu cầu của anh Trường**:
-  1. KINI AI phải luôn cập nhật chính xác, biết lọc, phân tích chuyên sâu.
-  2. Mọi thông tin (cũ như lịch sử, định nghĩa hay mới như tin tức năm 2026) đều phải chính xác 100%.
-  3. BẮT BUỘC có ĐƯỜNG DẪN CHỨNG CHUẨN XÁC (Working Citations & URLs).
-  4. Nắm bắt toàn bộ các lĩnh vực, ngành nghề, YouTube, GitHub, Facebook, TikTok, Wikipedia...
-  5. Sức mạnh tìm kiếm mạnh như Google Search, hiểu biết sâu sắc như GPT, Gemini, Claude.
+  1. Xóa bỏ hoàn toàn mọi thông tin cá nhân của anh Trường (`haitruongproqt1@gmail.com`, tên "Hải Trường", "Anh Trường", các ký ức dài hạn) khỏi giao diện web công khai và bộ cài đặt cho người khác.
+  2. Người dùng mới khi mở web hoặc cài bản EXE phải bắt đầu hoàn toàn mới: tự chọn tên, xưng hô, và tự dán API Key riêng của họ từ Google AI Studio (miễn phí), tuyệt đối không dùng chung hay tiêu hao quota của anh Trường.
+  3. Xóa thẻ chủ nhân nhanh và các placeholder mẫu mang tên/email của anh Trường.
+  4. Sửa lỗi giao diện: Menu chọn model không bị đè lên popup "Hạn Mức Quota & Token".
+  5. Minh bạch về Model: Giải thích rõ ràng khi xảy ra tình huống Google quá tải (HTTP 503) và tự động chuyển dự phòng sang Flash Lite thay vì để người dùng hiểu lầm là AI không trung thực.
+  6. Xóa danh mục `haitruong` cũ, chuyển toàn bộ thành thư mục `Chung`.
 - **Giải pháp kỹ thuật đã triển khai**:
-  1. **Tích hợp Đa Nguồn Tìm Kiếm Thời Gian Thực (`backend/search_engine.py`)**:
-     - **Google News & VnExpress RSS**: Cập nhật tin tức báo chí chính thống từng phút trong ngày, bóc tách link gốc bài viết.
-     - **Multi-Source Web Search (DuckDuckGo HTML)**: Giải mã đường link thực tế (`uddg` decoding), trích xuất tiêu đề và đoạn tóm tắt chất lượng cao.
-     - **GitHub Public API Integration (`search_github_repos`)**: Tìm kiếm mã nguồn mở, thư viện, framework, repo số 1 kèm số sao (⭐) và đường link GitHub trực tiếp.
-     - **YouTube Discovery (`search_youtube_videos`)**: Tìm kiếm video, bài giảng, clip review thực tế với đường dẫn `https://www.youtube.com/watch?v=...`.
-     - **Wikipedia Academic API (`search_wikipedia_facts`)**: Bách khoa toàn thư cho kiến thức lịch sử, khoa học, nhân vật, định nghĩa ("cũ đều chuẩn xác 100%").
-     - **Cổng thông tin Pháp luật Chính phủ**: Giữ vững nguyên văn điều khoản pháp luật.
-  2. **Tiêu chuẩn Trả lời Chuẩn Siêu Trí Tuệ (`backend/gemini_client.py`)**:
-     - Bố cục chuyên nghiệp: Bản chất -> Phân tích đa chiều -> Đánh giá & Khuyến nghị thực thi.
-     - BẮT BUỘC đính kèm mục:
-       `### 🌐 Nguồn Dẫn Chứng & Tham Khảo`
-       chứa các đường link Markdown click được: `[Tên nguồn / Tiêu đề](URL)` cho mọi câu trả lời có tra cứu.
-     - Nghiêm cấm bịa đặt link hoặc thông tin sai sự thật.
-  3. **Kiểm thử nghiệm thu**:
-     - Kiểm thử câu hỏi lịch sử: Trả lời sâu sắc về Chiến dịch Điện Biên Phủ và đính kèm đầy đủ link Cổng TTĐT Chính phủ, Báo Nhân Dân, Wikipedia.
-     - Dịch vụ 24/24 tự động nạp mã mới (PID: 22572), đường link online phản hồi HTTP 200 OK toàn cầu.
+  1. **Bảo mật tuyệt đối phía Backend (`backend/app.py`, `backend/gemini_client.py`)**:
+     - `get_request_client_id()`: Bắt buộc kiểm tra `request.client.host in ['127.0.0.1', 'localhost']`. Khách truy cập từ mạng Internet (Cloudflare Tunnel) TUYỆT ĐỐI không thể nhận hoặc giả mạo `client_id == 'master'`.
+     - `get_device_identity()` & `read_settings()`: Chỉ trả về thông tin chủ nhân anh Trường và API Key khi chạy cục bộ trên máy localhost của anh. Mọi khách từ xa chỉ nhận hồ sơ khách sạch, API Key rỗng (`""`), và System Persona trung lập, không lộ bất kỳ thông tin nào của anh.
+     - `chat_with_kini()` & `chat_with_kini_stream()`: Khách chưa nhập API Key riêng sẽ bị chặn gọi đến quota của anh Trường, đồng thời hiển thị thông báo hướng dẫn lấy key miễn phí từ Google AI Studio dạng tin nhắn thân thiện.
+  2. **Minh bạch cơ chế Fallback mô hình (`backend/gemini_client.py`, `static/app.js`)**:
+     - Khi Google API trả về mã lỗi 503 (Overloaded) trên mô hình `gemini-3.8-flash` hoặc `gemini-pro`, hệ thống ghi nhận `fallback_reason` và trả về `is_fallback = True`.
+     - Giao diện `static/app.js` gắn nhãn trung thực: `⚡ Gemini Flash Lite ⚠️ (Dự phòng do Google 503)` kèm tooltip giải thích chi tiết, đảm bảo tính trung thực 100%.
+  3. **Khắc phục triệt để lỗi giao diện & dọn dẹp Database**:
+     - Xóa thẻ `auth-quick-owner-card` và `identity-owner-quick-btn` khỏi `static/index.html`. Thay placeholder bằng `user@gmail.com`, `Hoàng, Lan Anh...`.
+     - Breadcrumb và câu chào mặc định thành: `Chung / Cuộc trò chuyện mới` và `Chào bạn! KINI AI có thể giúp gì cho bạn hôm nay?`. Chỉ cập nhật câu chào riêng khi đúng tài khoản anh Trường đăng nhập trên localhost.
+     - Sửa sự kiện click `#btn-open-usage-panel`: Tự động đóng menu chọn model (`classList.remove('show')`), loại bỏ 100% lỗi chèn đè chữ.
+     - Cập nhật SQLite `kini_ai.db`: Đổi toàn bộ hội thoại category `'haitruong'` sang `'Chung'` và xóa toàn bộ cấu hình sót lại của các client từ xa.
+  4. **Đóng gói phát hành bộ cài sạch**:
+     - Tạo bản nén sạch: `dist_release/KINI_AI_v4.4_Portable.zip` (11.02 MB) - Không chứa `.db`, `.env` hay thông tin cá nhân.
+     - Biên dịch bộ cài đặt Setup GUI: `dist_release/KINI_AI_Setup_v4.4.exe` và `KINI_AI_Setup.exe` (22.94 MB).
+     - Đóng gói bản vá OTA: `dist_ota/latest_ota_package.zip` và `update_v4.4.0.zip` (2.37 MB).
+     - Hệ thống 24/7 online ổn định tại: `https://vary-bottles-rays-stuff.trycloudflare.com` và `http://127.0.0.1:8000`.
 
 
 ### Mốc Nâng Cấp: Khắc Phục Triệt Để Lỗi Link YouTube Hết Hạn & Tối Ưu Hóa Trí Tuệ Flagship 3.5
