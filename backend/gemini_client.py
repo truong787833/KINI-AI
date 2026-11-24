@@ -214,10 +214,16 @@ def build_system_instruction_with_memories(base_prompt: Optional[str] = None, cl
     from . import database
     
     # Đọc danh tính đã cài đặt cho thiết bị / client_id này
-    is_owner_val = database.get_setting("is_owner", "1" if client_id == "master" else "", client_id=client_id)
-    is_owner = is_owner_val != "0" # Mặc định là thiết bị của anh Trường trừ khi chọn chế độ Khách (is_owner=0)
+    is_owner_val = database.get_setting("is_owner", "1" if client_id == "master" else "0", client_id=client_id)
+    user_email = database.get_setting("user_email", "", client_id=client_id).strip().lower()
+    user_call_name = database.get_setting("user_call_name", "", client_id=client_id).strip()
+    user_name = database.get_setting("user_name", "", client_id=client_id).strip()
+    ai_call_name = database.get_setting("ai_call_name", "", client_id=client_id).strip()
     
-    if is_owner:
+    # Chỉ coi là anh Trường khi đúng email của anh HOẶC (is_owner == "1" và tên xưng hô là Anh Trường)
+    is_truong_owner = (user_email == "haitruongproqt1@gmail.com") or (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"])
+    
+    if is_truong_owner:
         # CHỦ NHÂN KINI AI: PHÙNG HẢI TRƯỜNG
         custom_p = database.get_setting("custom_persona", "", client_id=client_id)
         sys_inst = base_prompt or custom_p or DEFAULT_SYSTEM_PROMPT
@@ -232,26 +238,41 @@ def build_system_instruction_with_memories(base_prompt: Optional[str] = None, cl
             logger.warning(f"Lỗi đọc bộ nhớ: {e}")
         return sys_inst
     else:
-        # THIẾT BỊ NGƯỜI DÙNG KHÁC / KHÁCH:
-        user_call = database.get_setting("user_call_name", "Bạn", client_id=client_id)
-        ai_call = database.get_setting("ai_call_name", "Tôi", client_id=client_id)
-        user_name = database.get_setting("user_name", "Khách", client_id=client_id)
+        # THIẾT BỊ NGƯỜI DÙNG KHÁC / TÀI KHOẢN MỚI CÀI ĐẶT RIÊNG:
+        user_call = user_call_name or "Bạn"
+        ai_call = ai_call_name or "Tôi"
+        u_name = user_name or "Người dùng"
         
-        sys_inst = f"""Bạn là KINI AI - mô hình trợ lý trí tuệ nhân tạo thông minh, chuẩn mực, hiện đại, chính xác cao và hữu ích (tương tự như ChatGPT và Google Gemini).
-- QUY TẮC XƯNG HÔ THIẾT LẬP CHO THIẾT BỊ NÀY:
-  + Tên người dùng: "{user_name}".
+        sys_inst = f"""[SYSTEM IDENTITY: KINI AI - SIÊU TRỢ LÝ TRÍ TUỆ NHÂN TẠO CÁ NHÂN]
+- Bạn là KINI AI - mô hình trợ lý trí tuệ nhân tạo thông minh, hiện đại, chuẩn mực và đa năng.
+- QUY TẮC XƯNG HÔ THIẾT LẬP CHO NGƯỜI DÙNG HIỆN TẠI:
+  + Tên người dùng: "{u_name}".
   + Bạn BẮT BUỘC gọi người dùng là: "{user_call}".
   + Bạn BẮT BUỘC tự xưng là: "{ai_call}".
-  + TUYỆT ĐỐI KHÔNG tự gọi người dùng là "Anh Trường" vì đây là thiết bị/tài khoản của {user_call} ({user_name}).
-- Tính năng & Nhiệm vụ:
-  + Bạn là AI Agent đa năng: Trả lời câu hỏi, tra cứu thông tin, lập trình, giải toán, viết văn bản, tóm tắt và sáng tạo nội dung.
-  + Giao tiếp lịch sự, khách quan, thân thiện, rõ ràng, mạch lạc và tự nhiên.
-- QUY TẮC NGUỒN DẪN CHỨNG: Mặc định không xuất nguồn, chỉ hiện khi người dùng chủ động yêu cầu."""
+  + TUYỆT ĐỐI chỉ xưng hô đúng theo quy tắc trên và KHÔNG mang bất kỳ ký ức hay thông tin của ai khác vào đây, vì đây là không gian làm việc và huấn luyện hoàn toàn độc lập, riêng tư của {user_call} ({u_name}).
+
+[NGUYÊN TẮC CỐT LÕI TỐI THƯỢNG: TRUNG THỰC - KHIÊM TỐN - CHẮC CHẮN 100% MỚI TRẢ LỜI]
+1. TRUNG THỰC & BIẾT RÕ BẢN THÂN:
+   - Khi biết chắc chắn 100%: Trả lời rõ ràng, sắc bén, đi thẳng vào bản chất và giải pháp thực tế.
+   - Khi KHÔNG chắc chắn hoặc thiếu thông tin: BẮT BUỘC phải nói thật: "Thưa {user_call}, phần này {ai_call} chưa có đủ dữ liệu / chưa kiểm chứng chắc chắn 100%...". TUYỆT ĐỐI KHÔNG BỊA ĐẶT, KHÔNG ĐOÁN MÒ RỒI KHẲNG ĐỊNH NHƯ ĐÚNG RỒI.
+2. NGUYÊN TẮC HÀNH ĐỘNG 360° (TOÀN DIỆN & HÀNH ĐỘNG THỰC TẾ):
+   - Mọi câu trả lời về thị trường, tài chính, giao dịch hay công nghệ đều phân tích đa chiều (Giá niêm yết, Thực tế giao dịch, Rủi ro, Lời khuyên hành động an toàn).
+3. TƯ DUY TOÁN HỌC & LOGIC:
+   - Tuyệt đối không đoán mò số liệu hay phép tính. Luôn kiểm tra 2 chiều (Double-check) trước khi đưa ra kết quả.
+4. QUY TẮC NGUỒN DẪN CHỨNG:
+   - Mặc định không xuất danh sách nguồn dài dòng, chỉ hiện khi {user_call} chủ động yêu cầu."""
         
-        now = datetime.now()
-        days_vn = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
-        day_name = days_vn[int(now.strftime("%w"))]
-        sys_inst += f"\n\n[THỜI GIAN HIỆN TẠI]: {day_name}, ngày {now.strftime('%d/%m/%Y')}, lúc {now.strftime('%H:%M:%S')} (Năm {now.year})."
+        sys_inst += f"\n\n{get_current_time_context()}"
+        sys_inst += f"\n\n{get_precision_rules()}"
+        
+        try:
+            user_memories = database.get_all_memories(limit=30, client_id=client_id)
+            if user_memories:
+                facts = "\n".join(f"- {m['fact']}" for m in user_memories)
+                sys_inst += f"\n\n=== BỘ NHỚ DÀI HẠN VỀ {user_call.upper()} (LUÔN GHI NHỚ) ===\n{facts}"
+        except Exception as e:
+            logger.warning(f"Lỗi đọc bộ nhớ cá nhân: {e}")
+            
         return sys_inst
 
 def extract_and_save_memory_async(user_text: str, api_key: str = "", client_id: str = "master"):

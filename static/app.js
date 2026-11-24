@@ -2,6 +2,10 @@
 let kiniClientId = localStorage.getItem("kini_client_id");
 const isLocalhostHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
+// Nhận diện Nền tảng: Desktop EXE hay Bản Web 24/7
+const urlParams = new URLSearchParams(window.location.search);
+const isDesktopApp = urlParams.get("platform") === "desktop";
+
 if (!kiniClientId) {
     if (isLocalhostHost) {
         kiniClientId = "master";
@@ -11,17 +15,22 @@ if (!kiniClientId) {
     localStorage.setItem("kini_client_id", kiniClientId);
 }
 
-// Tự động gắn X-Client-Id vào mọi request fetch
+// Tự động gắn X-Client-Id và X-Platform vào mọi request fetch
 const _originalFetch = window.fetch;
 window.fetch = function(url, options = {}) {
     options = options || {};
     options.headers = options.headers || {};
+    const platformHeader = isDesktopApp ? "desktop" : "web";
     if (options.headers instanceof Headers) {
         if (!options.headers.has("X-Client-Id")) {
             options.headers.set("X-Client-Id", kiniClientId);
         }
+        if (!options.headers.has("X-Platform")) {
+            options.headers.set("X-Platform", platformHeader);
+        }
     } else {
         options.headers["X-Client-Id"] = kiniClientId;
+        options.headers["X-Platform"] = platformHeader;
     }
     return _originalFetch(url, options);
 };
@@ -54,7 +63,21 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function initApp() {
+    // Phân tách Giao diện Web 24/7 và Desktop EXE
+    if (!isDesktopApp) {
+        // Trên bản Web 24/7: Ẩn Antigravity Studio Workspace và nút Studio
+        const btnStudio = document.getElementById("btn-sidebar-studio-btn");
+        if (btnStudio) btnStudio.style.display = "none";
+        const studioPane = document.getElementById("antigravity-studio-pane");
+        if (studioPane) studioPane.style.display = "none";
+        const btnTopExitIde = document.getElementById("btn-top-exit-ide");
+        if (btnTopExitIde) btnTopExitIde.style.display = "none";
+        const splitter = document.getElementById("resizer-chat");
+        if (splitter) splitter.style.display = "none";
+    }
+
     try { setupMarkdown(); } catch(e) { console.error("setupMarkdown:", e); }
+    try { initOnboardingWelcomeModal(); } catch(e) { console.error("initOnboardingWelcomeModal:", e); }
     try { initNavigationAndModals(); } catch(e) { console.error("initNavigationAndModals:", e); }
     try { initChatCore(); } catch(e) { console.error("initChatCore:", e); }
     try { initSlashCommands(); } catch(e) { console.error("initSlashCommands:", e); }
@@ -794,6 +817,7 @@ async function sendMessage() {
         formData.append("message", message);
         formData.append("model_mode", document.querySelector(".model-option.active")?.dataset.model || "flash");
         formData.append("agent_mode", currentAgentMode);
+        formData.append("platform", isDesktopApp ? "desktop" : "web");
         
         if (filesToSend.length === 1) {
             formData.append("file", filesToSend[0]);
@@ -1258,6 +1282,7 @@ async function confirmAndRunAgent(taskPrompt) {
         formData.append("task_prompt", taskPrompt);
         formData.append("model_mode", document.querySelector(".model-option.active")?.dataset.model || "flash");
         formData.append("agent_mode", currentAgentMode);
+        formData.append("platform", isDesktopApp ? "desktop" : "web");
 
         const res = await fetch("/api/chat", {
             method: "POST",
@@ -4152,6 +4177,7 @@ async function processVoiceLiveTurn(userSpokenText) {
         formData.append("model_mode", "flash");
         formData.append("agent_mode", currentAgentMode);
         formData.append("is_voice_live", "1");
+        formData.append("platform", isDesktopApp ? "desktop" : "web");
 
         const res = await fetch("/api/chat", {
             method: "POST",
@@ -4437,14 +4463,101 @@ async function loadDeviceIdentity() {
             currentDeviceIdentity = data;
             renderDeviceIdentityUI(data);
 
-            // Nếu thiết bị mới hoàn toàn chưa từng cấu hình danh tính (và không phải localhost master)
-            if (!data.has_configured && kiniClientId !== "master") {
-                const modalIdentity = document.getElementById("modal-device-identity");
-                if (modalIdentity) modalIdentity.style.display = "flex";
+            // Nếu thiết bị mới hoàn toàn chưa từng cấu hình danh tính
+            if (!data.has_configured) {
+                const modalOnboarding = document.getElementById("modal-onboarding-welcome");
+                if (modalOnboarding) modalOnboarding.style.display = "flex";
             }
         }
     } catch(err) {
         console.warn("Lỗi tải danh tính thiết bị:", err);
+    }
+}
+
+function initOnboardingWelcomeModal() {
+    const modal = document.getElementById("modal-onboarding-welcome");
+    if (!modal) return;
+
+    // Chọn nhanh các pill xưng hô
+    modal.querySelectorAll(".btn-onboard-pill").forEach(pill => {
+        pill.addEventListener("click", () => {
+            const targetId = pill.dataset.target;
+            const val = pill.dataset.val;
+            const input = document.getElementById(targetId);
+            if (input) input.value = val;
+
+            const parentRow = pill.closest(".onboard-pills-row");
+            if (parentRow) {
+                parentRow.querySelectorAll(".btn-onboard-pill").forEach(p => p.classList.remove("active"));
+                pill.classList.add("active");
+            }
+        });
+    });
+
+    // Bấm nút Hoàn tất Onboarding
+    const btnSubmit = document.getElementById("btn-onboard-submit");
+    if (btnSubmit) {
+        btnSubmit.addEventListener("click", async () => {
+            const name = (document.getElementById("input-onboard-name")?.value || "").trim();
+            const email = (document.getElementById("input-onboard-email")?.value || "").trim();
+            const userCall = (document.getElementById("input-onboard-user-call")?.value || "").trim() || "Bạn";
+            const aiCall = (document.getElementById("input-onboard-ai-call")?.value || "").trim() || "Tôi";
+            const apiKey = (document.getElementById("input-onboard-api-key")?.value || "").trim();
+
+            if (!name) {
+                alert("Vui lòng nhập tên hoặc biệt danh của bạn để KINI AI có thể phục vụ tốt nhất!");
+                document.getElementById("input-onboard-name")?.focus();
+                return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = "⏳ Đang thiết lập...";
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        user_name: name,
+                        user_email: email,
+                        user_call_name: userCall,
+                        ai_call_name: aiCall,
+                        api_key: apiKey,
+                        is_owner: false
+                    })
+                });
+
+                if (res.ok) {
+                    modal.style.display = "none";
+                    showToast(`🎉 Chào mừng ${userCall} ${name} đến với KINI AI!`);
+                    await loadDeviceIdentity();
+
+                    // Tự động chào đón người dùng mới
+                    appendAssistantMessage(
+                        `👋 Chào mừng **${userCall} ${name}**! Tôi là **${aiCall}** (KINI AI).\n\n` +
+                        `✨ Không gian làm việc cá nhân của ${userCall} đã được khởi tạo thành công và độc lập 100% trên máy tính này.\n\n` +
+                        `${userCall} muốn ${aiCall} hỗ trợ công việc gì hôm nay ạ?`
+                    );
+                } else {
+                    alert("Có lỗi khi lưu cài đặt. Vui lòng thử lại!");
+                }
+            } catch(e) {
+                console.error("Lỗi onboarding:", e);
+                alert("Lỗi kết nối máy chủ. Vui lòng thử lại!");
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = "🚀 Bắt Đầu Trải Nghiệm KINI AI";
+            }
+        });
+    }
+
+    // Nút dùng thử Khách
+    const btnSkipGuest = document.getElementById("btn-onboard-skip-guest");
+    if (btnSkipGuest) {
+        btnSkipGuest.addEventListener("click", () => {
+            modal.style.display = "none";
+            showToast("ℹ️ Bạn đang sử dụng ở chế độ Khách.");
+        });
     }
 }
 

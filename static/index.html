@@ -1036,6 +1036,100 @@
     </div>
 
     <!-- ============================================================
+         MODAL 0: ONBOARDING CHÀO ĐÓN & THIẾT LẬP NGƯỜI DÙNG MỚI (100% ĐỘC LẬP)
+         ============================================================ -->
+    <div class="modal" id="modal-onboarding-welcome" style="display: none; z-index: 99999;">
+        <div class="modal-dialog modal-md onboarding-dialog" style="max-width: 520px; background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6); overflow: hidden;">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding: 18px 22px 14px;">
+                <div class="modal-title" style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.8rem;">🚀</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #fff;">Chào Mừng Bạn Đến Với KINI AI!</h3>
+                        <p style="margin: 3px 0 0; font-size: 0.82rem; color: #94a3b8;">Trí tuệ nhân tạo cá nhân hóa, học hỏi riêng theo ý muốn của bạn</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 18px 22px;">
+                <div class="onboard-intro-badge" style="background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.84rem; color: #93c5fd; line-height: 1.5;">
+                    ✨ <b>Riêng tư & Độc lập 100%:</b> Dữ liệu, ký ức và các bài học của bạn được lưu an toàn cục bộ trên máy tính này. Hãy thiết lập cách xưng hô bạn yêu thích:
+                </div>
+
+                <!-- 1. Tên của bạn -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 0.88rem; font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 6px;">
+                        1. Tên hoặc biệt danh của bạn: <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" id="input-onboard-name" class="form-input" placeholder="Ví dụ: Hoàng, Lan Anh, Minh Quân, Bảo..." style="width: 100%; border-radius: 8px;">
+                </div>
+
+                <!-- 2. Email của bạn -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 0.88rem; font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 6px;">
+                        2. Email / Gmail của bạn:
+                    </label>
+                    <input type="email" id="input-onboard-email" class="form-input" placeholder="tenban@gmail.com" style="width: 100%; border-radius: 8px;">
+                </div>
+
+                <!-- 3. Bạn muốn KINI AI gọi bạn là gì? -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 0.88rem; font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 6px;">
+                        3. Bạn muốn KINI AI gọi bạn là gì?
+                    </label>
+                    <div class="onboard-pills-row" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                        <button type="button" class="btn-onboard-pill" data-target="input-onboard-user-call" data-val="Anh">Anh</button>
+                        <button type="button" class="btn-onboard-pill" data-target="input-onboard-user-call" data-val="Chị">Chị</button>
+                        <button type="button" class="btn-onboard-pill active" data-target="input-onboard-user-call" data-val="Bạn">Bạn</button>
+                        <button type="button" class="btn-onboard-pill" data-target="input-onboard-user-call" data-val="Em">Em</button>
+                        <button type="button" class="btn-onboard-pill" data-target="input-onboard-user-call" data-val="Thầy">Thầy</button>
+                        <button type="button" class="btn-onboard-pill" data-target="input-onboard-user-call" data-val="Bác">Bác</button>
+                    </div>
+                    <input type="text" id="input-onboard-user-call" class="form-input" value="Bạn" placeholder="Hoặc tự gõ (Ví dụ: Anh Nam, Chị Ly...)" style="width: 100%; border-radius: 8px;">
+                </div>
+
+                <!-- 4. Bạn muốn KINI AI tự xưng là gì? -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 0.88rem; font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 6px;">
+                        4. Bạn muốn KINI AI tự xưng là gì?
+                    </label>
+                    <div class="onboard-pills-row" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                        <button type="button" class="btn-onboard-pill" data-target="input-onboard-ai-call" data-val="Em">Em</button>
+                        <button type="button" class="btn-onboard-pill active" data-target="input-onboard-ai-call" data-val="Tôi">Tôi</button>
+                        <button type="button" class="btn-onboard-pill" data-target="input-onboard-ai-call" data-val="KINI AI">KINI AI</button>
+                        <button type="button" class="btn-onboard-pill" data-target="input-onboard-ai-call" data-val="Con">Con</button>
+                    </div>
+                    <input type="text" id="input-onboard-ai-call" class="form-input" value="Tôi" placeholder="Hoặc tự gõ..." style="width: 100%; border-radius: 8px;">
+                </div>
+
+                <!-- 5. Google Gemini API Key -->
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="font-size: 0.88rem; font-weight: 600; color: #e2e8f0;">
+                            5. Google Gemini API Key của bạn: <span style="color: #ef4444;">*</span>
+                        </label>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="font-size: 0.8rem; color: #60a5fa; text-decoration: none; font-weight: 500;">
+                            🔑 Lấy key miễn phí (100% Free) &rarr;
+                        </a>
+                    </div>
+                    <input type="password" id="input-onboard-api-key" class="form-input" placeholder="Dán mã API Key bắt đầu bằng AIzaSy..." style="width: 100%; border-radius: 8px;">
+                    <small style="color: #94a3b8; font-size: 0.78rem; display: block; margin-top: 5px;">
+                        💡 <b>Miễn phí hoàn toàn:</b> Bạn chỉ cần đăng nhập Gmail vào <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #93c5fd;">aistudio.google.com</a>, bấm "Create API key" rồi dán vào đây để sử dụng AI tốc độ cao vĩnh viễn!
+                    </small>
+                </div>
+
+                <!-- Nút bấm hoàn tất -->
+                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08);">
+                    <button type="button" class="btn btn-secondary" id="btn-onboard-skip-guest" style="border-radius: 8px; font-size: 0.88rem;">
+                        👤 Dùng thử Khách
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-onboard-submit" style="background: linear-gradient(135deg, #2563eb, #3b82f6); border: none; padding: 9px 20px; font-weight: 600; border-radius: 8px; font-size: 0.92rem; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
+                        🚀 Bắt Đầu Trải Nghiệm KINI AI
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
          MODAL 6: THIẾT LẬP DANH TÍNH & XƯNG HÔ THIẾT BỊ
          ============================================================ -->
     <div class="modal" id="modal-device-identity" style="display: none;">

@@ -249,6 +249,7 @@ async def chat_with_kini(
     agent_mode: Optional[str] = Form(None),
     confirm_agent: Optional[str] = Form("no"),
     task_prompt: Optional[str] = Form(""),
+    platform: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     files: Optional[List[UploadFile]] = File(None),
     is_voice_live: Optional[str] = Form("0")
@@ -536,6 +537,29 @@ async def chat_with_kini(
         any(k in msg_low for k in agent_keywords)
     )
 
+    # Kiểm tra nền tảng yêu cầu: desktop (Bản EXE cài đặt) hay web (Bản Web 24/7)
+    x_plat = request.headers.get("x-platform", "").strip().lower()
+    req_platform = (platform or x_plat or "web").strip().lower()
+    is_desktop = (req_platform == "desktop")
+
+    # Bản Web 24/7 tuyệt đối không chạy KINI Agent can thiệp file hệ điều hành máy tính để bảo mật
+    if not is_desktop:
+        if msg_low.startswith("/agent"):
+            user_call = database.get_setting("user_call_name", "Anh Trường" if cid == "master" else "Bạn", client_id=cid)
+            agent_web_msg = (
+                f"💡 Thưa {user_call}, tính năng **KINI Agent** (tương tác trực tiếp với hệ điều hành và tạo tập tin trên máy tính) "
+                f"chỉ khả dụng trên ứng dụng **KINI AI Desktop (.EXE)** cài đặt trên máy tính của bạn nhằm bảo vệ an toàn tối đa cho máy chủ web.\n\n"
+                f"Trên phiên bản Web 24/7, {user_call} có thể thoải mái sử dụng Trò chuyện thông minh, Tìm kiếm tin tức mới nhất, "
+                f"Giải toán, Viết code, Chơi game và xem ứng dụng trực tiếp trên Canvas Sandbox!"
+            )
+            database.add_message(conv_id, "assistant", agent_web_msg, client_id=cid)
+            return {
+                "success": True,
+                "reply": agent_web_msg,
+                "is_agent": False
+            }
+        is_agent_cmd = False
+
     # Lấy chế độ Agent: "safe" (Hỏi trước - mặc định) hoặc "turbo" (Tự hành không cần hỏi)
     active_agent_mode = (agent_mode.strip().lower() if agent_mode else "") or database.get_setting("agent_mode", "safe", client_id=cid)
     if active_agent_mode not in ["safe", "turbo"]:
@@ -817,6 +841,7 @@ async def chat_with_kini_stream(
     agent_mode: Optional[str] = Form(None),
     confirm_agent: Optional[str] = Form("no"),
     task_prompt: Optional[str] = Form(""),
+    platform: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     files: Optional[List[UploadFile]] = File(None),
     is_voice_live: Optional[str] = Form("0")
@@ -960,6 +985,28 @@ async def chat_with_kini_stream(
         "tạo trên màn hình desktop"
     ]
     is_agent_cmd = (msg_low.startswith("/agent") or any(k in msg_low for k in agent_keywords))
+    # Kiểm tra nền tảng yêu cầu: desktop (Bản EXE cài đặt) hay web (Bản Web 24/7)
+    x_plat = request.headers.get("x-platform", "").strip().lower()
+    req_platform = (platform or x_plat or "web").strip().lower()
+    is_desktop = (req_platform == "desktop")
+
+    # Bản Web 24/7 không chạy Agent can thiệp file hệ điều hành máy tính để bảo mật
+    if not is_desktop:
+        if msg_low.startswith("/agent"):
+            user_call = database.get_setting("user_call_name", "Anh Trường" if cid == "master" else "Bạn", client_id=cid)
+            agent_web_msg = (
+                f"💡 Thưa {user_call}, tính năng **KINI Agent** (tương tác trực tiếp với hệ điều hành và tạo tập tin trên máy tính) "
+                f"chỉ khả dụng trên ứng dụng **KINI AI Desktop (.EXE)** cài đặt trên máy tính của bạn nhằm bảo vệ an toàn tối đa cho máy chủ web.\n\n"
+                f"Trên phiên bản Web 24/7, {user_call} có thể thoải mái sử dụng Trò chuyện thông minh, Tìm kiếm tin tức mới nhất, "
+                f"Giải toán, Viết code, Chơi game và xem ứng dụng trực tiếp trên Canvas Sandbox!"
+            )
+            database.add_message(conv_id, "assistant", agent_web_msg, client_id=cid)
+            async def event_generator():
+                yield f"data: {json.dumps({'type': 'chunk', 'text': agent_web_msg})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'reply': agent_web_msg, 'is_agent': False})}\n\n"
+            return StreamingResponse(event_generator(), media_type="text/event-stream")
+        is_agent_cmd = False
+
     active_agent_mode = (agent_mode.strip().lower() if agent_mode else "") or database.get_setting("agent_mode", "safe", client_id=cid)
     if active_agent_mode not in ["safe", "turbo"]:
         active_agent_mode = "safe"
@@ -1548,17 +1595,21 @@ async def execute_deep_research_endpoint(request: Request, data: dict):
 @app.get("/api/device/identity")
 def get_device_identity(request: Request):
     cid = get_request_client_id(request)
-    is_logged_in_val = database.get_setting("is_logged_in", "1" if cid == "master" else "0", client_id=cid)
+    # Kiểm tra xem thiết bị này đã từng hoàn tất Onboarding / Thiết lập danh tính chưa
+    has_configured_val = database.get_setting("identity_configured", "0", client_id=cid)
+    has_configured = (has_configured_val == "1")
+
+    is_logged_in_val = database.get_setting("is_logged_in", "1" if has_configured and cid == "master" else "0", client_id=cid)
     is_logged_in = is_logged_in_val == "1"
 
-    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "0", client_id=cid)
-    is_owner = is_owner_val == "1" and is_logged_in
-
-    user_name = database.get_setting("user_name", "Truong Hai" if is_owner else "Khách", client_id=cid)
-    user_call_name = database.get_setting("user_call_name", "Anh Trường" if is_owner else "Bạn", client_id=cid)
-    ai_call_name = database.get_setting("ai_call_name", "Em" if is_owner else "Tôi", client_id=cid)
-    user_email = database.get_setting("user_email", "haitruongproqt1@gmail.com" if is_owner else "", client_id=cid)
-    has_configured = database.get_setting("identity_configured", "1" if cid == "master" else "0", client_id=cid)
+    is_owner_val = database.get_setting("is_owner", "1" if has_configured and cid == "master" else "0", client_id=cid)
+    user_email = database.get_setting("user_email", "haitruongproqt1@gmail.com" if (has_configured and is_owner_val == "1") else "", client_id=cid).strip()
+    user_call_name = database.get_setting("user_call_name", "Anh Trường" if (has_configured and is_owner_val == "1") else "Bạn", client_id=cid).strip()
+    user_name = database.get_setting("user_name", "Truong Hai" if (has_configured and is_owner_val == "1") else "Khách", client_id=cid).strip()
+    ai_call_name = database.get_setting("ai_call_name", "Em" if (has_configured and is_owner_val == "1") else "Tôi", client_id=cid).strip()
+    
+    # Chỉ xác định là chủ nhân anh Trường nếu đúng tài khoản của anh
+    is_owner = is_logged_in and ((user_email.lower() == "haitruongproqt1@gmail.com") or (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"]))
     
     return {
         "client_id": cid,
@@ -1569,7 +1620,7 @@ def get_device_identity(request: Request):
         "ai_call_name": ai_call_name if is_logged_in else "Tôi",
         "user_email": user_email if is_logged_in else "",
         "is_pro": is_owner and is_logged_in,
-        "has_configured": has_configured == "1"
+        "has_configured": has_configured
     }
 
 @app.post("/api/auth/login")

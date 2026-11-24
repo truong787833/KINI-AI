@@ -115,7 +115,7 @@ def launch_desktop_window():
     if runner_path:
         cmd = [
             runner_path,
-            f"--app={SERVER_URL}",
+            f"--app={SERVER_URL}?platform=desktop",
             f"--user-data-dir={user_data_dir}",
             "--window-size=1440,900",
             "--window-name=KINI AI",

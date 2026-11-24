@@ -13,8 +13,8 @@ import zipfile
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST_DIR = os.path.join(ROOT_DIR, "dist_release")
-PACKAGE_DIR = os.path.join(DIST_DIR, "KINI_AI_v4.2_Portable")
-ZIP_FILE = os.path.join(DIST_DIR, "KINI_AI_v4.2_Portable.zip")
+PACKAGE_DIR = os.path.join(DIST_DIR, "KINI_AI_v4.4_Portable")
+ZIP_FILE = os.path.join(DIST_DIR, "KINI_AI_v4.4_Portable.zip")
 
 EXCLUDE_PATTERNS = [
     "kini_ai.db",
@@ -120,12 +120,12 @@ def build_package():
 
     os.makedirs(PACKAGE_DIR, exist_ok=True)
 
-    # 1. Sao chép thư mục backend (loại trừ __pycache__)
+    # 1. Sao chép thư mục backend (loại trừ __pycache__ và db)
     print("[*] Đang sao chép mã nguồn backend...")
     shutil.copytree(
         os.path.join(ROOT_DIR, "backend"),
         os.path.join(PACKAGE_DIR, "backend"),
-        ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.db", "*.sqlite", "*.sqlite3")
     )
 
     # 2. Sao chép thư mục static (giao diện web, css, js, icons)
@@ -144,6 +144,8 @@ def build_package():
 
     # 4. Sao chép các tệp thực thi cốt lõi
     core_files = [
+        "KINI_AI.exe",
+        "launcher_desktop.py",
         "run.py",
         "start.bat",
         "Chay_KINI_AI.bat",
