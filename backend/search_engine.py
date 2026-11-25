@@ -372,73 +372,54 @@ def clean_unwanted_citations(reply_text: str, user_query: str) -> str:
 
 def needs_live_search(text: str) -> bool:
     """
-    Kích hoạt tra cứu thông minh thời gian thực ĐÚNG LÚC - ĐÚNG CHỖ:
-    - Tự động tra cứu đối với mọi câu hỏi về pháp luật, chính sách, ngày nghỉ lễ, thời sự, tin tức, 
-      giá cả, thời tiết, sự kiện 2025/2026/2027, dữ liệu thực tế hoặc yêu cầu đường dẫn/nguồn.
-    - Bỏ qua các câu chào hỏi, cảm ơn, tạo thư mục/file Agent, lập trình thuần túy hoặc giải toán thuần túy.
+    KIẾN TRÚC TRA CỨU THỜI GIAN THỰC TOÀN DIỆN (UNIVERSAL REAL-TIME GROUNDING):
+    - Mặc định BẬT tra cứu thời gian thực cho MỌI câu hỏi về thông tin, kiến thức, pháp luật,
+      lịch sử, địa lý, văn bản, phân tích, đánh giá, sự kiện, giá cả, ngày lễ... để đảm bảo
+      100% cập nhật mới nhất và chính xác nhất (tránh lỗi thông tin cũ trước 2026).
+    - CHỈ bỏ qua đối với các lệnh không cần tra cứu Internet: chào hỏi xã giao, toán thuần túy,
+      lệnh tạo file/thư mục Agent, vẽ tranh ảnh, thiết kế logo, lập trình Vibe Coding thuần túy.
     """
     t = text.lower().strip()
     if len(t) < 4:
         return False
 
-    # Bỏ qua các lệnh Agent tự hành (tạo file, folder, chạy lệnh, vẽ ảnh, vibe coding)
-    agent_words = ["tạo thư mục", "tạo folder", "tạo file", "viết file", "làm game", "tạo game", "chạy lệnh", "agent", "vẽ ảnh", "tạo ảnh", "logo", "vibe coding"]
-    if any(aw in t for aw in agent_words):
+    # 1. Bỏ qua các lệnh Agent tự hành, vẽ ảnh, thiết kế, vibe coding
+    non_search_cmds = [
+        "tạo thư mục", "tạo folder", "tạo file", "viết file", "chạy lệnh", "agent",
+        "vẽ ảnh", "tạo ảnh", "sửa ảnh", "đổi số điện thoại", "tạo logo", "vibe coding",
+        "làm game", "tạo game", "viết code html", "viết đoạn code"
+    ]
+    if any(cmd in t for cmd in non_search_cmds):
         return False
 
-    # Bỏ qua câu chào hỏi, cảm ơn, khen ngợi, câu hỏi năng lực
+    # 2. Bỏ qua câu chào hỏi ngắn, cảm ơn, khen ngợi, hỏi bản thân AI
     skip_phrases = [
-        "xin chào", "chào bạn", "chào em", "hello", "hi", "ok", "cảm ơn", "cảm ơn bạn", 
-        "tuyệt vời", "bạn làm được những gì", "bạn là ai", "giới thiệu bản thân", "giúp gì",
+        "xin chào", "chào bạn", "chào em", "hello", "hi", "alo", "ok", "cảm ơn", "cảm ơn bạn",
+        "tuyệt vời", "bạn làm được những gì", "bạn là ai", "giới thiệu bản thân",
         "kini ai là gì", "chào anh trường", "bạn khỏe không", "tạm biệt", "hẹn gặp lại"
     ]
-    if any(t == sp or t.startswith(sp + " ") for sp in skip_phrases):
+    if any(t == sp or (len(t) < 25 and t.startswith(sp + " ")) for sp in skip_phrases):
         return False
 
-    # 1. Người dùng yêu cầu link / nguồn / dẫn chứng cụ thể
-    source_triggers = ["cho tôi link", "tìm link", "xin link", "dẫn chứng", "nguồn ở đâu", "bài viết nào", "link gốc", "nguồn nào", "ở đâu nói", "trang web nào"]
-    if any(st in t for st in source_triggers):
-        return True
+    # 3. Bỏ qua phép tính toán học thuần túy (VD: 33 + 50 + 43 = ?)
+    if re.fullmatch(r'[\d\s\+\-\*\/\^\(\)\.\,\=\%\?]+', t):
+        return False
 
-    # 2. Tin tức thời sự, sự kiện, thời tiết, giá cả, pháp luật, chính sách, ngày nghỉ lễ, năm 2025-2027
-    live_triggers = [
-        "hôm nay", "mới nhất", "tin tức", "tin mới", "thời sự", "bài báo", "báo đài", 
-        "tin nóng", "tin trong ngày", "giá vàng", "giá xăng", "giá dầu", "thời tiết", 
-        "chứng khoán", "tỷ giá", "chiến sự", "bầu cử", "vừa xảy ra", "2025", "2026", "2027",
-        "nghỉ lễ", "ngày nghỉ", "được nghỉ", "lịch nghỉ", "luật", "quy định", "chính sách",
-        "nghị định", "thông tư", "nghị quyết", "quốc hội", "chính phủ", "thuế", "lương",
-        "mức phạt", "bảo hiểm", "bhxh", "hiện nay", "hiện tại", "bây giờ", "có phải", "có được"
-    ]
-    if any(lt in t for lt in live_triggers):
-        return True
+    # 4. Nếu câu hỏi có chứa link URL thì luồng đọc URL chuyên sâu ở app.py sẽ tự xử lý
+    if re.search(r'https?://[^\s]+', t) and len(t.split()) <= 12:
+        return False
 
-    # 3. Yêu cầu tìm kiếm video, bài hát, YouTube
-    media_triggers = ["youtube", "video", "clip", "bài hát", "ca khúc", "nghe bài", "xem clip", "mp3"]
-    if any(mt in t for mt in media_triggers):
-        return True
-
-    # 4. Yêu cầu tìm kiếm GitHub / Thư viện mã nguồn mở
-    code_triggers = ["github", "repo", "kho mã", "mã nguồn mở", "thư viện npm", "thư viện pypi"]
-    if any(ct in t for ct in code_triggers):
-        return True
-
-    # 5. Tra cứu điều khoản pháp luật cụ thể
-    if re.search(r'(điều\s+\d+|khoản\s+\d+|nghị\s+định|thông\s+tư|nghị\s+quyết\s+\d+|luật\s+[\w\d]+)', t):
-        return True
-
-    return False
+    # 5. Mọi câu hỏi thông tin, kiến thức, phân tích, đánh giá, luật pháp, ngày lễ, tin tức -> LUÔN TRA CỨU!
+    return True
 
 def get_grounded_context(user_query: str) -> str:
     """
-    SIÊU HỆ THỐNG TRÍ TUỆ ĐA NGUỒN (UNIVERSAL MULTI-SOURCE SEARCH & CITATION ENGINE):
-    1. Tra cứu nguyên văn Điều luật từ Cổng thông tin Chính phủ & Thư viện Pháp luật.
-    2. Tổng hợp luồng thời sự Google News & VnExpress cho các câu hỏi tin tức hôm nay.
-    3. Tra cứu GitHub Public API cho các câu hỏi kỹ thuật, lập trình, thư viện, công nghệ.
-    4. Tra cứu YouTube cho video, bài giảng, clip review.
-    5. Tra cứu Wikipedia cho kiến thức lịch sử, học thuật, nhân vật, khái niệm ("cũ đều chuẩn xác").
-    6. Tra cứu Google/Web Search đa nguồn cho tất cả các lĩnh vực khác.
-    => Trả về đầy đủ Tiêu đề, Cơ quan phát hành, Thời gian và ĐƯỜNG LINK DẪN CHỨNG CHUẨN XÁC (URL) để AI trích dẫn.
+    SIÊU HỆ THỐNG TRÍ TUỆ ĐA NGUỒN SONG SONG (PARALLEL MULTI-SOURCE REAL-TIME ENGINE):
+    - Chạy song song Google News + Web Search (DuckDuckGo) + Wikipedia/GitHub/YouTube.
+    - Tự động đọc sâu nội dung bài viết uy tín nhất (Chính phủ, Báo chí, Luật) để AI không chỉ thấy tiêu đề mà nắm rõ toàn bộ chi tiết mới nhất năm 2026.
     """
+    from concurrent.futures import ThreadPoolExecutor
+
     # 1. Nếu có Điều luật cụ thể, ưu tiên trích xuất nguyên văn chính thức
     verbatim_text = fetch_verbatim_law_article(user_query)
     if verbatim_text:
@@ -447,37 +428,56 @@ def get_grounded_context(user_query: str) -> str:
     t_lower = user_query.lower()
     discovered_sources = []
 
-    # 2. Phân loại và điều phối truy vấn đa nguồn:
-    
-    # A. Nếu liên quan đến GitHub / Lập trình / Công nghệ
-    if any(k in t_lower for k in ["github", "repo", "thư viện", "code", "lập trình", "framework", "sdk", "api"]):
-        discovered_sources.extend(search_github_repos(user_query, limit=3))
-
-    # B. Nếu liên quan đến YouTube / Video / Âm nhạc / Bài hát
-    if any(k in t_lower for k in ["youtube", "video", "clip", "xem", "bài giảng", "hướng dẫn", "nghe", "bài hát", "ca khúc", "nhạc", "ca sĩ", "mp3", "hát", "audio"]):
-        discovered_sources.extend(search_youtube_videos(user_query, limit=3))
-
-    # C. Nếu liên quan đến Lịch sử / Nhân vật / Định nghĩa / Khái niệm ("cũ đều chuẩn xác")
-    if any(k in t_lower for k in ["lịch sử", "là ai", "năm nào", "tiểu sử", "quê ở", "nguồn gốc", "định nghĩa", "khái niệm", "thời kỳ"]):
-        discovered_sources.extend(search_wikipedia_facts(user_query, limit=2))
-
-    # D. Nếu hỏi về tin tức thời sự chung hôm nay
     is_general_news = any(k in t_lower for k in [
         "tin tức", "tin mới", "bài báo", "thời sự hôm nay", "có gì mới", "tin nóng", 
         "tin trong ngày", "tin 24h", "báo chí", "tin nổi bật", "báo đài"
     ])
-    if is_general_news:
-        discovered_sources.extend(fetch_google_news_top(limit=5))
-        discovered_sources.extend(fetch_vnexpress_latest(limit=4))
-    else:
-        # Luôn tra cứu Google News theo từ khóa cho các câu hỏi chính sách, pháp luật, thời sự, ngày lễ, sự kiện 2026
-        discovered_sources.extend(fetch_google_news_search(user_query, limit=4))
+    needs_github = any(k in t_lower for k in ["github", "repo", "thư viện", "framework", "sdk"])
+    needs_yt = any(k in t_lower for k in ["youtube", "video", "clip", "bài hát", "ca khúc", "nghe", "ca sĩ", "mp3"])
+    needs_wiki = any(k in t_lower for k in ["lịch sử", "là ai", "năm nào", "tiểu sử", "quê ở", "nguồn gốc", "định nghĩa", "khái niệm", "thời kỳ"])
 
-    # E. Luôn bổ sung Web Search để có góc nhìn đa chiều và URL kiểm chứng
-    discovered_sources.extend(search_web_duckduckgo(user_query, limit=4))
+    # Chạy song song các nguồn tra cứu để đạt tốc độ phản hồi siêu nhanh (~1.5 - 2s)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        if is_general_news:
+            futures.append(executor.submit(fetch_google_news_top, 5))
+            futures.append(executor.submit(fetch_vnexpress_latest, 4))
+        else:
+            futures.append(executor.submit(fetch_google_news_search, user_query, 4))
+
+        futures.append(executor.submit(search_web_duckduckgo, user_query, 5))
+
+        if needs_github:
+            futures.append(executor.submit(search_github_repos, user_query, 3))
+        if needs_yt:
+            futures.append(executor.submit(search_youtube_videos, user_query, 3))
+        if needs_wiki:
+            futures.append(executor.submit(search_wikipedia_facts, user_query, 2))
+
+        for f in futures:
+            try:
+                res_list = f.result(timeout=7)
+                if res_list:
+                    discovered_sources.extend(res_list)
+            except Exception:
+                pass
 
     if not discovered_sources:
         return ""
+
+    # Đọc sâu nội dung bài viết uy tín nhất (Chính phủ, Báo chí, Luật) từ kết quả Web Search nếu có
+    deep_article_text = ""
+    trusted_domains = ["chinhphu.vn", "luatvietnam.vn", "thuvienphapluat.vn", "vnexpress.net", "tuoitre.vn", "dantri.com.vn", "laodong.vn", "vietnamnet.vn", "tienphong.vn"]
+    for item in discovered_sources:
+        u = item.get("url", "")
+        if any(dom in u.lower() for dom in trusted_domains):
+            try:
+                page = fetch_webpage_content(u, max_chars=2000)
+                if page and page.get("content"):
+                    deep_article_text = f"\n=== NỘI DUNG TRÍCH XUẤT SÂU TỪ NGUỒN CHÍNH THỐNG ({page.get('title')}) ===\nURL: {u}\n{page.get('content')}\n"
+                    break
+            except Exception:
+                pass
 
     # Ghép nối dữ liệu nguồn chuẩn hóa với đường link dẫn chứng
     lines = [
@@ -498,6 +498,9 @@ def get_grounded_context(user_query: str) -> str:
 
         lines.append(f"[{idx}] {title} (Nguồn: {source}{date_str}{url_str}){snip_str}")
 
+    if deep_article_text:
+        lines.append(deep_article_text)
+
     wants_sources = user_explicitly_wants_sources(user_query)
     citation_instruction = (
         "3. NGUYÊN TẮC VỀ NGUỒN DẪN CHỨNG (NGƯỜI DÙNG ĐANG YÊU CẦU NGUỒN/LINK):\n"
@@ -511,11 +514,11 @@ def get_grounded_context(user_query: str) -> str:
 
     lines.append(
         "\n=== CHỈ DẪN TRẢ LỜI ĐẲNG CẤP CHUẨN SIÊU TRÍ TUỆ NHÂN TẠO (KINI AI) ===\n"
-        "1. HIỂU BIẾT SÂU RỘNG & PHÂN TÍCH ĐA CHIỀU (CHUẨN ANTIGRAVITY, GPT, CLAUDE):\n"
-        "   - Phân tích bản chất câu hỏi, diễn giải sâu sắc, mạch lạc, có tư duy kiến trúc và cấu trúc rõ ràng.\n"
+        "1. NGUYÊN TẮC TỐI THƯỢNG VỀ THỜI GIAN THỰC (NĂM 2026):\n"
+        "   - Kiến thức huấn luyện gốc của mô hình có thể đã cũ. BẮT BUỘC phải ưu tiên tuyệt đối DỮ LIỆU TRA CỨU THỜI GIAN THỰC ở trên (Google News, Chính phủ, Báo chí 2026).\n"
+        "   - Nếu quy định mới (VD: sáp nhập tỉnh thành còn 34 tỉnh, luật sửa đổi bổ sung ngày nghỉ lễ 27/7 và 24/11...) khác với kiến thức cũ trong trí nhớ, TUYỆT ĐỐI PHẢI trả lời theo quy định/dữ liệu mới nhất ở trên!\n"
         "2. ĐỘ CHÍNH XÁC TUYỆT ĐỐI (CẢ THÔNG TIN CŨ VÀ MỚI):\n"
-        "   - Thông tin lịch sử, khoa học, định nghĩa học thuật (cũ) phải chuẩn xác 100% theo căn cứ Wikipedia / Bách khoa thư.\n"
-        "   - Thông tin thời sự, công nghệ, giá cả, thời tiết (mới) phải chuẩn xác theo dữ liệu báo chí và Google năm 2026.\n"
+        "   - Phân tích bản chất sâu sắc, mạch lạc, trích dẫn đầy đủ ngày tháng hiệu lực, điều khoản và con số thực tế.\n"
         f"{citation_instruction}"
     )
 
