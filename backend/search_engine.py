@@ -645,6 +645,23 @@ def fetch_webpage_content(url: str, max_chars: int = 4000) -> Optional[Dict[str,
             soup
         )
 
+        # Trích xuất các hình ảnh thực tế trong bài viết
+        from urllib.parse import urljoin
+        article_images = []
+        for img in main_content.find_all("img"):
+            src = img.get("data-src") or img.get("data-original") or img.get("src") or ""
+            if not src or src.startswith("data:") or any(bad in src.lower() for bad in ["icon", "logo", "avatar", ".svg", "blank", "ads", "pixel", "spinner", "loading"]):
+                continue
+            full_img = urljoin(resolved_url or url, src)
+            if full_img not in article_images:
+                article_images.append(full_img)
+            if len(article_images) >= 6:
+                break
+        if not article_images:
+            og_img = soup.find("meta", attrs={"property": "og:image"})
+            if og_img and og_img.get("content"):
+                article_images.append(og_img["content"].strip())
+
         paragraphs = []
         for p in main_content.find_all(["p", "h2", "h3", "li"]):
             txt = p.get_text(strip=True)
@@ -691,7 +708,8 @@ def fetch_webpage_content(url: str, max_chars: int = 4000) -> Optional[Dict[str,
             "title": title or "Trang web",
             "description": meta_desc,
             "url": resolved_url or url,
-            "content": combined_content.strip() or f"Trang: {title}"
+            "content": combined_content.strip() or f"Trang: {title}",
+            "images": article_images
         }
     except Exception as e:
         logger.warning(f"Lỗi đọc nội dung trang web từ {url}: {e}")

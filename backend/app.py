@@ -681,35 +681,49 @@ async def chat_with_kini(
         }
 
     # 4. NẾU LÀ TRÒ CHUYỆN & SUY LUẬN BÌNH THƯỜNG
-    # 4.0. TỰ ĐỘNG ĐỌC VÀ TRÍCH XUẤT NỘI DUNG TỪ BẤT KỲ ĐƯỜNG LINK TRANG WEB NÀO ĐƯỢC GỬI
+    # 4.0. TỰ ĐỘNG ĐỌC VÀ TRÍCH XUẤT NỘI DUNG + HÌNH ẢNH TỪ ĐƯỜNG LINK (KỂ CẢ HỎI NỐI TIẾP)
+    past_msgs = database.get_conversation_messages(conv_id)[-12:]
+    formatted_history = []
+    for m in past_msgs[:-1]:
+        formatted_history.append({"role": m["role"], "content": m["content"]})
+
     search_target = message if message.strip() else full_user_content
     webpage_context = ""
     detected_links = search_engine.extract_links_from_text(search_target)
+    if not detected_links and any(k in search_target.lower() for k in ["bài báo đó", "bài viết đó", "trang đó", "link đó", "hiển thị ảnh", "xem ảnh", "ảnh trong bài", "hình ảnh trong bài", "cho xem ảnh"]):
+        for pm in reversed(formatted_history):
+            if pm.get("role") == "user":
+                prev_links = search_engine.extract_links_from_text(pm.get("content", ""))
+                if prev_links:
+                    detected_links = prev_links
+                    break
+
     if detected_links:
         for link_url in detected_links[:2]:
             try:
                 page_data = search_engine.fetch_webpage_content(link_url)
                 if page_data:
                     desc_str = f"Mô tả tóm tắt: {page_data['description']}\n" if page_data.get('description') else ""
+                    imgs = page_data.get("images", [])
+                    imgs_str = ""
+                    if imgs:
+                        imgs_list = "\n".join(f"- ![Hình ảnh minh họa {i+1}]({img_u})" for i, img_u in enumerate(imgs))
+                        imgs_str = (
+                            f"\n=== HÌNH ẢNH THỰC TẾ TRÍCH XUẤT TỪ BÀI BÁO ===\n"
+                            f"{imgs_list}\n"
+                            f"(LƯU Ý: Nếu người dùng muốn xem/hiển thị ảnh trong bài báo, BẮT BUỘC chèn trực tiếp các mã Markdown ![Mô tả](URL) ở trên vào câu trả lời để trình duyệt hiển thị ảnh thật ngay lập tức, TUYỆT ĐỐI KHÔNG được từ chối!)\n"
+                        )
                     webpage_context += (
                         f"\n\n=== NỘI DUNG TRANG WEB TRUY CẬP TRỰC TIẾP TỪ {page_data['url']} ===\n"
                         f"Tiêu đề trang: {page_data['title']}\n"
                         f"{desc_str}"
                         f"Toàn bộ văn bản trích xuất sạch:\n{page_data['content']}\n"
-                        f"=== YÊU CẦU: KINI AI hãy đọc hiểu kỹ toàn bộ nội dung trang web trên để tóm tắt, phân tích, trích xuất số liệu hoặc trả lời câu hỏi của người dùng một cách thông minh, chính xác 100%. ==="
+                        f"{imgs_str}"
+                        f"=== YÊU CẦU: KINI AI hãy đọc hiểu kỹ toàn bộ nội dung trang web trên để tóm tắt, phân tích, hiển thị hình ảnh (nếu được hỏi) hoặc trả lời câu hỏi của người dùng một cách thông minh, chính xác 100%. ==="
                     )
-                    print(f"[*] Đã tự động đọc hiểu trang web: {link_url} ({len(page_data['content'])} ký tự)")
+                    print(f"[*] Đã tự động đọc hiểu trang web: {link_url} ({len(page_data['content'])} ký tự, {len(imgs)} ảnh)")
             except Exception as e:
                 print(f"[!] Lỗi đọc trang web {link_url}: {e}")
-
-    past_msgs = database.get_conversation_messages(conv_id)[-12:]
-    formatted_history = []
-    # Lấy các tin nhắn trước
-    for m in past_msgs[:-1]:
-        formatted_history.append({
-            "role": m["role"],
-            "content": m["content"]
-        })
 
     # Tra cứu Internet trực tuyến có gắn ngữ cảnh hội thoại (chống lạc chủ đề khi hỏi nối tiếp)
     live_search_text = ""
@@ -1122,29 +1136,47 @@ async def chat_with_kini_stream(
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
     # 4. CHUYỆN TRÒ / LẬP LUẬN / SUY LUẬN STREAMING THỜI GIAN THỰC
+    past_msgs = database.get_conversation_messages(conv_id)[-12:]
+    formatted_history = []
+    for m in past_msgs[:-1]:
+        formatted_history.append({"role": m["role"], "content": m["content"]})
+
     search_target = message if message.strip() else full_user_content
     webpage_context = ""
     detected_links = search_engine.extract_links_from_text(search_target)
+    if not detected_links and any(k in search_target.lower() for k in ["bài báo đó", "bài viết đó", "trang đó", "link đó", "hiển thị ảnh", "xem ảnh", "ảnh trong bài", "hình ảnh trong bài", "cho xem ảnh"]):
+        for pm in reversed(formatted_history):
+            if pm.get("role") == "user":
+                prev_links = search_engine.extract_links_from_text(pm.get("content", ""))
+                if prev_links:
+                    detected_links = prev_links
+                    break
+
     if detected_links:
         for link_url in detected_links[:2]:
             try:
                 page_data = search_engine.fetch_webpage_content(link_url)
                 if page_data:
                     desc_str = f"Mô tả tóm tắt: {page_data['description']}\n" if page_data.get('description') else ""
+                    imgs = page_data.get("images", [])
+                    imgs_str = ""
+                    if imgs:
+                        imgs_list = "\n".join(f"- ![Hình ảnh minh họa {i+1}]({img_u})" for i, img_u in enumerate(imgs))
+                        imgs_str = (
+                            f"\n=== HÌNH ẢNH THỰC TẾ TRÍCH XUẤT TỪ BÀI BÁO ===\n"
+                            f"{imgs_list}\n"
+                            f"(LƯU Ý: Nếu người dùng muốn xem/hiển thị ảnh trong bài báo, BẮT BUỘC chèn trực tiếp các mã Markdown ![Mô tả](URL) ở trên vào câu trả lời để trình duyệt hiển thị ảnh thật ngay lập tức, TUYỆT ĐỐI KHÔNG được từ chối!)\n"
+                        )
                     webpage_context += (
                         f"\n\n=== NỘI DUNG TRANG WEB TRUY CẬP TRỰC TIẾP TỪ {page_data['url']} ===\n"
                         f"Tiêu đề trang: {page_data['title']}\n"
                         f"{desc_str}"
                         f"Toàn bộ văn bản trích xuất sạch:\n{page_data['content']}\n"
-                        f"=== YÊU CẦU: KINI AI hãy đọc hiểu kỹ toàn bộ nội dung trang web trên để tóm tắt, phân tích, trích xuất số liệu hoặc trả lời câu hỏi của người dùng một cách thông minh, chính xác 100%. ==="
+                        f"{imgs_str}"
+                        f"=== YÊU CẦU: KINI AI hãy đọc hiểu kỹ toàn bộ nội dung trang web trên để tóm tắt, phân tích, hiển thị hình ảnh (nếu được hỏi) hoặc trả lời câu hỏi của người dùng một cách thông minh, chính xác 100%. ==="
                     )
             except Exception:
                 pass
-
-    past_msgs = database.get_conversation_messages(conv_id)[-12:]
-    formatted_history = []
-    for m in past_msgs[:-1]:
-        formatted_history.append({"role": m["role"], "content": m["content"]})
 
     live_search_text = ""
     if not webpage_context and search_engine.needs_live_search(search_target):
