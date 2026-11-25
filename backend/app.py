@@ -1616,8 +1616,40 @@ def serve_workspace_raw(path: str = ""):
     )
 
 @app.get("/api/usage")
-def get_quota_usage():
-    return database.get_usage_statistics()
+def get_quota_usage(request: Request):
+    cid = get_request_client_id(request)
+    client_host = request.client.host if request.client else ""
+    is_local = client_host in ["127.0.0.1", "localhost", "::1"]
+    is_owner_val = database.get_setting("is_owner", "1" if cid == "master" else "0", client_id=cid)
+    user_email = database.get_setting("user_email", "", client_id=cid).strip().lower()
+    user_call_name = database.get_setting("user_call_name", "", client_id=cid).strip()
+    is_truong = (cid == "master" and is_local) and (
+        (user_email == "haitruongproqt1@gmail.com") or 
+        (is_owner_val == "1" and user_call_name in ["Anh Trường", "Phùng Hải Trường"])
+    )
+
+    api_key = database.get_setting("gemini_api_key", "", client_id=cid)
+    if not api_key and is_truong:
+        api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+
+    if not api_key:
+        return {
+            "has_api_key": False,
+            "daily_percent": 0,
+            "daily_left": 0,
+            "daily_limit": 0,
+            "resets_in": "--",
+            "rpm_percent": 0,
+            "rpm_current": 0,
+            "rpm_limit": 0,
+            "total_tokens_today": 0,
+            "prompt_tokens_today": 0,
+            "candidates_tokens_today": 0
+        }
+
+    stats = database.get_usage_statistics()
+    stats["has_api_key"] = True
+    return stats
 
 # ============================================================
 # 5.3. PYTHON CODE INTERPRETER & DATA ANALYSIS SANDBOX

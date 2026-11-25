@@ -294,9 +294,10 @@ function initNavigationAndModals() {
                 document.querySelectorAll(".model-option").forEach(o => o.classList.remove("active"));
                 targetOpt.classList.add("active");
                 if (modelLabel) {
-                    if (savedModel === "flash-3.8") modelLabel.textContent = "Gemini 3.8 Flash";
+                    if (savedModel === "flash-3.5") modelLabel.textContent = "Gemini 3.5 Flash";
+                    else if (savedModel === "flash-3.8") modelLabel.textContent = "Gemini 3.8 Flash";
                     else if (savedModel === "pro") modelLabel.textContent = "Gemini Pro";
-                    else modelLabel.textContent = "Gemini Flash Lite";
+                    else modelLabel.textContent = "Gemini 3.1 Flash Lite";
                 }
             }
         }
@@ -309,16 +310,18 @@ function initNavigationAndModals() {
                 const m = opt.dataset.model;
                 localStorage.setItem("kini_selected_model", m);
                 
-                let selectedName = "Gemini 3.8 Flash";
-                if (m === "flash-3.8") selectedName = "Gemini 3.8 Flash";
+                let selectedName = "Gemini 3.5 Flash";
+                if (m === "flash-3.5") selectedName = "Gemini 3.5 Flash";
+                else if (m === "flash-3.8") selectedName = "Gemini 3.8 Flash";
                 else if (m === "pro") selectedName = "Gemini Pro";
-                else selectedName = "Gemini Flash Lite";
+                else selectedName = "Gemini 3.1 Flash Lite";
 
                 if (modelLabel) modelLabel.textContent = selectedName;
                 if (mobileModelLabel) {
-                    if (m === "flash-3.8") mobileModelLabel.textContent = "KINI 3.8 Flash";
-                    else if (m === "pro") mobileModelLabel.textContent = "KINI Pro Deep";
-                    else mobileModelLabel.textContent = "KINI Flash 3.1";
+                    if (m === "flash-3.5") mobileModelLabel.textContent = "KINI 3.5 Flash";
+                    else if (m === "flash-3.8") mobileModelLabel.textContent = "KINI 3.8 Flash";
+                    else if (m === "pro") mobileModelLabel.textContent = "KINI Pro";
+                    else mobileModelLabel.textContent = "KINI Flash Lite";
                 }
                 
                 showToast("⚡ Đã chuyển sang mô hình: " + selectedName);
@@ -1068,7 +1071,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
     }
 
     const renderedHtml = formatMarkdown(content);
-    const displayModel = modelUsed || "gemini-3.1-flash-lite";
+    const displayModel = (content && content.includes("Chưa cấu hình Google Gemini API Key")) ? "None" : (modelUsed || "KINI AI");
 
     // Thẻ Đề Xuất Kế Hoạch Antigravity (Nếu là Agent Proposal)
     let proposalCardHtml = "";
@@ -1999,7 +2002,8 @@ function renderPinnedItem(c) {
     item.className = `conv-item pinned-style ${c.id === currentConvId ? 'active' : ''}`;
     item.dataset.id = c.id;
     const timeStr = formatRelativeTime(c.updated_at || c.created_at);
-    const categoryTag = c.category ? `📁 ${escapeHtml(c.category)}` : "📁 haitruong";
+    const safeCat = (c.category && c.category !== "haitruong") ? c.category : "Chung";
+    const categoryTag = `📁 ${escapeHtml(safeCat)}`;
 
     item.innerHTML = `
         <div class="conv-row-top">
@@ -2136,7 +2140,7 @@ async function loadConversations(autoRestore = false) {
         // Gom nhóm theo category (Thư mục dự án)
         const categories = {};
         unpinned.forEach(c => {
-            const cat = c.category || "haitruong";
+            const cat = (c.category && c.category !== "haitruong") ? c.category : "Chung";
             if (!categories[cat]) categories[cat] = [];
             categories[cat].push(c);
         });
@@ -2812,26 +2816,46 @@ async function refreshUsageStats() {
         const res = await fetch("/api/usage");
         const data = await res.json();
         
-        // Hạn mức ngày
         const dailyPercent = document.getElementById("usage-daily-percent");
         const dailyBar = document.getElementById("usage-daily-bar");
         const dailyReset = document.getElementById("usage-daily-reset");
-        if (dailyPercent) dailyPercent.textContent = `${data.daily_percent}% còn lại`;
+        const rpmPercent = document.getElementById("usage-rpm-percent");
+        const rpmBar = document.getElementById("usage-rpm-bar");
+        const rpmDetail = document.getElementById("usage-rpm-detail");
+        const totalTokens = document.getElementById("usage-total-tokens");
+        const promptTokens = document.getElementById("usage-prompt-tokens");
+        const candidateTokens = document.getElementById("usage-candidate-tokens");
+
+        if (data.has_api_key === false) {
+            if (dailyPercent) {
+                dailyPercent.textContent = "Chưa có API Key (0%)";
+                dailyPercent.style.color = "#f59e0b";
+            }
+            if (dailyBar) dailyBar.style.width = "0%";
+            if (dailyReset) dailyReset.textContent = "⚠️ Nhập API Key riêng trong Cài đặt để có hạn mức";
+            if (rpmPercent) rpmPercent.textContent = "0%";
+            if (rpmBar) rpmBar.style.width = "0%";
+            if (rpmDetail) rpmDetail.textContent = "0 / 0 lượt gọi (Chưa kích hoạt)";
+            if (totalTokens) totalTokens.textContent = "0";
+            if (promptTokens) promptTokens.textContent = "0";
+            if (candidateTokens) candidateTokens.textContent = "0";
+            return;
+        }
+
+        // Hạn mức ngày
+        if (dailyPercent) {
+            dailyPercent.textContent = `${data.daily_percent}% còn lại`;
+            dailyPercent.style.color = "";
+        }
         if (dailyBar) dailyBar.style.width = `${Math.min(100, Math.max(0, data.daily_percent))}%`;
         if (dailyReset) dailyReset.textContent = `Làm mới sau: ${data.resets_in} · ${data.daily_left.toLocaleString()} / ${data.daily_limit.toLocaleString()} lượt`;
 
         // RPM Tốc độ phút
-        const rpmPercent = document.getElementById("usage-rpm-percent");
-        const rpmBar = document.getElementById("usage-rpm-bar");
-        const rpmDetail = document.getElementById("usage-rpm-detail");
         if (rpmPercent) rpmPercent.textContent = `${data.rpm_percent}% còn lại`;
         if (rpmBar) rpmBar.style.width = `${Math.min(100, Math.max(0, data.rpm_percent))}%`;
         if (rpmDetail) rpmDetail.textContent = `${data.rpm_current} / ${data.rpm_limit} lượt gọi trong phút này`;
 
         // Tokens
-        const totalTokens = document.getElementById("usage-total-tokens");
-        const promptTokens = document.getElementById("usage-prompt-tokens");
-        const candidateTokens = document.getElementById("usage-candidate-tokens");
         if (totalTokens) totalTokens.textContent = data.total_tokens_today.toLocaleString();
         if (promptTokens) promptTokens.textContent = data.prompt_tokens_today.toLocaleString();
         if (candidateTokens) candidateTokens.textContent = data.candidates_tokens_today.toLocaleString();

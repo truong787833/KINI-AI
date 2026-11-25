@@ -371,29 +371,33 @@ def ask_gemini(
         }
 
     # Lựa chọn danh sách mô hình dựa trên model_mode
-    if model_mode in ["flash-3.8", "gemini-3.8-flash"]:
+    if model_mode in ["flash-3.5", "gemini-3.5-flash"]:
         models_to_try = [
-            "gemini-3.8-flash",         # Mô hình 3.8 Flash thế hệ mới nhất như Google Antigravity
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-lite-latest"
+        ]
+    elif model_mode in ["flash-3.8", "gemini-3.8-flash"]:
+        models_to_try = [
+            "gemini-3.8-flash",         # Mô hình 3.8 Flash thế hệ mới nhất
             "gemini-3.5-flash",         # Fallback 1: Siêu thông minh 3.5
             "gemini-3.1-flash-lite",    # Fallback 2: Siêu tốc 100% ổn định
             "gemini-flash-lite-latest"
         ]
     elif model_mode == "pro":
         models_to_try = [
-            "gemini-3.5-flash",         # Thế hệ mới, suy luận phân tích đa chiều
-            "gemini-3.1-flash-lite",    # Siêu tốc, thông minh, phản hồi ngay
-            "gemini-3.8-flash",         # Mô hình 3.8 Flash mới nhất của Google
-            "gemini-flash-lite-latest",
-            "gemini-3.5-flash-lite"
+            "gemini-2.5-pro",           # Bản Pro ổn định nhất
+            "gemini-3.1-pro-preview",   # Bản 3.1 Pro mới
+            "gemini-3.5-flash",         # Fallback thông minh cao cấp nếu hết quota Pro
+            "gemini-3.1-flash-lite",
+            "gemini-flash-lite-latest"
         ]
     else:
-        # Flash mode: siêu tốc < 1.0s, cực kỳ ổn định, chính xác cao
+        # Flash Lite mode: siêu tốc < 1.0s, cực kỳ ổn định, chính xác cao
         models_to_try = [
             "gemini-3.1-flash-lite",    # Siêu tốc ~0.8s, hoạt động 100%
-            "gemini-3.5-flash",         # Thông minh cao cấp 1.8s
-            "gemini-3.8-flash",         # Mô hình 3.8 Flash mới nhất
-            "gemini-flash-lite-latest", # Fallback chuẩn
-            "gemini-3.5-flash-lite"
+            "gemini-3.5-flash",         # Thông minh cao cấp
+            "gemini-flash-lite-latest"  # Fallback chuẩn
         ]
     
     last_error = ""
@@ -510,10 +514,12 @@ def ask_gemini_stream(
         }
 
     # Chọn danh sách mô hình
-    if model_mode in ["flash-3.8", "gemini-3.8-flash"]:
+    if model_mode in ["flash-3.5", "gemini-3.5-flash"]:
+        models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
+    elif model_mode in ["flash-3.8", "gemini-3.8-flash"]:
         models_to_try = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
     elif model_mode == "pro":
-        models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-lite-latest"]
+        models_to_try = ["gemini-2.5-pro", "gemini-3.1-pro-preview", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
     else:
         models_to_try = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-lite-latest"]
 
