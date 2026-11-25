@@ -532,38 +532,67 @@ def extract_links_from_text(text: str) -> List[str]:
 
 def fetch_webpage_content(url: str, max_chars: int = 4000) -> Optional[Dict[str, str]]:
     """
-    Tự động truy cập và đọc hiểu nội dung sạch của bất kỳ trang web / bài báo nào từ URL
-    (Loại bỏ quảng cáo, menu điều hướng, script và chỉ lấy nội dung cốt lõi của bài viết)
+    Tự động truy cập và đọc hiểu nội dung sạch của bất kỳ trang web / bài báo / mạng xã hội nào từ URL
+    (Hỗ trợ đọc cả Facebook, TikTok, Instagram, X qua Meta OpenGraph & tự động đối chiếu tin tức liên quan)
     """
     try:
         from bs4 import BeautifulSoup
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "vi,en;q=0.9"
-        }
-        res = requests.get(url, headers=headers, timeout=8)
-        if res.status_code != 200:
+        is_social = any(d in url.lower() for d in ["facebook.com", "fb.com", "tiktok.com", "instagram.com", "threads.net", "twitter.com", "x.com"])
+        
+        user_agents = [
+            "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+            "Twitterbot/1.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ] if is_social else [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+        ]
+
+        res = None
+        for ua in user_agents:
+            try:
+                headers = {
+                    "User-Agent": ua,
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "vi,en;q=0.9"
+                }
+                r = requests.get(url, headers=headers, timeout=8, allow_redirects=True)
+                if r.status_code == 200 and len(r.content) > 200:
+                    res = r
+                    break
+            except Exception:
+                continue
+
+        if not res:
             return None
 
         soup = BeautifulSoup(res.content, "html.parser")
 
-        # Xóa các thành phần rác
-        for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript", "svg", "form", "iframe"]):
-            tag.decompose()
-
         title = soup.title.string.strip() if (soup.title and soup.title.string) else ""
+        og_title_tag = soup.find("meta", attrs={"property": "og:title"})
+        og_title = og_title_tag.get("content", "").strip() if og_title_tag else ""
+        if og_title and (not title or len(og_title) > len(title) or "Facebook" in title):
+            title = og_title
+
         if not title:
             h1 = soup.find("h1")
             if h1:
                 title = h1.get_text(strip=True)
 
         meta_desc = ""
-        meta = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
-        if meta and meta.get("content"):
-            meta_desc = meta["content"].strip()
+        for attr in [{"property": "og:description"}, {"name": "description"}, {"name": "twitter:description"}]:
+            m = soup.find("meta", attrs=attr)
+            if m and m.get("content"):
+                meta_desc = m["content"].strip()
+                break
 
-        # Tìm vùng nội dung chính
+        og_url_tag = soup.find("meta", attrs={"property": "og:url"})
+        resolved_url = og_url_tag.get("content", "").strip() if og_url_tag else str(res.url)
+
+        # Xóa các thành phần rác trước khi trích xuất text
+        for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript", "svg", "form", "iframe"]):
+            tag.decompose()
+
         main_content = (
             soup.find("article") or 
             soup.find(class_=re.compile(r'(detail-content|fck_detail|post-content|entry-content|main-content|article-body)', re.I)) or 
@@ -584,17 +613,41 @@ def fetch_webpage_content(url: str, max_chars: int = 4000) -> Optional[Dict[str,
             paragraphs = lines
 
         clean_text = "\n\n".join(paragraphs)
-        if len(clean_text) > max_chars:
-            clean_text = clean_text[:max_chars] + "\n...(Nội dung còn tiếp)"
 
-        if len(clean_text.strip()) < 50:
+        # Với link Mạng xã hội (Facebook, TikTok...): trích xuất thông tin OpenGraph và tìm thêm tin tức liên quan
+        extra_context = ""
+        if is_social and (meta_desc or title):
+            search_q = f"{og_title} {meta_desc}".strip()[:120]
+            if len(search_q) > 15:
+                try:
+                    related = fetch_google_news_search(search_q, limit=3) or search_web_duckduckgo(search_q, limit=3)
+                    if related:
+                        rel_lines = ["\n[THÔNG TIN BÁO CHÍ & NGỮ CẢNH LIÊN QUAN TÌM THẤY TỪ BÀI VIẾT]:"]
+                        for r_item in related:
+                            rel_lines.append(f"- {r_item.get('title')} ({r_item.get('source', 'Web')}): {r_item.get('snippet', '')} [Link: {r_item.get('url', '')}]")
+                        extra_context = "\n".join(rel_lines)
+                except Exception:
+                    pass
+
+        combined_content = ""
+        if meta_desc and meta_desc not in clean_text:
+            combined_content += f"Nội dung tóm tắt bài viết: {meta_desc}\n\n"
+        if clean_text and "You must log in" not in clean_text and "Đăng nhập" not in clean_text[:60]:
+            combined_content += clean_text
+        if extra_context:
+            combined_content += f"\n{extra_context}"
+
+        if len(combined_content) > max_chars:
+            combined_content = combined_content[:max_chars] + "\n...(Nội dung còn tiếp)"
+
+        if len(combined_content.strip()) < 20 and not title:
             return None
 
         return {
             "title": title or "Trang web",
             "description": meta_desc,
-            "url": url,
-            "content": clean_text
+            "url": resolved_url or url,
+            "content": combined_content.strip() or f"Trang: {title}"
         }
     except Exception as e:
         logger.warning(f"Lỗi đọc nội dung trang web từ {url}: {e}")
