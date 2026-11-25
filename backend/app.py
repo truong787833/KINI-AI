@@ -702,17 +702,6 @@ async def chat_with_kini(
             except Exception as e:
                 print(f"[!] Lỗi đọc trang web {link_url}: {e}")
 
-    # Tra cứu Internet trực tuyến nếu câu hỏi liên quan đến báo chí, tin tức, thời sự, năm 2026, luật pháp, thông tin mới
-    live_search_text = ""
-    if not webpage_context and search_engine.needs_live_search(search_target):
-        try:
-            grounded_data = search_engine.get_grounded_context(search_target)
-            if grounded_data:
-                live_search_text = f"\n\n{grounded_data}"
-                print(f"[*] Đã nạp {len(grounded_data)} ký tự dữ liệu báo chí/Google News/tra cứu thời gian thực cho: {search_target[:60]}")
-        except Exception as e:
-            print(f"[!] Lỗi tra cứu thời gian thực: {e}")
-
     past_msgs = database.get_conversation_messages(conv_id)[-12:]
     formatted_history = []
     # Lấy các tin nhắn trước
@@ -721,6 +710,18 @@ async def chat_with_kini(
             "role": m["role"],
             "content": m["content"]
         })
+
+    # Tra cứu Internet trực tuyến có gắn ngữ cảnh hội thoại (chống lạc chủ đề khi hỏi nối tiếp)
+    live_search_text = ""
+    if not webpage_context and search_engine.needs_live_search(search_target):
+        try:
+            grounded_data = search_engine.get_grounded_context(search_target, history=formatted_history)
+            if grounded_data:
+                live_search_text = f"\n\n{grounded_data}"
+                print(f"[*] Đã nạp {len(grounded_data)} ký tự dữ liệu báo chí/Google News/tra cứu thời gian thực cho: {search_target[:60]}")
+        except Exception as e:
+            print(f"[!] Lỗi tra cứu thời gian thực: {e}")
+
     # Gắn tin nhắn hiện tại kèm nội dung trang web và kết quả tra cứu trực tuyến mới nhất
     current_content_with_grounding = full_user_content + webpage_context + live_search_text
 
@@ -1140,19 +1141,20 @@ async def chat_with_kini_stream(
             except Exception:
                 pass
 
+    past_msgs = database.get_conversation_messages(conv_id)[-12:]
+    formatted_history = []
+    for m in past_msgs[:-1]:
+        formatted_history.append({"role": m["role"], "content": m["content"]})
+
     live_search_text = ""
     if not webpage_context and search_engine.needs_live_search(search_target):
         try:
-            grounded_data = search_engine.get_grounded_context(search_target)
+            grounded_data = search_engine.get_grounded_context(search_target, history=formatted_history)
             if grounded_data:
                 live_search_text = f"\n\n{grounded_data}"
         except Exception:
             pass
 
-    past_msgs = database.get_conversation_messages(conv_id)[-12:]
-    formatted_history = []
-    for m in past_msgs[:-1]:
-        formatted_history.append({"role": m["role"], "content": m["content"]})
     current_content = full_user_content + webpage_context + live_search_text
     # Tự động tính toán số học chuẩn xác 100% bằng Python (Chống ảo giác số học tuyệt đối)
     math_context = math_verifier.extract_and_verify_arithmetic(full_user_content)

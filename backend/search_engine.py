@@ -348,9 +348,13 @@ def user_explicitly_wants_sources(text: str) -> bool:
         "cho tôi link", "tìm link", "xin link", "link video", "link bài", "link github", 
         "link youtube", "dẫn chứng", "nguồn ở đâu", "bài viết nào", "link gốc", "nguồn nào", 
         "ở đâu nói", "trang web nào", "cho đường dẫn", "trích dẫn nguồn", "xin nguồn", 
-        "chứng minh", "nguồn gốc từ đâu", "cho link"
+        "chứng minh", "nguồn gốc từ đâu", "cho link", "đường link", "đường dẫn"
     ]
-    return any(k in t for k in source_keywords)
+    if any(k in t for k in source_keywords):
+        return True
+    if re.search(r'\blink\b', t):
+        return True
+    return False
 
 def clean_unwanted_citations(reply_text: str, user_query: str) -> str:
     """
@@ -412,20 +416,54 @@ def needs_live_search(text: str) -> bool:
     # 5. Mọi câu hỏi thông tin, kiến thức, phân tích, đánh giá, luật pháp, ngày lễ, tin tức -> LUÔN TRA CỨU!
     return True
 
-def get_grounded_context(user_query: str) -> str:
+def build_contextual_search_query(user_query: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    """
+    Ghép nối ngữ cảnh từ câu hỏi trước nếu người dùng hỏi nối tiếp ngắn gọn
+    (VD: "tìm bài hát về đoàn" -> "đường link" => "tìm bài hát về đoàn đường link")
+    để công cụ tìm kiếm bám sát 100% chủ đề đang trò chuyện, tuyệt đối không nhảy sang chủ đề khác!
+    """
+    q = user_query.strip()
+    if not history:
+        return q
+    q_lower = q.lower()
+    follow_up_cues = [
+        "đường link", "link", "đường dẫn", "chi tiết", "cụ thể", "nó", "cái đó", 
+        "bài đó", "câu đó", "nghe ở đâu", "xem ở đâu", "thế còn", "vậy thì", 
+        "tại sao", "như thế nào", "tiếp đi", "thêm đi", "ví dụ", "nữa", "thì sao"
+    ]
+    is_short_followup = (len(q.split()) <= 6) or any(q_lower.startswith(c) or c in q_lower for c in follow_up_cues)
+    if not is_short_followup:
+        return q
+
+    # Tìm câu hỏi user gần nhất có nội dung rõ ràng (không chứa URL thô, dài > 3 từ)
+    for m in reversed(history):
+        if m.get("role") == "user":
+            prev = m.get("content", "").strip()
+            # Bỏ qua các tin nhắn quá ngắn hoặc chỉ là link
+            if len(prev.split()) >= 3 and not prev.lower().startswith("http"):
+                # Loại bỏ URL nếu có trong câu trước
+                prev_clean = re.sub(r'https?://[^\s]+', '', prev).strip()
+                if prev_clean and prev_clean.lower() != q_lower:
+                    return f"{prev_clean} {q}"
+    return q
+
+def get_grounded_context(user_query: str, history: Optional[List[Dict[str, str]]] = None) -> str:
     """
     SIÊU HỆ THỐNG TRÍ TUỆ ĐA NGUỒN SONG SONG (PARALLEL MULTI-SOURCE REAL-TIME ENGINE):
+    - Tự động ghép nối ngữ cảnh hội thoại nếu là câu hỏi nối tiếp ("đường link", "chi tiết"...).
     - Chạy song song Google News + Web Search (DuckDuckGo) + Wikipedia/GitHub/YouTube.
-    - Tự động đọc sâu nội dung bài viết uy tín nhất (Chính phủ, Báo chí, Luật) để AI không chỉ thấy tiêu đề mà nắm rõ toàn bộ chi tiết mới nhất năm 2026.
+    - Tự động đọc sâu nội dung bài viết uy tín nhất (Chính phủ, Báo chí, Luật).
     """
     from concurrent.futures import ThreadPoolExecutor
 
+    effective_query = build_contextual_search_query(user_query, history)
+
     # 1. Nếu có Điều luật cụ thể, ưu tiên trích xuất nguyên văn chính thức
-    verbatim_text = fetch_verbatim_law_article(user_query)
+    verbatim_text = fetch_verbatim_law_article(effective_query)
     if verbatim_text:
         return verbatim_text
 
-    t_lower = user_query.lower()
+    t_lower = effective_query.lower()
     discovered_sources = []
 
     is_general_news = any(k in t_lower for k in [
@@ -443,16 +481,16 @@ def get_grounded_context(user_query: str) -> str:
             futures.append(executor.submit(fetch_google_news_top, 5))
             futures.append(executor.submit(fetch_vnexpress_latest, 4))
         else:
-            futures.append(executor.submit(fetch_google_news_search, user_query, 4))
+            futures.append(executor.submit(fetch_google_news_search, effective_query, 4))
 
-        futures.append(executor.submit(search_web_duckduckgo, user_query, 5))
+        futures.append(executor.submit(search_web_duckduckgo, effective_query, 5))
 
         if needs_github:
-            futures.append(executor.submit(search_github_repos, user_query, 3))
+            futures.append(executor.submit(search_github_repos, effective_query, 3))
         if needs_yt:
-            futures.append(executor.submit(search_youtube_videos, user_query, 3))
+            futures.append(executor.submit(search_youtube_videos, effective_query, 3))
         if needs_wiki:
-            futures.append(executor.submit(search_wikipedia_facts, user_query, 2))
+            futures.append(executor.submit(search_wikipedia_facts, effective_query, 2))
 
         for f in futures:
             try:
