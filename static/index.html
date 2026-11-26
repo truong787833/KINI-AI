@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=20261126_1012">
+    <link rel="stylesheet" href="/static/style.css?v=20261126_2045">
     <!-- marked.js: Render Markdown đẹp như ChatGPT/Gemini -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- highlight.js: Syntax Highlight code blocks -->
@@ -1433,6 +1433,19 @@
 
     <script src="/static/chart.min.js"></script>
     <script src="/static/vibe_templates.js"></script>
-    <script src="/static/app.js?v=20261126_1922"></script>
+    <!-- Modal Xác Nhận Xóa Hiện Đại (Thay thế hộp thoại confirm thô của trình duyệt) -->
+    <div class="modal" id="modal-kini-confirm" style="display: none; z-index: 99999;">
+        <div class="modal-dialog kini-confirm-dialog">
+            <div class="kini-confirm-icon">🗑️</div>
+            <h3 id="kini-confirm-title">Xác nhận xóa</h3>
+            <p id="kini-confirm-msg">Bạn có chắc chắn muốn xóa mục này không?</p>
+            <div class="kini-confirm-actions">
+                <button class="btn btn-outline" id="kini-confirm-cancel">Hủy bỏ</button>
+                <button class="btn kini-btn-danger" id="kini-confirm-ok">Xóa vĩnh viễn</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=20261126_2045"></script>
 </body>
 </html>

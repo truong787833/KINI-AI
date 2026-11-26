@@ -1684,7 +1684,7 @@ function initMemories() {
     });
 
     document.getElementById("btn-clear-memories")?.addEventListener("click", async () => {
-        if (!confirm("Anh có chắc chắn muốn xóa toàn bộ ký ức dài hạn của KINI không?")) return;
+        if (!(await kiniConfirm("Xóa toàn bộ ký ức", "Anh có chắc chắn muốn xóa toàn bộ ký ức dài hạn của KINI không?"))) return;
         try {
             await fetch("/api/memories", { method: "DELETE" });
             showToast("🗑️ Đã xóa toàn bộ ký ức!");
@@ -1697,7 +1697,7 @@ function initMemories() {
 }
 
 async function deleteMemory(id) {
-    if (!confirm("Anh có chắc muốn xóa ký ức này không?")) return;
+    if (!(await kiniConfirm("Xóa ký ức", "Anh có chắc muốn xóa ký ức này không?"))) return;
     try {
         const res = await fetch(`/api/memories/${id}`, { method: "DELETE" });
         const data = await res.json();
@@ -2355,9 +2355,9 @@ async function renameConversationPrompt(convId, oldTitle) {
 async function deleteConversation(id) {
     const isMaster = kiniClientId === "master";
     const msg = isMaster 
-        ? "⚠️ Anh Trường có chắc chắn muốn XÓA VĨNH VIỄN đoạn hội thoại này không?\n(Chỉ khi anh bấm Xóa thì hệ thống mới xóa vĩnh viễn khỏi SQLite)" 
-        : "⚠️ Bạn có chắc chắn muốn XÓA VĨNH VIỄN cuộc trò chuyện này không?";
-    if (!confirm(msg)) return;
+        ? "Anh Trường có chắc chắn muốn xóa vĩnh viễn đoạn hội thoại này không?\nDữ liệu sẽ được xóa sạch khỏi bộ nhớ." 
+        : "Bạn có chắc chắn muốn xóa vĩnh viễn cuộc trò chuyện này không?";
+    if (!(await kiniConfirm("Xóa cuộc trò chuyện", msg))) return;
     try {
         await fetch(`/api/conversations/${id}`, { method: "DELETE" });
         showToast("🗑️ Đã xóa vĩnh viễn đoạn hội thoại!");
@@ -5218,3 +5218,38 @@ document.getElementById("rag-file-input")?.addEventListener("change", async (e) 
         loadRagDocuments();
     }
 });
+
+
+// ============================================================
+// MODAL XÁC NHẬN HIỆN ĐẠI (KINI PRO CONFIRM)
+// ============================================================
+function kiniConfirm(title = "Xác nhận xóa", message = "Bạn có chắc chắn muốn thực hiện thao tác này?", confirmLabel = "Xóa vĩnh viễn") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById("modal-kini-confirm");
+        const titleEl = document.getElementById("kini-confirm-title");
+        const msgEl = document.getElementById("kini-confirm-msg");
+        const btnOk = document.getElementById("kini-confirm-ok");
+        const btnCancel = document.getElementById("kini-confirm-cancel");
+        if (!modal || !btnOk || !btnCancel) {
+            resolve(window.confirm(message));
+            return;
+        }
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) msgEl.textContent = message;
+        btnOk.textContent = confirmLabel;
+        modal.style.display = "flex";
+
+        const cleanup = (result) => {
+            modal.style.display = "none";
+            btnOk.onclick = null;
+            btnCancel.onclick = null;
+            modal.onclick = null;
+            resolve(result);
+        };
+        btnOk.onclick = () => cleanup(true);
+        btnCancel.onclick = () => cleanup(false);
+        modal.onclick = (e) => {
+            if (e.target === modal) cleanup(false);
+        };
+    });
+}
