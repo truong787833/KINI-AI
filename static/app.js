@@ -3126,6 +3126,12 @@ function switchViewMode(mode) {
         btnChat?.classList.add("active");
         if (studioPane) studioPane.style.display = "none";
         if (resizerChat) resizerChat.style.display = "none";
+        const chatPane = document.getElementById("chat-main-pane");
+        if (chatPane) {
+            chatPane.style.flex = "";
+            chatPane.style.width = "";
+            chatPane.classList.remove("collapsed");
+        }
     }
 }
 
