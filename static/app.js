@@ -475,14 +475,23 @@ function renderAttachmentPreviews() {
             const img = document.createElement("img");
             img.className = "attach-thumb-img";
             img.alt = file.name;
-            img.src = URL.createObjectURL(file);
-            img.onload = () => URL.revokeObjectURL(img.src);
+            img.title = "Bấm để xem to & thu phóng: " + file.name;
+            img.style.cursor = "pointer";
+            const previewUrl = URL.createObjectURL(file);
+            img.src = previewUrl;
+            img.onclick = (ev) => {
+                ev.stopPropagation();
+                openLightbox(previewUrl, file.name);
+            };
             const btnRm = document.createElement("button");
             btnRm.type = "button";
             btnRm.className = "attach-thumb-remove";
             btnRm.title = "Gỡ ảnh";
             btnRm.textContent = "✕";
-            btnRm.onclick = () => removeAttachedFileAt(idx);
+            btnRm.onclick = () => {
+                try { URL.revokeObjectURL(previewUrl); } catch (_) {}
+                removeAttachedFileAt(idx);
+            };
             thumb.appendChild(img);
             thumb.appendChild(btnRm);
             bar.appendChild(thumb);
@@ -1003,7 +1012,7 @@ function createStreamingAssistantRow() {
     };
 }
 
-function appendUserMessage(text, files) {
+function appendUserMessage(text, files, imageUrl = "") {
     const container = document.getElementById("chat-messages");
     const row = document.createElement("div");
     row.className = "message-row user";
@@ -1015,18 +1024,32 @@ function appendUserMessage(text, files) {
             const ext = file.name.split('.').pop().toLowerCase();
             if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
                 const previewUrl = URL.createObjectURL(file);
-                fileHtml += `<img src="${previewUrl}" class="msg-inline-image" style="max-height:220px; border-radius:12px; margin-bottom:6px;" alt="upload">`;
+                fileHtml += `<img src="${previewUrl}" class="msg-inline-image" style="max-height:220px; border-radius:12px; margin-bottom:6px; cursor:pointer;" onclick="openLightbox('${previewUrl}', '${escapeHtml(file.name)}')" alt="upload">`;
             } else {
                 fileHtml += `<div style="font-size:0.85rem; opacity:0.9; margin-bottom:4px;">📎 Đính kèm tệp: <b>${escapeHtml(file.name)}</b></div>`;
             }
         }
+    } else if (imageUrl) {
+        const urls = String(imageUrl).split("||").map(u => u.trim()).filter(Boolean);
+        for (const u of urls) {
+            const cleanPath = u.split("?")[0].toLowerCase();
+            if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].some(ext => cleanPath.endsWith(ext))) {
+                const safeUrl = escapeHtml(u);
+                fileHtml += `<img src="${safeUrl}" class="msg-inline-image" style="max-height:220px; border-radius:12px; margin-bottom:6px; cursor:pointer;" onclick="openLightbox('${safeUrl}', 'Ảnh đính kèm')" alt="upload">`;
+            }
+        }
+    }
+
+    let displayText = String(text || "");
+    if (fileHtml) {
+        displayText = displayText.replace(/\n?\[Hình ảnh đính kèm: '[^']*'\]/g, "").trim();
     }
 
     row.innerHTML = `
         <div class="message-body">
             <div class="message-bubble">
                 ${fileHtml}
-                <div>${escapeHtml(text)}</div>
+                ${displayText ? `<div>${escapeHtml(displayText)}</div>` : ""}
             </div>
         </div>
     `;
@@ -1789,17 +1812,61 @@ async function loadGallery() {
 function openLightbox(url, prompt) {
     const modal = document.getElementById("lightbox-overlay");
     const img = document.getElementById("lightbox-img");
+    const stage = document.getElementById("lightbox-stage");
     const caption = document.getElementById("lightbox-caption");
     const downloadBtn = document.getElementById("lightbox-btn-download");
     const copyBtn = document.getElementById("lightbox-btn-copy");
+    const btnIn = document.getElementById("lightbox-zoom-in");
+    const btnOut = document.getElementById("lightbox-zoom-out");
+    const btnReset = document.getElementById("lightbox-zoom-reset");
+
+    let scale = 1, panX = 0, panY = 0, isDragging = false, startX = 0, startY = 0;
+    const applyTransform = () => {
+        img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        if (btnReset) btnReset.textContent = Math.round(scale * 100) + "%";
+        if (stage) stage.style.cursor = scale > 1 ? (isDragging ? "grabbing" : "grab") : "zoom-in";
+    };
 
     img.src = url;
-    caption.textContent = prompt;
+    caption.textContent = prompt || "";
     downloadBtn.href = url;
     downloadBtn.download = "kini_ai_art.jpg";
+    applyTransform();
+
+    if (btnIn) btnIn.onclick = (e) => { e.stopPropagation(); scale = Math.min(4, +(scale + 0.35).toFixed(2)); applyTransform(); };
+    if (btnOut) btnOut.onclick = (e) => { e.stopPropagation(); scale = Math.max(0.5, +(scale - 0.35).toFixed(2)); if (scale <= 1) { panX = 0; panY = 0; } applyTransform(); };
+    if (btnReset) btnReset.onclick = (e) => { e.stopPropagation(); scale = 1; panX = 0; panY = 0; applyTransform(); };
+
+    if (stage) {
+        stage.onwheel = (e) => {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 0.2 : -0.2;
+            scale = Math.min(4, Math.max(0.5, +(scale + delta).toFixed(2)));
+            if (scale <= 1) { panX = 0; panY = 0; }
+            applyTransform();
+        };
+        stage.onmousedown = (e) => {
+            if (scale <= 1) return;
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            applyTransform();
+        };
+        window.onmousemove = (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            applyTransform();
+        };
+        window.onmouseup = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            applyTransform();
+        };
+    }
 
     copyBtn.onclick = () => {
-        navigator.clipboard.writeText(prompt);
+        navigator.clipboard.writeText(prompt || "");
         copyBtn.textContent = "✓ Đã sao chép";
         setTimeout(() => copyBtn.textContent = "📋 Sao Chép Mô Tả", 2000);
     };
@@ -2323,7 +2390,7 @@ async function switchConversation(convId) {
 
             for (const msg of messages) {
                 if (msg.role === "user") {
-                    appendUserMessage(msg.content);
+                    appendUserMessage(msg.content, null, msg.image_url || "");
                 } else {
                     appendAssistantMessage(msg.content, msg.image_url || "");
                 }

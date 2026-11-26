@@ -364,6 +364,7 @@ async def chat_with_kini(
     image_base64 = None
     image_mime = "image/jpeg"
     extra_images = []
+    uploaded_image_urls = []
     extracted_doc_text = ""
 
     # 1. Xử lý tệp đính kèm (Đơn lẻ, Hàng loạt hoặc Thư mục tải lên)
@@ -393,8 +394,9 @@ async def chat_with_kini(
             save_path = os.path.join(IMAGES_DIR, save_name)
             with open(save_path, "wb") as f:
                 f.write(content_bytes)
-            if not file_display_url:
-                file_display_url = f"/api/images/{save_name}"
+            img_rel_url = f"/api/images/{save_name}"
+            uploaded_image_urls.append(img_rel_url)
+            file_display_url = "||".join(uploaded_image_urls)
             extracted_doc_text += f"\n[Hình ảnh đính kèm: '{item.filename}']"
             
         # Nếu là tài liệu (PDF, Word, Excel, CSV, Text, Code)
@@ -1014,6 +1016,7 @@ async def chat_with_kini_stream(
     image_base64 = None
     image_mime = "image/jpeg"
     extra_images = []
+    uploaded_image_urls = []
     extracted_doc_text = ""
 
     upload_list = []
@@ -1039,8 +1042,9 @@ async def chat_with_kini_stream(
             save_path = os.path.join(IMAGES_DIR, save_name)
             with open(save_path, "wb") as f:
                 f.write(content_bytes)
-            if not file_display_url:
-                file_display_url = f"/api/images/{save_name}"
+            img_rel_url = f"/api/images/{save_name}"
+            uploaded_image_urls.append(img_rel_url)
+            file_display_url = "||".join(uploaded_image_urls)
             extracted_doc_text += f"\n[Hình ảnh đính kèm: '{item.filename}']"
         else:
             temp_name = f"temp_doc_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"

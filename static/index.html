@@ -994,10 +994,15 @@
     <div class="lightbox-overlay" id="lightbox-overlay" style="display: none;">
         <div class="lightbox-container">
             <button class="lightbox-close" id="lightbox-close">&times;</button>
-            <img id="lightbox-img" src="" alt="Zoom Image">
+            <div id="lightbox-stage" style="overflow:hidden; display:flex; align-items:center; justify-content:center; max-width:90vw; max-height:76vh; border-radius:12px; cursor:grab;">
+                <img id="lightbox-img" src="" alt="Zoom Image" style="transition: transform 0.12s ease-out; transform-origin: center center; user-select:none; -webkit-user-drag:none;">
+            </div>
             <div class="lightbox-info">
                 <p id="lightbox-caption"></p>
-                <div class="lightbox-btns">
+                <div class="lightbox-btns" style="flex-wrap:wrap; gap:8px;">
+                    <button type="button" class="btn btn-outline" id="lightbox-zoom-out" title="Thu nhỏ">🔍−</button>
+                    <button type="button" class="btn btn-outline" id="lightbox-zoom-reset" title="Kích thước gốc">100%</button>
+                    <button type="button" class="btn btn-outline" id="lightbox-zoom-in" title="Phóng to">🔍+</button>
                     <a href="#" download="kini_art.jpg" id="lightbox-btn-download" class="btn btn-success">⬇️ Tải Ảnh HD</a>
                     <button class="btn btn-outline" id="lightbox-btn-copy">📋 Sao Chép Mô Tả</button>
                 </div>
