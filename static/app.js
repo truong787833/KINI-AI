@@ -1051,7 +1051,7 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
         imgBlock = `
             <div class="msg-image-card">
                 <div class="msg-image-wrapper">
-                    <img src="${imageUrl}" class="msg-inline-image" alt="Artwork" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" loading="lazy">
+                    <img src="${imageUrl}" class="msg-inline-image" alt="Artwork" onclick="openLightbox('${imageUrl}', '${escapeAttr(content)}')" onload="this.parentElement.style.minHeight='auto'; if(typeof scrollToBottom==='function') scrollToBottom();" onerror="if(!this.dataset.retried){this.dataset.retried='1'; this.src='${imageUrl}?t='+Date.now();}">
                     <div class="msg-image-overlay-badge">
                         <span>✨ KINI AI Art Studio</span>
                     </div>

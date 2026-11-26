@@ -54,7 +54,7 @@ def optimize_prompt_with_gemini(prompt: str, style: str = "realistic", api_key: 
         if any(k in p_low for k in ["cờ tổ quốc", "quốc kỳ", "cờ việt nam", "cờ đỏ sao vàng", "lá cờ việt"]):
             extra_rules += (
                 "- VIETNAMESE NATIONAL FLAG (CRITICAL): 'cờ tổ quốc' / 'quốc kỳ' ALWAYS means the **National Flag of Vietnam**! "
-                "Describe it explicitly as: 'a vibrant crimson red flag with a single large sharp five-pointed golden yellow star centered cleanly in the middle (National Flag of Vietnam), waving heroically in golden sunlight'. "
+                "Describe it explicitly as: 'a vibrant crimson red rectangular flag with a single large sharp five-pointed golden yellow star centered cleanly in the middle (National Flag of Vietnam), waving smoothly in crisp bright daylight against a clear blue sky, sharp focus on the flag fabric and yellow star, no lens flare, no sun glare'. "
                 "STRICTLY FORBIDDEN to generate the US flag or any other country's flag.\n"
             )
 
