@@ -6245,3 +6245,15 @@ body.is-resizing .CodeMirror {
 .ide-splitter-handle.horizontal.dragging {
     background: rgba(59, 130, 246, 0.55) !important;
 }
+
+/* Fix transition lag & min-width lock on right-side Studio Chat resizer */
+body.is-resizing .chat-main-pane,
+body.is-resizing .ide-file-tree-sidebar,
+body.is-resizing .ide-terminal-drawer,
+body.is-resizing .antigravity-studio-pane {
+    transition: none !important;
+}
+.app-container.mode-ide .antigravity-studio-pane {
+    min-width: 0 !important;
+    flex: 1 1 0% !important;
+}
