@@ -117,6 +117,7 @@ def generate_ai_image(
     }
 
     last_error = ""
+    already_waited = False
     for model in models_to_try:
         if model:
             api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&model={model}&seed={seed}&nologo=true"
@@ -146,7 +147,8 @@ def generate_ai_image(
                 m = re.search(r'Retry after (\d+)s', res.text)
                 if m:
                     wait_sec = int(m.group(1))
-                    if wait_sec <= 45:
+                    if not already_waited and wait_sec <= 45:
+                        already_waited = True
                         logger.info(f"Đang chờ giãn cách {wait_sec}s để tạo ảnh chất lượng cao...")
                         time.sleep(wait_sec + 1)
                         try:
@@ -170,6 +172,8 @@ def generate_ai_image(
                         except Exception:
                             pass
                     last_error = f"Giới hạn giãn cách miễn phí (Vui lòng chờ {wait_sec} giây)"
+                    if res.status_code == 402:
+                        break
                 else:
                     last_error = f"Model {model or 'default'} đang bận ({res.status_code})"
                 continue

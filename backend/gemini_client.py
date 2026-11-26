@@ -53,6 +53,8 @@ DEFAULT_SYSTEM_PROMPT = """[SYSTEM IDENTITY: KINI AI - TRỢ LÝ TRÍ TUỆ NHÂ
      * Hệ thống KINI AI chạy cục bộ trên máy tính đã tích hợp sẵn công cụ Image Editor và AI Image Generator (FLUX.1/Turbo/3D Jelly Emboss).
      * Khi người dùng gửi ảnh và nói "sửa ảnh này cho tôi" mà chưa ghi rõ cần đổi gì: Hãy chào hỏi ấm áp, báo đã nhận ảnh và hỏi anh Trường muốn đổi chi tiết nào (ví dụ: đổi tên, đổi số điện thoại, đổi màu sắc hay biến thể 3D) để em thực hiện ngay cho anh.
      * Khi người dùng nêu rõ chi tiết (ví dụ: "đổi số điện thoại thành 0367722091"): Hãy thực hiện cập nhật ảnh ngay lập tức mà không đôi co!
+     * TUYỆT ĐỐI KHÔNG BỊA ĐẶT ĐÃ TẠO ẢNH: Trong luồng chat văn bản thông thường (khi bộ sinh ảnh chưa chạy), TUYỆT ĐỐI CẤM tự ý in ra mẫu câu giả mạo như "🎨 Tác phẩm của Anh đã được khởi tạo thành công", "Động cơ AI: FLUX.1", hay "Anh có thể bấm vào ảnh để phóng to" nếu thực tế không có file ảnh nào được tạo ra!
+     * PHÂN BIỆT RÕ Ý ĐỊNH & TẬP TRUNG BỐI CẢNH: Luôn ghi nhớ chủ đề trọng tâm đang làm việc trong cuộc trò chuyện hiện tại. Phân biệt rạch ròi giữa: (a) Tạo/vẽ/sửa ảnh nghệ thuật, (b) Lập trình ứng dụng/game chạy ngay (Vibe Coding ```html), (c) Tạo file/thư mục trên máy tính (Agent Desktop), và (d) Trả lời kiến thức/tra cứu. Không bao giờ lẫn lộn giữa các chế độ này!
 
 7. KỶ NGUYÊN VIBE CODING & LIVE RUNNER (LẬP TRÌNH BẰNG Ý TƯỞNG & CHẠY TỨC THÌ):
    - Khi anh Trường hoặc người dùng yêu cầu "vibe coding" (hoặc "vide coding", "viết web", "tạo game", "làm tool", "làm app", lệnh /vibe):
@@ -139,19 +141,22 @@ def get_precision_rules() -> str:
      * Chiều 2 (Thực tế áp dụng & Khả năng thanh khoản): Phải trả lời thẳng vào điều người dùng thực sự quan tâm: Số liệu này trong thực tế có rút/nạp/bán/dùng được ngay không? Điều kiện cần là gì? (Ví dụ: Với Pi Network, phải nêu rõ giá trên sàn quốc tế là IOU phái sinh, app điện thoại chưa mở nạp lên sàn bán tự do, muốn bán lấy tiền mặt tại Việt Nam hiện chủ yếu qua thỏa thuận P2P trực tiếp giữa người mua và người bán).
      * Chiều 3 (Cảnh báo rủi ro & Lời khuyên an toàn): Cảnh báo thẳng thắn các cạm bẫy thổi phồng giá ảo, lừa đảo, rủi ro pháp lý/tài chính để bảo vệ tuyệt đối an toàn cho anh Trường."""
 
-def is_image_request(text: str) -> bool:
+def is_image_request(text: str, history: Optional[List[Dict[str, str]]] = None) -> bool:
     """Kiểm tra xem người dùng có đang yêu cầu vẽ tranh / tạo ảnh / làm logo / thiết kế poster / sửa ảnh / đổi thông tin ảnh không"""
     import unicodedata
     t = unicodedata.normalize('NFC', text.lower().strip())
 
-    # 0. LOẠI TRỪ NGAY LẬP TỨC các yêu cầu về tài liệu, file văn bản, báo cáo, kế hoạch, code, hoặc desktop:
-    # Tuyệt đối không được nhầm lẫn giữa "màn hình" (desktop screen) với "hình" (picture/image)!
+    # 0. LOẠI TRỪ NGAY LẬP TỨC các yêu cầu về tài liệu, file văn bản, báo cáo, kế hoạch, code, app/game, thư mục hoặc desktop:
+    # Tuyệt đối không được nhầm lẫn giữa "màn hình" (desktop screen), "tạo game/web/thư mục" với "vẽ ảnh"!
     exclude_keywords = [
-        "docx", "doc", "word", "excel", "xlsx", "pdf", "file", "tệp", 
+        "docx", "doc", "word", "excel", "xlsx", "pdf", "file", "tệp",
+        "thư mục", "folder", "game", "trò chơi", "ứng dụng", "website", "trang web",
+        "html", "python", "lập trình", "chương trình", "phần mềm",
+        "bài hát", "bài văn", "kịch bản", "danh sách", "bảng tính",
         "báo cáo", "kế hoạch", "văn bản", "soạn thảo", "viết code", "script",
         "màn hình desktop", "trên desktop", "ngoài desktop", "desktop"
     ]
-    has_exclude = any(k in t for k in exclude_keywords)
+    has_exclude = any(k in t for k in exclude_keywords) or bool(re.search(r'\b(app|web|code)\b', t))
     has_explicit_draw = any(d in t for d in [
         "vẽ ảnh", "vẽ bức ảnh", "vẽ tranh", "vẽ bức tranh", "vẽ hình", "vẽ logo", 
         "tạo ảnh", "tạo bức ảnh", "sinh ảnh", "chụp ảnh", "vẽ cho anh", "vẽ cho tôi",
@@ -171,11 +176,11 @@ def is_image_request(text: str) -> bool:
     if re.search(r'^(hãy\s+)?(vẽ|tạo\s+ảnh|tạo\s+logo|thiết\s+kế\s+logo|thiết\s+kế\s+poster|làm\s+logo|sửa\s+ảnh|chỉnh\s+sửa\s+ảnh|sửa\s+hình|sửa\s+logo|chỉnh\s+ảnh|remix\s+ảnh|làm\s+lại\s+ảnh)\b', t_clean):
         return True
         
-    # 2. Khớp các mẫu câu tạo/vẽ/thiết kế/sửa ảnh/logo/poster/banner
+    # 2. Khớp các mẫu câu tạo/vẽ/thiết kế/sửa ảnh/logo/poster/banner/cờ/chân dung/phong cảnh
     patterns = [
-        r'\b(vẽ|tạo|làm|thiết kế|sinh|chụp|render|sửa|chỉnh sửa|remix|biến thể|làm lại|vẽ lại)\s+.*?(ảnh|bức ảnh|tấm ảnh|hình|bức hình|tranh|bức tranh|logo|poster|banner|icon|avatar|sticker|hình ảnh)\b',
-        r'\b(vẽ|tạo|thiết kế|làm|sửa|chỉnh)\s+(cho\s+)?(tôi|anh|em|mình|người dùng)?\s*.*?(ảnh|logo|poster|banner|icon|tranh|hình)\b',
-        r'^(tạo|vẽ|làm|thiết kế|sửa|chỉnh)\s+(logo|ảnh|poster|banner|hình|tranh|icon|avatar)\b',
+        r'\b(vẽ|tạo|làm|thiết kế|sinh|chụp|render|sửa|chỉnh sửa|remix|biến thể|làm lại|vẽ lại)\s+.*?(ảnh|bức ảnh|tấm ảnh|hình|bức hình|tranh|bức tranh|logo|poster|banner|icon|avatar|sticker|hình ảnh|lá cờ|quốc kỳ|cờ tổ quốc|cờ việt nam|cờ đỏ|huy hiệu|phong cảnh|chân dung)\b',
+        r'\b(vẽ|tạo|thiết kế|làm|sửa|chỉnh)\s+(cho\s+)?(tôi|anh|em|mình|người dùng)?\s*.*?(ảnh|logo|poster|banner|icon|tranh|hình|lá cờ|quốc kỳ|cờ tổ quốc|cờ việt nam|huy hiệu)\b',
+        r'^(tạo|vẽ|làm|thiết kế|sửa|chỉnh)\s+(logo|ảnh|poster|banner|hình|tranh|icon|avatar|lá cờ|quốc kỳ|cờ tổ quốc|cờ việt nam|huy hiệu)\b',
         r'\b(generate\s+image|draw|create\s+image|text\s*to\s*image|txt2img|make\s+a\s+picture|draw\s+a|design\s+logo|edit\s+image|remix\s+image)\b',
         r'\b(đổi|thay|sửa|thêm|bổ sung)\s+(số\s+điện\s+thoại|sđt|phone|tên|chữ|text|thông\s+tin|chi\s+tiết|màu|nền)\s+(thành|sang|thành\s+số|thành\s+chữ|vào)?\b',
         r'\b(đổi|thay|sửa)\s+(thành\s+số|thành\s+chữ)\s+\d+\b'
@@ -195,10 +200,19 @@ def is_image_request(text: str) -> bool:
         "đổi tên thành", "thay tên thành", "đổi chữ thành", "sửa chữ thành",
         "generate image", "draw an image", "create an image", "paint a", "sketch a", "edit image"
     ]
-    return any(k in t for k in keywords)
+    if any(k in t for k in keywords):
+        return True
 
-def clean_image_prompt(text: str) -> str:
-    """Lọc bỏ các tiền tố ra lệnh vẽ / sửa để lấy phần mô tả thuần túy cho AI Prompt Engine"""
+    # 4. Ngữ cảnh nối tiếp: Nếu câu ngay trước vừa tạo ảnh (FLUX.1 / KINI Art Studio) và người dùng nhắn ngắn gọn "tạo ...", "đổi ...", "thêm ..."
+    if history and re.match(r'^(tạo|vẽ|làm|đổi|thay|sửa|chỉnh|thêm|cho)\s+', t_clean):
+        for pm in reversed(history[-4:]):
+            if pm.get("role") == "assistant" and any(tag in pm.get("content", "") for tag in ["FLUX.1", "KINI Art Studio", "Tác phẩm"]):
+                return True
+
+    return False
+
+def clean_image_prompt(text: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    """Lọc bỏ các tiền tố ra lệnh vẽ / sửa và neo ngữ cảnh ảnh trước đó nếu người dùng đang chỉnh sửa nối tiếp"""
     import unicodedata
     t = unicodedata.normalize('NFC', text.strip())
     prefixes = [
@@ -207,7 +221,37 @@ def clean_image_prompt(text: str) -> str:
     ]
     for p in prefixes:
         t = re.sub(p, '', t, flags=re.IGNORECASE).strip()
-    return t if len(t) > 2 else text.strip()
+    cleaned = t if len(t) > 2 else text.strip()
+
+    # Nếu là lệnh chỉnh sửa nối tiếp (VD: "đổi nền xanh", "thêm mây trắng", "làm lại đẹp hơn") -> ghép với chủ đề ảnh gần nhất
+    if history and re.match(r'^(đổi|thay|sửa|chỉnh|thêm|bớt|cho|làm lại)\b', unicodedata.normalize('NFC', text.lower().strip())):
+        for pm in reversed(history[-4:]):
+            if pm.get("role") == "assistant":
+                m_subj = re.search(r'Chủ đề:\*\*\s*\*"([^"]+)"\*', pm.get("content", ""))
+                if m_subj:
+                    prev_subj = m_subj.group(1).strip()
+                    if prev_subj.lower() not in cleaned.lower():
+                        return f"{prev_subj}, {cleaned}"
+    return cleaned
+
+
+def build_conversation_focus_anchor(messages: List[Dict[str, str]]) -> str:
+    """Tạo điểm neo trọng tâm hội thoại giúp AI luôn ghi nhớ và tập trung vào chủ đề đang làm việc."""
+    if not messages or len(messages) < 2:
+        return ""
+    user_msgs = [m.get("content", "").strip() for m in messages if m.get("role") == "user" and m.get("content", "").strip()]
+    if len(user_msgs) < 2:
+        return ""
+    first_goal = user_msgs[0].replace("\n", " ")[:180]
+    recent_turns = [u.replace("\n", " ")[:150] for u in user_msgs[-3:-1]]
+    lines = [
+        "=== TRỌNG TÂM & GHI NHỚ BỐI CẢNH ĐANG LÀM VIỆC TRONG PHIÊN NÀY ===",
+        f"- Mục tiêu khởi đầu của phiên: {first_goal}",
+    ]
+    if recent_turns:
+        lines.append("- Các yêu cầu/chi tiết vừa trao đổi ngay trước đó: " + " | ".join(recent_turns))
+    lines.append("- BẮT BUỘC: Giữ mạch tư duy tập trung vào đúng chủ đề trên, ghi nhớ mọi chi tiết/tên/thông số người dùng đã nêu trong phiên này để trả lời liền mạch, không lạc đề.")
+    return "\n".join(lines)
 
 def build_system_instruction_with_memories(base_prompt: Optional[str] = None, client_id: str = "master") -> str:
     """Ghép nối System Prompt với thời gian thực, quy tắc chính xác và ký ức dài hạn"""
@@ -363,8 +407,12 @@ def ask_gemini(
         }
     }
 
-    # Gắn System Instruction kèm thời gian thực, quy tắc chính xác và bộ nhớ
+    # Gắn System Instruction kèm thời gian thực, quy tắc chính xác, bộ nhớ và trọng tâm phiên
     sys_inst = system_instruction or build_system_instruction_with_memories(client_id=client_id)
+    if not system_instruction:
+        focus_anchor = build_conversation_focus_anchor(messages)
+        if focus_anchor:
+            sys_inst = f"{sys_inst}\n\n{focus_anchor}"
     if sys_inst:
         payload["systemInstruction"] = {
             "parts": [{"text": sys_inst}]
@@ -508,6 +556,10 @@ def ask_gemini_stream(
     }
 
     sys_inst = system_instruction or build_system_instruction_with_memories(client_id=client_id)
+    if not system_instruction:
+        focus_anchor = build_conversation_focus_anchor(messages)
+        if focus_anchor:
+            sys_inst = f"{sys_inst}\n\n{focus_anchor}"
     if sys_inst:
         payload["systemInstruction"] = {
             "parts": [{"text": sys_inst}]

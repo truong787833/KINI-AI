@@ -398,7 +398,8 @@ async def chat_with_kini(
 
     # 2. KIỂM TRA Ý ĐỊNH VẼ TRANH / TẠO ẢNH / THIẾT KẾ LOGO / CHỈNH SỬA ẢNH
     generated_img_url = ""
-    is_img_req = gemini_client.is_image_request(message)
+    _recent_hist_img = database.get_conversation_messages(conv_id)[-5:]
+    is_img_req = gemini_client.is_image_request(message, history=_recent_hist_img)
     low_msg = message.lower().strip()
 
     # 2.1. TÌM ẢNH GẦN NHẤT TRONG CUỘC HỘI THOẠI ĐỂ SẴN SÀNG CHỈNH SỬA / BIẾN THỂ
@@ -494,7 +495,7 @@ async def chat_with_kini(
 
     # 2.4. TẠO ẢNH AI TỰ ĐỘNG BẰNG FLUX.1 / GEMINI PROMPT ENGINE
     if is_img_req:
-        clean_prompt = gemini_client.clean_image_prompt(message)
+        clean_prompt = gemini_client.clean_image_prompt(message, history=_recent_hist_img)
         # Nếu câu lệnh là sửa đổi/biến thể mà có bối cảnh trước đó (ví dụ 'ChipChip Mây & Gạo')
         if any(k in low_msg for k in ["đổi", "thay", "sửa", "thêm"]) and len(clean_prompt) < 40:
             past_msgs_check = database.get_conversation_messages(conv_id)
@@ -992,8 +993,9 @@ async def chat_with_kini_stream(
     database.add_message(conv_id, "user", full_user_content, image_url=file_display_url, client_id=cid)
 
     # 1. KIỂM TRA TẠO ẢNH TRỰC TIẾP
-    if gemini_client.is_image_request(message):
-        clean_prompt = gemini_client.clean_image_prompt(message)
+    _recent_hist_stream = database.get_conversation_messages(conv_id)[-5:]
+    if gemini_client.is_image_request(message, history=_recent_hist_stream):
+        clean_prompt = gemini_client.clean_image_prompt(message, history=_recent_hist_stream)
         detected_style = "realistic"
         low_p = message.lower()
         if any(k in low_p for k in ["3d", "pixar", "disney", "chibi", "dễ thương", "glossy", "nổi khối"]):
