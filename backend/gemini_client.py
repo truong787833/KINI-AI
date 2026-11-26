@@ -352,6 +352,138 @@ def extract_and_save_memory_async(user_text: str, api_key: str = "", client_id: 
     except Exception as e:
         logger.warning(f"Lỗi trích xuất ký ức: {e}")
 
+
+def _split_api_keys(raw: str) -> List[str]:
+    if not raw:
+        return []
+    return [k.strip() for k in re.split(r"[\s,;]+", raw.strip()) if k.strip() and len(k.strip()) >= 10]
+
+
+def get_api_key_pool(api_key: Optional[str] = None, client_id: str = "master") -> List[str]:
+    """Lấy danh sách Gemini API Key (hỗ trợ xoay vòng nhiều key phân tách bằng dấu phẩy/xuống dòng)."""
+    from . import database
+    candidates: List[str] = []
+    for src in (
+        api_key or "",
+        database.get_setting("gemini_api_key", "", client_id=client_id),
+        database.get_setting("gemini_api_keys_pool", "", client_id=client_id),
+        database.get_setting("gemini_api_key", "", client_id="master"),
+        database.get_setting("gemini_api_keys_pool", "", client_id="master"),
+        os.environ.get("GEMINI_API_KEY", ""),
+    ):
+        for k in _split_api_keys(src):
+            if k not in candidates:
+                candidates.append(k)
+    return candidates
+
+
+def try_ollama_fallback(
+    messages: List[Dict[str, str]],
+    system_instruction: str = "",
+    client_id: str = "master",
+) -> Optional[Dict[str, Any]]:
+    """Dự phòng gọi Model Offline cục bộ (Ollama) nếu toàn bộ Gemini Key gặp sự cố hoặc mất mạng."""
+    from . import database
+    ollama_enabled = database.get_setting("ollama_enabled", "0", client_id=client_id)
+    base_url = (database.get_setting("ollama_base_url", "http://127.0.0.1:11434", client_id=client_id) or "http://127.0.0.1:11434").rstrip("/")
+    model_name = (database.get_setting("ollama_model", "kini-ai", client_id=client_id) or "kini-ai").strip()
+    try:
+        probe = requests.get(f"{base_url}/api/tags", timeout=1.5 if ollama_enabled != "1" else 3.0)
+        if probe.status_code != 200:
+            return None
+        tags = [m.get("name", "") for m in probe.json().get("models", [])]
+        if not tags:
+            return None
+        chosen_model = model_name if any(t.startswith(model_name) for t in tags) else tags[0]
+        ollama_msgs = []
+        if system_instruction:
+            ollama_msgs.append({"role": "system", "content": system_instruction})
+        for m in messages[-10:]:
+            ollama_msgs.append({"role": "user" if m["role"] == "user" else "assistant", "content": m["content"]})
+        r = requests.post(
+            f"{base_url}/api/chat",
+            json={"model": chosen_model, "messages": ollama_msgs, "stream": False},
+            timeout=45,
+        )
+        if r.status_code == 200:
+            reply = r.json().get("message", {}).get("content", "").strip()
+            if reply:
+                return {
+                    "success": True,
+                    "reply": reply,
+                    "model_used": f"ollama/{chosen_model}",
+                    "target_model": f"ollama/{chosen_model}",
+                    "is_fallback": True,
+                    "fallback_reason": "Đã tự động chuyển sang Model Offline cục bộ (Ollama) để đảm bảo phản hồi liên tục.",
+                }
+    except Exception:
+        return None
+    return None
+
+
+def is_hard_question(text: str, model_mode: str = "flash") -> bool:
+    """Nhận diện câu hỏi khó / phức tạp cần chạy bước Tự Phản Biện (Self-Verification)."""
+    import unicodedata
+    t = unicodedata.normalize("NFC", (text or "").lower().strip())
+    if len(t) < 25:
+        return False
+    if "```" in t or t.startswith("/plan") or t.startswith("/agent"):
+        return False
+    if model_mode == "pro":
+        return True
+    hard_cues = [
+        "phân tích", "chứng minh", "so sánh", "tại sao", "vì sao", "giải thích chi tiết",
+        "luật", "nghị định", "thông tư", "điều khoản", "tính toán", "kiểm chứng",
+        "chiến lược", "kiến trúc", "tối ưu", "sửa lỗi", "debug", "đánh giá rủi ro",
+        "tổng hợp", "bộ tiêu chí", "phản biện",
+    ]
+    if len(t) >= 60 and any(c in t for c in hard_cues):
+        return True
+    return len(t) >= 240
+
+
+def verify_and_refine_answer(
+    user_query: str,
+    draft_answer: str,
+    grounded_context: str = "",
+    api_key: Optional[str] = None,
+    client_id: str = "master",
+) -> str:
+    """
+    Bước 2 (Tự phản biện): Rà soát lại phép tính, logic, điều kiện biên và độ khớp dữ liệu thực tế.
+    Trả về 'VERIFIED_OK' nếu bản nháp đã chuẩn, hoặc trả về bản đã hiệu đính hoàn chỉnh.
+    """
+    if not draft_answer or len(draft_answer) < 80 or "```html" in draft_answer.lower():
+        return "VERIFIED_OK"
+
+    verifier_prompt = (
+        "Bạn là Bộ Kiểm Chứng Độc Lập (Self-Verifier) của KINI AI.\n"
+        "Hãy rà soát nhanh câu trả lời nháp dựa trên câu hỏi người dùng và dữ liệu thực tế đính kèm (nếu có).\n"
+        "Kiểm tra nghiêm ngặt: (1) Sai sót số học/cộng trừ nhân chia, (2) Mâu thuẫn logic hoặc thiếu điều kiện quan trọng, (3) Bịa đặt số liệu/trích dẫn không có trong dữ liệu.\n"
+        "- Nếu câu trả lời nháp ĐÃ CHÍNH XÁC VÀ ĐẦY ĐỦ: chỉ trả lời duy nhất cụm từ `VERIFIED_OK`.\n"
+        "- Nếu phát hiện sai sót hoặc điểm cần bổ sung: viết lại câu trả lời HOÀN CHỈNH đã sửa chuẩn xác (giữ nguyên xưng hô chuẩn, không cần giải thích dài dòng về quá trình kiểm tra)."
+    )
+    user_payload = (
+        f"[CÂU HỎI]:\n{user_query}\n\n"
+        + (f"[DỮ LIỆU THỰC TẾ ĐỐI CHIẾU]:\n{grounded_context[:3500]}\n\n" if grounded_context else "")
+        + f"[CÂU TRẢ LỜI NHÁP]:\n{draft_answer[:5000]}"
+    )
+    res = ask_gemini(
+        messages=[{"role": "user", "content": user_payload}],
+        api_key=api_key,
+        system_instruction=verifier_prompt,
+        model_mode="flash-3.5",
+        client_id=client_id,
+    )
+    if res.get("success") and res.get("reply"):
+        checked = res["reply"].strip()
+        if checked == "VERIFIED_OK" or checked.startswith("VERIFIED_OK"):
+            return "VERIFIED_OK"
+        if len(checked) >= 40:
+            return checked
+    return "VERIFIED_OK"
+
+
 def ask_gemini(
     messages: List[Dict[str, str]], 
     api_key: Optional[str] = None, 
@@ -363,22 +495,19 @@ def ask_gemini(
 ) -> Dict[str, Any]:
     """
     Gửi câu hỏi / hội thoại tới Google Gemini API với nhiệt độ thấp (0.15) để đảm bảo độ chuẩn xác tối đa.
-    Hỗ trợ chế độ Flash siêu tốc hoặc Pro Deep suy luận chuyên sâu.
+    Hỗ trợ xoay vòng nhiều API Key (Multi-Key Pool) và dự phòng Model Offline (Ollama).
     """
     from . import database
-    key = (api_key or "").strip()
-    if not key:
-        key = database.get_setting("gemini_api_key", "", client_id=client_id)
-        if not key:
-            key = database.get_setting("gemini_api_key", "", client_id="master")
-        if not key:
-            key = os.environ.get("GEMINI_API_KEY", "")
-    key = key.strip()
-    if not key:
+    key_pool = get_api_key_pool(api_key=api_key, client_id=client_id)
+    if not key_pool:
+        ollama_res = try_ollama_fallback(messages, system_instruction=system_instruction or "", client_id=client_id)
+        if ollama_res:
+            return ollama_res
         return {
             "success": False,
             "reply": "⚠️ Bạn chưa cấu hình **Google Gemini API Key**! Vui lòng vào mục **⚙️ Cài Đặt** để nhập API Key của bạn."
         }
+    key = key_pool[0]
 
     contents = []
     for msg in messages:
@@ -450,48 +579,55 @@ def ask_gemini(
     
     last_error = ""
     for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
-        try:
-            req_timeout = 15
-            res = requests.post(url, json=payload, timeout=req_timeout)
-            if res.status_code == 200:
-                data = res.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-                
-                # Ghi nhận Quota & Token thực tế từ Google
-                try:
-                    from . import database
-                    usage = data.get("usageMetadata", {})
-                    p_tok = usage.get("promptTokenCount", 0)
-                    c_tok = usage.get("candidatesTokenCount", 0)
-                    t_tok = usage.get("totalTokenCount", 0)
-                    database.record_api_usage(model_name, p_tok, c_tok, t_tok, client_id=client_id)
-                except Exception:
-                    pass
+        for active_key in key_pool:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={active_key}"
+            try:
+                req_timeout = 15
+                res = requests.post(url, json=payload, timeout=req_timeout)
+                if res.status_code == 200:
+                    data = res.json()
+                    text = data["candidates"][0]["content"]["parts"][0]["text"]
+                    
+                    # Ghi nhận Quota & Token thực tế từ Google
+                    try:
+                        from . import database
+                        usage = data.get("usageMetadata", {})
+                        p_tok = usage.get("promptTokenCount", 0)
+                        c_tok = usage.get("candidatesTokenCount", 0)
+                        t_tok = usage.get("totalTokenCount", 0)
+                        database.record_api_usage(model_name, p_tok, c_tok, t_tok, client_id=client_id)
+                    except Exception:
+                        pass
 
-                is_fb = (model_name != models_to_try[0])
-                fb_reason = ""
-                if is_fb:
-                    fb_reason = f"Mô hình {models_to_try[0]} từ Google tạm thời quá tải hoặc chạm hạn mức, KINI đã chuyển tiếp sang {model_name} để phản hồi liền mạch."
+                    is_fb = (model_name != models_to_try[0])
+                    fb_reason = ""
+                    if is_fb:
+                        fb_reason = f"Mô hình {models_to_try[0]} từ Google tạm thời quá tải hoặc chạm hạn mức, KINI đã chuyển tiếp sang {model_name} để phản hồi liền mạch."
 
-                return {
-                    "success": True,
-                    "reply": text,
-                    "model_used": model_name,
-                    "target_model": models_to_try[0],
-                    "is_fallback": is_fb,
-                    "fallback_reason": fb_reason,
-                    "fallback_from_38": (model_mode in ["flash-3.8", "gemini-3.8-flash"] and model_name != "gemini-3.8-flash"),
-                    "usage": data.get("usageMetadata", {})
-                }
-            else:
-                err_json = res.json() if res.headers.get("content-type", "").startswith("application/json") else {}
-                err_msg = err_json.get("error", {}).get("message", res.text[:200])
-                last_error = f"HTTP {res.status_code}: {err_msg}"
-                continue
-        except Exception as e:
-            last_error = str(e)
-            continue
+                    return {
+                        "success": True,
+                        "reply": text,
+                        "model_used": model_name,
+                        "target_model": models_to_try[0],
+                        "is_fallback": is_fb,
+                        "fallback_reason": fb_reason,
+                        "fallback_from_38": (model_mode in ["flash-3.8", "gemini-3.8-flash"] and model_name != "gemini-3.8-flash"),
+                        "usage": data.get("usageMetadata", {})
+                    }
+                else:
+                    err_json = res.json() if res.headers.get("content-type", "").startswith("application/json") else {}
+                    err_msg = err_json.get("error", {}).get("message", res.text[:200])
+                    last_error = f"HTTP {res.status_code}: {err_msg}"
+                    if res.status_code in (401, 403, 429):
+                        continue  # Xoay sang key kế tiếp trong pool
+                    break  # Lỗi model (404/503), chuyển model kế tiếp
+            except Exception as e:
+                last_error = str(e)
+                break
+
+    ollama_res = try_ollama_fallback(messages, system_instruction=sys_inst or "", client_id=client_id)
+    if ollama_res:
+        return ollama_res
 
     return {
         "success": False,
@@ -513,17 +649,16 @@ def ask_gemini_stream(
     Final yield: {"done": True, "full_text": full_text, "model_used": model_name}
     """
     from . import database
-    key = (api_key or "").strip()
-    if not key:
-        key = database.get_setting("gemini_api_key", "", client_id=client_id)
-        if not key:
-            key = database.get_setting("gemini_api_key", "", client_id="master")
-        if not key:
-            key = os.environ.get("GEMINI_API_KEY", "")
-    key = key.strip()
-    if not key:
+    key_pool = get_api_key_pool(api_key=api_key, client_id=client_id)
+    if not key_pool:
+        ollama_res = try_ollama_fallback(messages, system_instruction=system_instruction or "", client_id=client_id)
+        if ollama_res:
+            yield {"chunk": ollama_res["reply"], "done": False, "model_used": ollama_res["model_used"]}
+            yield {"done": True, "full_text": ollama_res["reply"], "model_used": ollama_res["model_used"]}
+            return
         yield {"error": "Chưa cài đặt Gemini API Key. Vui lòng vào Cài đặt để dán API Key của bạn.", "done": True}
         return
+    key = key_pool[0]
 
     # Chuẩn bị contents
     contents = []
@@ -576,52 +711,55 @@ def ask_gemini_stream(
         models_to_try = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-lite-latest"]
 
     for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?alt=sse&key={key}"
-        accumulated_text = ""
-        try:
-            res = requests.post(url, json=payload, stream=True, timeout=12)
-            if res.status_code == 200:
-                for line in res.iter_lines():
-                    if line:
-                        decoded = line.decode("utf-8")
-                        if decoded.startswith("data: "):
-                            raw_json = decoded[6:].strip()
-                            if raw_json:
-                                try:
-                                    chunk_data = json.loads(raw_json)
-                                    parts = chunk_data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-                                    for p in parts:
-                                        chunk_txt = p.get("text", "")
-                                        if chunk_txt:
-                                            accumulated_text += chunk_txt
-                                            yield {
-                                                "chunk": chunk_txt,
-                                                "done": False,
-                                                "model_used": model_name
-                                            }
-                                except Exception:
-                                    continue
+        for active_key in key_pool:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?alt=sse&key={active_key}"
+            accumulated_text = ""
+            try:
+                res = requests.post(url, json=payload, stream=True, timeout=12)
+                if res.status_code == 200:
+                    for line in res.iter_lines():
+                        if line:
+                            decoded = line.decode("utf-8")
+                            if decoded.startswith("data: "):
+                                raw_json = decoded[6:].strip()
+                                if raw_json:
+                                    try:
+                                        chunk_data = json.loads(raw_json)
+                                        parts = chunk_data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                                        for p in parts:
+                                            chunk_txt = p.get("text", "")
+                                            if chunk_txt:
+                                                accumulated_text += chunk_txt
+                                                yield {
+                                                    "chunk": chunk_txt,
+                                                    "done": False,
+                                                    "model_used": model_name
+                                                }
+                                    except Exception:
+                                        continue
 
-                if accumulated_text:
-                    is_fb = (model_name != models_to_try[0])
-                    fb_reason = ""
-                    if is_fb:
-                        fb_reason = f"Mô hình {models_to_try[0]} từ Google tạm thời quá tải hoặc chạm hạn mức, KINI đã chuyển tiếp sang {model_name} để phản hồi liền mạch."
+                    if accumulated_text:
+                        is_fb = (model_name != models_to_try[0])
+                        fb_reason = ""
+                        if is_fb:
+                            fb_reason = f"Mô hình {models_to_try[0]} từ Google tạm thời quá tải hoặc chạm hạn mức, KINI đã chuyển tiếp sang {model_name} để phản hồi liền mạch."
 
-                    yield {
-                        "done": True,
-                        "full_text": accumulated_text,
-                        "model_used": model_name,
-                        "target_model": models_to_try[0],
-                        "is_fallback": is_fb,
-                        "fallback_reason": fb_reason,
-                        "fallback_from_38": (model_mode in ["flash-3.8", "gemini-3.8-flash"] and model_name != "gemini-3.8-flash")
-                    }
-                    return
-            else:
-                continue
-        except Exception:
-            continue
+                        yield {
+                            "done": True,
+                            "full_text": accumulated_text,
+                            "model_used": model_name,
+                            "target_model": models_to_try[0],
+                            "is_fallback": is_fb,
+                            "fallback_reason": fb_reason,
+                            "fallback_from_38": (model_mode in ["flash-3.8", "gemini-3.8-flash"] and model_name != "gemini-3.8-flash")
+                        }
+                        return
+                else:
+                    if res.status_code in (401, 403, 429):
+                        continue
+                    break
+            except Exception:
+                break
 
     # Fallback gọi không stream nếu mạng hoặc model gặp vấn đề
     fallback_res = ask_gemini(

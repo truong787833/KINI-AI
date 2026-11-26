@@ -663,6 +663,17 @@
                 <div class="memory-list" id="memory-list">
                     <!-- Danh sách ký ức render động -->
                 </div>
+
+                <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+                        <div class="memory-list-title" style="margin:0;">📚 KHO TRI THỨC TÀI LIỆU NỘI BỘ (RAG):</div>
+                        <label class="btn btn-primary" style="padding:5px 12px; font-size:0.8rem; cursor:pointer;">
+                            ＋ Nạp Tài Liệu (PDF/Word/Excel/TXT)
+                            <input type="file" id="rag-file-input" accept=".pdf,.docx,.doc,.xlsx,.csv,.txt,.md" style="display:none;">
+                        </label>
+                    </div>
+                    <div id="rag-doc-list" style="max-height:150px; overflow-y:auto; font-size:0.85rem;"></div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" id="btn-clear-memories">Xóa Toàn Bộ Ký Ức</button>
@@ -863,6 +874,20 @@
                             <span>🔑</span> <u>Lấy API Key Gemini miễn phí tại Google AI Studio (100% Free) &rarr;</u>
                         </a>
                     </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 14px;">
+                    <label>Danh Sách API Key Dự Phòng (Xoay Vòng Chống Nghẽn 429)</label>
+                    <textarea id="setting-gemini-keys-pool" class="form-input" rows="2" placeholder="Dán thêm 1 hoặc nhiều API Key dự phòng (ngăn cách bằng dấu phẩy hoặc xuống dòng)..."></textarea>
+                    <small class="form-hint">Khi Key chính chạm hạn mức, KINI tự động xoay sang Key kế tiếp ngay lập tức.</small>
+                </div>
+
+                <div class="form-group" style="margin-top: 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <label style="margin:0; display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" id="setting-ollama-enabled">
+                        <span>Bật Model Offline dự phòng (Ollama)</span>
+                    </label>
+                    <input type="text" id="setting-ollama-model" class="form-input" style="max-width:180px;" placeholder="kini-ai" value="kini-ai">
                 </div>
 
                 <div class="form-group" style="margin-top: 16px;">
@@ -1408,6 +1433,6 @@
 
     <script src="/static/chart.min.js"></script>
     <script src="/static/vibe_templates.js"></script>
-    <script src="/static/app.js?v=20261126_1012"></script>
+    <script src="/static/app.js?v=20261126_1922"></script>
 </body>
 </html>

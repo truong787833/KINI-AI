@@ -30,6 +30,7 @@ from . import agent_engine
 from . import math_verifier
 from . import image_editor
 from . import fb_checker
+from . import rag_engine
 from . import ota_updater
 from . import execution_engine
 from . import self_checker
@@ -750,8 +751,20 @@ async def chat_with_kini(
         except Exception as e:
             print(f"[!] Lỗi tra cứu thời gian thực: {e}")
 
-    # Gắn tin nhắn hiện tại kèm nội dung trang web và kết quả tra cứu trực tuyến mới nhất
-    current_content_with_grounding = full_user_content + webpage_context + live_search_text
+    # Tra cứu Kho Tri Thức Tài Liệu (RAG Cục Bộ)
+    rag_context = ""
+    try:
+        if extracted_doc_text and len(extracted_doc_text) > 6000:
+            rag_engine.index_document(f"upload_{conv_id[:8]}.txt", extracted_doc_text, client_id=cid)
+        rag_hits = rag_engine.search_relevant_chunks(message, client_id=cid, top_k=4)
+        if rag_hits:
+            rag_blocks = [f"- [{h['filename']} | Đoạn {h['chunk_index'] + 1}]: {h['content']}" for h in rag_hits]
+            rag_context = "\n\n[TRÍCH ĐOẠN TỪ KHO TÀI LIỆU NỘI BỘ (RAG)]:\n" + "\n".join(rag_blocks)
+    except Exception as e:
+        print(f"[!] Lỗi truy vấn RAG: {e}")
+
+    # Gắn tin nhắn hiện tại kèm nội dung trang web, RAG và kết quả tra cứu trực tuyến mới nhất
+    current_content_with_grounding = full_user_content + webpage_context + live_search_text + rag_context
 
     # Tối ưu hóa đặc biệt cho phiên đàm thoại giọng nói 2 chiều (Voice Live Mode)
     if is_voice_live == "1":
@@ -801,6 +814,21 @@ async def chat_with_kini(
     )
 
     assistant_reply = res.get("reply", "Xin lỗi, đã xảy ra lỗi trong quá trình xử lý.")
+
+    # Bước 2 (Tự phản biện cho câu hỏi khó)
+    if res.get("success") and gemini_client.is_hard_question(message, model_mode=model_mode):
+        try:
+            verified = gemini_client.verify_and_refine_answer(
+                user_query=message,
+                draft_answer=assistant_reply,
+                grounded_context=webpage_context + live_search_text + rag_context,
+                api_key=api_key,
+                client_id=cid,
+            )
+            if verified != "VERIFIED_OK":
+                assistant_reply = verified
+        except Exception as e:
+            print(f"[!] Lỗi tự phản biện: {e}")
 
     # BẢO ĐẢM 100% ĐƯỜNG LINK THỰC TẾ (CHỐNG LINK ẢO / LINK HẾT HẠN):
     # Nếu trong dữ liệu tra cứu có link YouTube thực tế, kiểm tra và thay thế mọi link YouTube bị ảo trong câu trả lời
@@ -1216,7 +1244,18 @@ async def chat_with_kini_stream(
         except Exception:
             pass
 
-    current_content = full_user_content + webpage_context + live_search_text
+    rag_context = ""
+    try:
+        if extracted_doc_text and len(extracted_doc_text) > 6000:
+            rag_engine.index_document(f"upload_{conv_id[:8]}.txt", extracted_doc_text, client_id=cid)
+        rag_hits = rag_engine.search_relevant_chunks(message, client_id=cid, top_k=4)
+        if rag_hits:
+            rag_blocks = [f"- [{h['filename']} | Đoạn {h['chunk_index'] + 1}]: {h['content']}" for h in rag_hits]
+            rag_context = "\n\n[TRÍCH ĐOẠN TỪ KHO TÀI LIỆU NỘI BỘ (RAG)]:\n" + "\n".join(rag_blocks)
+    except Exception:
+        pass
+
+    current_content = full_user_content + webpage_context + live_search_text + rag_context
     # Tự động tính toán số học chuẩn xác 100% bằng Python (Chống ảo giác số học tuyệt đối)
     math_context = math_verifier.extract_and_verify_arithmetic(full_user_content)
     if math_context:
@@ -1257,6 +1296,21 @@ async def chat_with_kini_stream(
                 final_text = item.get("full_text", accumulated_reply) or accumulated_reply
                 if not final_text.strip():
                     final_text = "Chào anh, em đã kết nối thành công. Anh cần em hỗ trợ tác vụ nào ạ?"
+
+                # Bước 2 (Tự phản biện cho câu hỏi khó)
+                if gemini_client.is_hard_question(message, model_mode=model_mode):
+                    try:
+                        verified = gemini_client.verify_and_refine_answer(
+                            user_query=message,
+                            draft_answer=final_text,
+                            grounded_context=webpage_context + live_search_text + rag_context,
+                            api_key=api_key,
+                            client_id=cid,
+                        )
+                        if verified != "VERIFIED_OK":
+                            final_text = verified
+                    except Exception:
+                        pass
 
                 # Kiểm tra link YouTube
                 if "youtube.com/watch?v=" in live_search_text:
@@ -1512,6 +1566,45 @@ def fb_check_export_endpoint(payload: dict):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="Bao_Cao_Tham_Dinh_Link_FB.xlsx"'},
     )
+
+
+# ============================================================
+# 5.0C. KHO TRI THỨC TÀI LIỆU NỘI BỘ (LOCAL RAG INDEX)
+# ============================================================
+@app.get("/api/rag/documents")
+def get_rag_documents(request: Request):
+    cid = get_request_client_id(request)
+    return {"documents": rag_engine.list_documents(client_id=cid)}
+
+
+@app.post("/api/rag/upload")
+async def upload_rag_document(request: Request, file: UploadFile = File(...)):
+    cid = get_request_client_id(request)
+    orig_name = file.filename or "document.txt"
+    temp_name = f"rag_{uuid.uuid4().hex[:8]}_{orig_name}"
+    temp_path = os.path.join(IMAGES_DIR, temp_name)
+    try:
+        content = await file.read()
+        with open(temp_path, "wb") as f:
+            f.write(content)
+        parsed = file_parser.parse_uploaded_file(temp_path, orig_name)
+        if not parsed.get("success") or not parsed.get("text"):
+            return {"success": False, "error": parsed.get("error", "Không trích xuất được nội dung văn bản.")}
+        res = rag_engine.index_document(orig_name, parsed["text"], client_id=cid)
+        return res
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+
+@app.delete("/api/rag/documents/{doc_id}")
+def remove_rag_document(doc_id: int, request: Request):
+    cid = get_request_client_id(request)
+    ok = rag_engine.delete_document(doc_id, client_id=cid)
+    return {"success": ok}
 
 # ============================================================
 # 5.1. KINI AI AGENT TỰ HÀNH (AUTONOMOUS AGENT CHUẨN ANTIGRAVITY)
@@ -2030,9 +2123,15 @@ def read_settings(request: Request):
         persona = saved_persona if saved_persona else default_guest_persona
 
     agent_mode = database.get_setting("agent_mode", "safe", client_id=cid)
+    keys_pool = database.get_setting("gemini_api_keys_pool", "", client_id=cid)
+    ollama_enabled = database.get_setting("ollama_enabled", "0", client_id=cid)
+    ollama_model = database.get_setting("ollama_model", "kini-ai", client_id=cid)
     return {
         "gemini_api_key": api_k,
-        "has_api_key": bool(api_k),
+        "gemini_api_keys_pool": keys_pool,
+        "ollama_enabled": ollama_enabled,
+        "ollama_model": ollama_model,
+        "has_api_key": bool(api_k or keys_pool),
         "is_using_master_key": False,
         "custom_persona": persona,
         "agent_mode": agent_mode,
@@ -2045,6 +2144,12 @@ def save_settings(data: dict, request: Request):
     cid = get_request_client_id(request)
     if "gemini_api_key" in data:
         database.set_setting("gemini_api_key", data["gemini_api_key"].strip(), client_id=cid)
+    if "gemini_api_keys_pool" in data:
+        database.set_setting("gemini_api_keys_pool", data["gemini_api_keys_pool"].strip(), client_id=cid)
+    if "ollama_enabled" in data:
+        database.set_setting("ollama_enabled", "1" if str(data["ollama_enabled"]) in ("1", "true", "True") else "0", client_id=cid)
+    if "ollama_model" in data:
+        database.set_setting("ollama_model", data["ollama_model"].strip() or "kini-ai", client_id=cid)
     if "custom_persona" in data:
         database.set_setting("custom_persona", data["custom_persona"].strip(), client_id=cid)
     if "agent_mode" in data:

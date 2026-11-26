@@ -1584,6 +1584,7 @@ async function exportExcelSheet(content) {
 // 5. SIÊU BỘ NHỚ KINI (LONG-TERM MEMORY)
 // ============================================================
 async function loadMemories() {
+    if (typeof loadRagDocuments === "function") loadRagDocuments();
     const list = document.getElementById("memory-list");
     if (!list) return;
     list.innerHTML = "<p style='color:var(--text-muted); padding:10px;'>⏳ Đang tải danh sách ký ức...</p>";
@@ -1778,6 +1779,14 @@ async function loadSettings() {
         if (data.gemini_api_key) {
             document.getElementById("setting-gemini-key").value = data.gemini_api_key;
         }
+        const poolEl = document.getElementById("setting-gemini-keys-pool");
+        if (poolEl && data.gemini_api_keys_pool !== undefined) {
+            poolEl.value = data.gemini_api_keys_pool || "";
+        }
+        const olEnEl = document.getElementById("setting-ollama-enabled");
+        if (olEnEl) olEnEl.checked = (data.ollama_enabled === "1");
+        const olModEl = document.getElementById("setting-ollama-model");
+        if (olModEl && data.ollama_model) olModEl.value = data.ollama_model;
         if (data.custom_persona) {
             document.getElementById("setting-persona").value = data.custom_persona;
         }
@@ -1806,6 +1815,9 @@ function initSettings() {
     initAgentModeSystem();
     document.getElementById("btn-save-settings")?.addEventListener("click", async () => {
         const key = document.getElementById("setting-gemini-key").value.trim();
+        const keysPool = document.getElementById("setting-gemini-keys-pool")?.value.trim() || "";
+        const ollamaEnabled = document.getElementById("setting-ollama-enabled")?.checked ? "1" : "0";
+        const ollamaModel = document.getElementById("setting-ollama-model")?.value.trim() || "kini-ai";
         const persona = document.getElementById("setting-persona").value.trim();
         const agentModeVal = document.getElementById("setting-agent-mode")?.value || currentAgentMode;
         try {
@@ -1814,6 +1826,9 @@ function initSettings() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     gemini_api_key: key, 
+                    gemini_api_keys_pool: keysPool,
+                    ollama_enabled: ollamaEnabled,
+                    ollama_model: ollamaModel,
                     custom_persona: persona,
                     agent_mode: agentModeVal
                 })
@@ -5151,3 +5166,55 @@ if (document.readyState === "loading") {
     initControlCenter();
 }
 
+
+
+// ============================================================
+// 5.1. KHO TRI THỨC TÀI LIỆU NỘI BỘ (LOCAL RAG INDEX)
+// ============================================================
+async function loadRagDocuments() {
+    const box = document.getElementById("rag-doc-list");
+    if (!box) return;
+    try {
+        const res = await fetch("/api/rag/documents");
+        const data = await res.json();
+        const docs = data.documents || [];
+        if (docs.length === 0) {
+            box.innerHTML = `<p style="color:var(--text-muted); margin:4px 0;">Chưa có tài liệu nào. Nạp file PDF/Word/Excel/TXT vào đây để KINI tra cứu chính xác khi bạn hỏi!</p>`;
+            return;
+        }
+        box.innerHTML = docs.map(d => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px; margin-bottom:6px; background:rgba(255,255,255,0.04); border-radius:8px;">
+                <span>📄 <b>${escapeHtml(d.filename)}</b> <small style="color:var(--text-muted);">(${d.chunk_count} đoạn • ${d.char_count} ký tự)</small></span>
+                <button class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;" onclick="deleteRagDocument(${d.id})">Xóa</button>
+            </div>
+        `).join("");
+    } catch (e) {
+        box.innerHTML = `<p style="color:#f87171;">Không tải được danh sách tài liệu RAG.</p>`;
+    }
+}
+
+async function deleteRagDocument(docId) {
+    await fetch(`/api/rag/documents/${docId}`, { method: "DELETE" });
+    loadRagDocuments();
+}
+
+document.getElementById("rag-file-input")?.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const box = document.getElementById("rag-doc-list");
+    if (box) box.innerHTML = `<p style="color:#60a5fa;">⏳ Đang đọc và lập chỉ mục tài liệu <b>${escapeHtml(file.name)}</b>...</p>`;
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+        const res = await fetch("/api/rag/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!data.success) {
+            alert("Lỗi nạp tài liệu: " + (data.error || "Không rõ nguyên nhân"));
+        }
+    } catch (err) {
+        alert("Lỗi kết nối khi nạp tài liệu: " + err.message);
+    } finally {
+        e.target.value = "";
+        loadRagDocuments();
+    }
+});
