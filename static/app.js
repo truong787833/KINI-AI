@@ -1598,7 +1598,7 @@ async function exportWordDocument(content) {
             a.click();
         }
     } catch (e) {
-        alert("Lỗi xuất Word: " + e.message);
+        showToast("Lỗi xuất Word: " + e.message);
     }
 }
 
@@ -1617,7 +1617,7 @@ async function exportExcelSheet(content) {
             a.click();
         }
     } catch (e) {
-        alert("Lỗi xuất Excel: " + e.message);
+        showToast("Lỗi xuất Excel: " + e.message);
     }
 }
 
@@ -1683,10 +1683,10 @@ async function editMemory(id, oldText, category) {
             await loadMemories();
             await updateMemoryCountBadge();
         } else {
-            alert("Lỗi sửa ký ức: " + (data.detail || data.error || "Không thành công"));
+            showToast("Lỗi sửa ký ức: " + (data.detail || data.error || "Không thành công"));
         }
     } catch(e) {
-        alert("Lỗi kết nối: " + e.message);
+        showToast("Lỗi kết nối: " + e.message);
     }
 }
 
@@ -1718,10 +1718,10 @@ function initMemories() {
                 await loadMemories();
                 await updateMemoryCountBadge();
             } else {
-                alert("Lỗi thêm ký ức: " + (data.detail || data.error));
+                showToast("Lỗi thêm ký ức: " + (data.detail || data.error));
             }
         } catch (e) {
-            alert("Lỗi thêm ký ức: " + e.message);
+            showToast("Lỗi thêm ký ức: " + e.message);
         }
     });
 
@@ -1733,7 +1733,7 @@ function initMemories() {
             await loadMemories();
             await updateMemoryCountBadge();
         } catch (e) {
-            alert("Lỗi xóa ký ức: " + e.message);
+            showToast("Lỗi xóa ký ức: " + e.message);
         }
     });
 }
@@ -1749,7 +1749,7 @@ async function deleteMemory(id) {
             await updateMemoryCountBadge();
         }
     } catch (e) {
-        alert("Lỗi xóa: " + e.message);
+        showToast("Lỗi xóa: " + e.message);
     }
 }
 
@@ -1877,10 +1877,10 @@ function initSettings() {
             });
             updateAgentModeUI(agentModeVal);
             if (typeof syncClientVaultToBrowser === "function") syncClientVaultToBrowser();
-            alert("Đã lưu cài đặt KINI AI thành công!");
+            showToast("✅ Đã lưu cài đặt KINI AI thành công!");
             closeModal("modal-settings");
         } catch (e) {
-            alert("Lỗi lưu cài đặt: " + e.message);
+            showToast("Lỗi lưu cài đặt: " + e.message);
         }
     });
 }
@@ -4698,7 +4698,7 @@ function initOnboardingWelcomeModal() {
             const apiKey = (document.getElementById("input-onboard-api-key")?.value || "").trim();
 
             if (!name) {
-                alert("Vui lòng nhập tên hoặc biệt danh của bạn để KINI AI có thể phục vụ tốt nhất!");
+                showToast("Vui lòng nhập tên hoặc biệt danh của bạn để KINI AI có thể phục vụ tốt nhất!");
                 document.getElementById("input-onboard-name")?.focus();
                 return;
             }
@@ -4734,11 +4734,11 @@ function initOnboardingWelcomeModal() {
                         `${userCall} muốn ${aiCall} hỗ trợ công việc gì hôm nay ạ?`
                     );
                 } else {
-                    alert("Có lỗi khi lưu cài đặt. Vui lòng thử lại!");
+                    showToast("Có lỗi khi lưu cài đặt. Vui lòng thử lại!");
                 }
             } catch(e) {
                 console.error("Lỗi onboarding:", e);
-                alert("Lỗi kết nối máy chủ. Vui lòng thử lại!");
+                showToast("Lỗi kết nối máy chủ. Vui lòng thử lại!");
             } finally {
                 btnSubmit.disabled = false;
                 btnSubmit.textContent = "🚀 Bắt Đầu Trải Nghiệm KINI AI";
@@ -4992,7 +4992,7 @@ function initArtStudio() {
         const promptInput = document.getElementById("art-prompt-input");
         const prompt = promptInput ? promptInput.value.trim() : "";
         if (!prompt) {
-            alert("Vui lòng nhập mô tả hoặc chọn gợi ý bức ảnh bạn muốn vẽ!");
+            showToast("Vui lòng nhập mô tả hoặc chọn gợi ý bức ảnh bạn muốn vẽ!");
             promptInput?.focus();
             return;
         }
@@ -5046,13 +5046,13 @@ function initArtStudio() {
                 );
             } else {
                 if (placeholder) placeholder.style.display = "flex";
-                alert("⚠️ Không thể tạo ảnh lúc này: " + (data.detail || "Máy chủ tạo ảnh bận"));
+                showToast("⚠️ Không thể tạo ảnh lúc này: " + (data.detail || "Máy chủ tạo ảnh bận"));
             }
         } catch (err) {
             if (loading) loading.style.display = "none";
             if (placeholder) placeholder.style.display = "flex";
             if (submitBtn) submitBtn.disabled = false;
-            alert("Lỗi kết nối tới máy chủ vẽ ảnh: " + err.message);
+            showToast("Lỗi kết nối tới máy chủ vẽ ảnh: " + err.message);
         }
     });
 
@@ -5337,10 +5337,10 @@ document.getElementById("rag-file-input")?.addEventListener("change", async (e) 
         const res = await fetch("/api/rag/upload", { method: "POST", body: fd });
         const data = await res.json();
         if (!data.success) {
-            alert("Lỗi nạp tài liệu: " + (data.error || "Không rõ nguyên nhân"));
+            showToast("Lỗi nạp tài liệu: " + (data.error || "Không rõ nguyên nhân"));
         }
     } catch (err) {
-        alert("Lỗi kết nối khi nạp tài liệu: " + err.message);
+        showToast("Lỗi kết nối khi nạp tài liệu: " + err.message);
     } finally {
         e.target.value = "";
         loadRagDocuments();
