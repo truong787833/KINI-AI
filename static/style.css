@@ -6046,3 +6046,132 @@ body::before {
     border-radius: 8px;
     transform: scale(1.08);
 }
+
+
+/* ============================================================
+   KINI AI v4.5 — OBSIDIAN COSMIC GLASS THEME (UNIFIED LUXURY UI)
+   ============================================================ */
+body {
+    background-color: #070a12;
+    background-image: radial-gradient(rgba(148, 163, 184, 0.065) 1px, transparent 1px);
+    background-size: 28px 28px;
+}
+
+body::before {
+    background:
+        radial-gradient(ellipse 68% 48% at 62% -5%, rgba(56, 189, 248, 0.11) 0%, transparent 72%),
+        radial-gradient(ellipse 52% 46% at 18% 12%, rgba(139, 92, 246, 0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 58% 42% at 82% 96%, rgba(37, 99, 235, 0.09) 0%, transparent 72%);
+}
+
+/* Sidebar & Topbar Glassmorphism */
+.sidebar {
+    background: rgba(11, 15, 26, 0.78) !important;
+    backdrop-filter: blur(22px) saturate(145%);
+    -webkit-backdrop-filter: blur(22px) saturate(145%);
+    border-right: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+.top-nav {
+    background: rgba(9, 13, 23, 0.72) !important;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+.btn-new-chat {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(124, 58, 237, 0.2)) !important;
+    border: 1px solid rgba(96, 165, 250, 0.3) !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.14);
+}
+.btn-new-chat:hover {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.34), rgba(124, 58, 237, 0.3)) !important;
+    border-color: rgba(96, 165, 250, 0.55) !important;
+    transform: translateY(-1px);
+}
+
+.sidebar-menu-btn {
+    border-radius: 10px !important;
+    transition: background 0.18s ease, transform 0.18s ease, color 0.18s ease;
+}
+.sidebar-menu-btn:hover {
+    background: rgba(59, 130, 246, 0.12) !important;
+    transform: translateX(2px);
+}
+
+.conv-item.active {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.1)) !important;
+    border: 1px solid rgba(96, 165, 250, 0.28) !important;
+    box-shadow: inset 3px 0 0 #38bdf8;
+}
+
+/* Hero Welcome Title & Suggestion Cards */
+.welcome-hero-title,
+.hero-title {
+    background: linear-gradient(135deg, #ffffff 0%, #93c5fd 48%, #c4b5fd 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+.suggestion-card,
+.quick-prompt-card {
+    background: rgba(17, 24, 39, 0.72) !important;
+    border: 1px solid rgba(148, 163, 184, 0.14) !important;
+    backdrop-filter: blur(14px);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+.suggestion-card:hover,
+.quick-prompt-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(96, 165, 250, 0.45) !important;
+    box-shadow: 0 10px 26px rgba(37, 99, 235, 0.18) !important;
+}
+
+/* Central Prompt Bar Luxury Glow */
+.prompt-bar {
+    background: rgba(15, 21, 35, 0.86) !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+.prompt-bar:focus-within {
+    border-color: rgba(96, 165, 250, 0.55) !important;
+    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35), 0 14px 40px rgba(37, 99, 235, 0.22) !important;
+}
+
+.btn-send {
+    background: linear-gradient(135deg, #3b82f6, #6366f1) !important;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4) !important;
+}
+.btn-send:hover {
+    filter: brightness(1.1);
+    transform: scale(1.04);
+}
+
+/* Chat Message Bubbles & Action Pills */
+.message-row.user .message-bubble {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(79, 70, 229, 0.24)) !important;
+    border: 1px solid rgba(96, 165, 250, 0.28) !important;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.35);
+}
+
+.msg-action-btn,
+.action-chip-btn {
+    background: rgba(20, 27, 45, 0.78) !important;
+    border: 1px solid rgba(148, 163, 184, 0.16) !important;
+}
+.msg-action-btn:hover,
+.action-chip-btn:hover {
+    border-color: rgba(96, 165, 250, 0.45) !important;
+    background: rgba(37, 99, 235, 0.18) !important;
+}
+
+/* Unified Frosted Glass Modals */
+.modal-dialog {
+    background: rgba(13, 18, 30, 0.94) !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    backdrop-filter: blur(24px) !important;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65) !important;
+}
