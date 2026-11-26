@@ -1636,15 +1636,80 @@ def get_rag_documents(request: Request):
 async def upload_rag_document(request: Request, file: UploadFile = File(...)):
     cid = get_request_client_id(request)
     orig_name = file.filename or "document.txt"
+    ext = os.path.splitext(orig_name)[1].lower()
     temp_name = f"rag_{uuid.uuid4().hex[:8]}_{orig_name}"
     temp_path = os.path.join(IMAGES_DIR, temp_name)
     try:
         content = await file.read()
         with open(temp_path, "wb") as f:
             f.write(content)
-        parsed = file_parser.parse_uploaded_file(temp_path, orig_name)
-        if not parsed.get("success") or not parsed.get("text"):
-            return {"success": False, "error": parsed.get("error", "Không trích xuất được nội dung văn bản.")}
+
+        # Hỗ trợ nạp ẢNH (hoặc PDF scan không có text) vào RAG bằng Gemini Vision OCR
+        image_mimes = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".bmp": "image/bmp",
+            ".gif": "image/gif",
+        }
+        is_image_upload = ext in image_mimes
+        parsed = None if is_image_upload else file_parser.parse_uploaded_file(temp_path, orig_name)
+
+        needs_vision_ocr = is_image_upload or (
+            ext == ".pdf" and (not parsed or not parsed.get("success") or len((parsed.get("text") or "").strip()) < 20)
+        )
+
+        if needs_vision_ocr:
+            import base64
+            import requests as http_req
+
+            api_key = database.get_setting("gemini_api_key", "", client_id=cid)
+            if not api_key:
+                api_key = database.get_setting("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""), client_id="master")
+            if not api_key:
+                return {"success": False, "error": "Cần cấu hình Google Gemini API Key để đọc chữ (OCR) từ ảnh/PDF scan."}
+
+            mime_type = image_mimes.get(ext, "application/pdf")
+            b64_data = base64.b64encode(content).decode("utf-8")
+            ocr_prompt = (
+                "Hãy trích xuất TOÀN BỘ nội dung chữ, quốc hiệu, tiêu ngữ, tiêu đề, số hiệu, "
+                "căn cứ, bảng biểu, và cấu trúc mục lục có trong tài liệu này bằng tiếng Việt chính xác tuyệt đối "
+                "để lưu vào kho tri thức RAG. Chỉ xuất nội dung trích xuất, không bình luận thừa."
+            )
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"inline_data": {"mime_type": mime_type, "data": b64_data}},
+                        {"text": ocr_prompt}
+                    ]
+                }],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 8192}
+            }
+            extracted_ocr = ""
+            last_err = ""
+            for model_id in ["gemini-3.8-flash", "gemini-2.5-flash"]:
+                try:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+                    resp = http_req.post(url, json=payload, timeout=45)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                        extracted_ocr = "\n".join(p.get("text", "") for p in parts if p.get("text")).strip()
+                        if extracted_ocr:
+                            break
+                    else:
+                        last_err = f"HTTP {resp.status_code}"
+                except Exception as ocr_e:
+                    last_err = str(ocr_e)
+
+            if not extracted_ocr:
+                return {"success": False, "error": f"Không đọc được chữ từ ảnh/PDF scan ({last_err or 'ảnh mờ hoặc không có chữ'})."}
+            res = rag_engine.index_document(orig_name, extracted_ocr[:30000], client_id=cid)
+            return res
+
+        if not parsed or not parsed.get("success") or not parsed.get("text"):
+            return {"success": False, "error": (parsed or {}).get("error", "Không trích xuất được nội dung văn bản.")}
         res = rag_engine.index_document(orig_name, parsed["text"], client_id=cid)
         return res
     finally:

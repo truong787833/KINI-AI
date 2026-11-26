@@ -46,7 +46,7 @@ def parse_uploaded_file(file_path: str, filename: str) -> Dict[str, Any]:
                 logger.error(f"Lỗi đọc PDF: {e}")
                 return {"success": False, "filename": filename, "error": f"Không thể đọc file PDF: {e}"}
 
-        # 3. Tệp Word (.docx)
+        # 3. Tệp Word (.docx, .doc)
         elif ext in [".docx", ".doc"]:
             try:
                 import docx
@@ -71,9 +71,88 @@ def parse_uploaded_file(file_path: str, filename: str) -> Dict[str, Any]:
                     "filename": filename,
                     "text": full_text[:30000]
                 }
-            except Exception as e:
-                logger.error(f"Lỗi đọc DOCX: {e}")
-                return {"success": False, "filename": filename, "error": f"Không thể đọc file Word: {e}"}
+            except Exception as docx_err:
+                # Fallback 1: File .docx/.doc thực chất là gói OOXML ZIP nhưng sai Content-Type (vd: themeManager+xml)
+                try:
+                    import zipfile
+                    import xml.etree.ElementTree as ET
+                    if zipfile.is_zipfile(file_path):
+                        with zipfile.ZipFile(file_path, "r") as zf:
+                            xml_candidates = [n for n in zf.namelist() if n.endswith("document.xml") or n.startswith("word/")]
+                            if "word/document.xml" in zf.namelist():
+                                xml_candidates = ["word/document.xml"]
+                            extracted_paras = []
+                            for xml_name in xml_candidates:
+                                if not xml_name.endswith(".xml"):
+                                    continue
+                                data = zf.read(xml_name)
+                                root = ET.fromstring(data)
+                                for p_elem in root.iter():
+                                    if p_elem.tag.endswith("}p") or p_elem.tag == "p":
+                                        texts = [t.text for t in p_elem.iter() if (t.tag.endswith("}t") or t.tag == "t") and t.text]
+                                        line = "".join(texts).strip()
+                                        if line:
+                                            extracted_paras.append(line)
+                            if extracted_paras:
+                                return {
+                                    "success": True,
+                                    "file_type": "docx_xml",
+                                    "filename": filename,
+                                    "text": "\n".join(extracted_paras)[:30000]
+                                }
+                except Exception:
+                    pass
+
+                # Fallback 2: File .doc lưu dưới dạng HTML/MHT hoặc RTF
+                try:
+                    import re, html
+                    with open(file_path, "rb") as rf:
+                        raw = rf.read(500000)
+                    head_lower = raw[:2048].lower()
+                    if b"<html" in head_lower or b"mime-version:" in head_lower:
+                        decoded = raw.decode("utf-8", errors="ignore")
+                        cleaned = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", decoded)
+                        cleaned = re.sub(r"(?is)<[^>]+>", "\n", cleaned)
+                        cleaned = html.unescape(cleaned)
+                        lines = [ln.strip() for ln in cleaned.splitlines() if ln.strip()]
+                        if lines:
+                            return {
+                                "success": True,
+                                "file_type": "doc_html",
+                                "filename": filename,
+                                "text": "\n".join(lines)[:30000]
+                            }
+                except Exception:
+                    pass
+
+                # Fallback 3: File .doc nhị phân cũ (Word 97-2003) trên Windows qua MS Word COM nếu có
+                if ext == ".doc" and os.name == "nt":
+                    try:
+                        import pythoncom
+                        import win32com.client
+                        pythoncom.CoInitialize()
+                        word = win32com.client.Dispatch("Word.Application")
+                        word.Visible = False
+                        doc_com = word.Documents.Open(os.path.abspath(file_path), ReadOnly=True)
+                        com_text = doc_com.Content.Text or ""
+                        doc_com.Close(False)
+                        word.Quit()
+                        if com_text.strip():
+                            return {
+                                "success": True,
+                                "file_type": "doc_com",
+                                "filename": filename,
+                                "text": com_text.strip()[:30000]
+                            }
+                    except Exception:
+                        pass
+
+                logger.error(f"Lỗi đọc DOCX/DOC: {docx_err}")
+                return {
+                    "success": False,
+                    "filename": filename,
+                    "error": f"Không thể đọc file Word '{filename}'. Nếu đây là file .doc đời cũ hoặc định dạng đặc biệt, anh hãy mở bằng Word rồi Save As sang .docx (hoặc chụp ảnh/PDF) để nạp nhé! ({docx_err})"
+                }
 
         # 4. Tệp Excel (.xlsx, .xls)
         elif ext in [".xlsx", ".xls"]:
