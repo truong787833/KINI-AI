@@ -1857,6 +1857,10 @@ async function initVersionSystem() {
     const settingsBuildEl = document.getElementById("settings-build-num");
 
     try {
+        // Tự động kiểm tra bản OTA mới trên GitHub khi chạy bản Desktop EXE
+        if (typeof isDesktopApp !== "undefined" && isDesktopApp) {
+            try { await fetch("/api/system/check-update", { method: "POST" }); } catch (_) {}
+        }
         const res = await fetch("/api/system/version");
         const data = await res.json();
         currentSystemVersion = data.version || "4.3.0";
