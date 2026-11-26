@@ -1000,3 +1000,11 @@
 
 
 
+
+- **2026-11-26 (Nâng cấp Siêu AI Agent 4.5: Phản biện 2 bước, RAG Cục bộ, Multi-Key Pool, LinkGuard Pro & Render Deploy)**:
+  - **Sửa lỗi tạo ảnh & nhận diện ý định**: Cải thiện `is_image_request()`, `clean_image_prompt()` (neo ngữ cảnh ảnh trước), `build_conversation_focus_anchor()` (neo trọng tâm phiên), chống bịa đặt tạo ảnh trong chat thường, gỡ `loading="lazy"` khỏi `.msg-inline-image`.
+  - **Bộ não Tự Phản Biện 2 Bước**: Thêm `is_hard_question()` và `verify_and_refine_answer()` trong `backend/gemini_client.py`, tự rà soát số học/logic/dữ liệu cho câu hỏi khó.
+  - **Kho Tri Thức Tài Liệu (Local RAG)**: Thêm `backend/rag_engine.py` (SQLite + BM25), endpoint `/api/rag/upload`, `/api/rag/documents`, tích hợp giao diện trong Modal Bộ Nhớ KINI.
+  - **Xoay vòng Multi-Key Pool + Dự phòng Ollama**: Hỗ trợ nhiều API Key dự phòng (`gemini_api_keys_pool`) và fallback Ollama cục bộ.
+  - **KINI LinkGuard Pro (`/fb-checker` & `H:\FB_Link_Checker`)**: Công cụ thẩm định đa nền tảng (Facebook, YouTube, TikTok, Báo chí, Web...) theo từ khóa/ngày/công khai & xuất Excel `.xlsx`.
+  - **Sẵn sàng Deploy Render 24/7**: Bổ sung `/api/ping`, `render.yaml`, `beautifulsoup4` vào `requirements.txt`, và `HUONG_DAN_DEPLOY_RENDER.md`.

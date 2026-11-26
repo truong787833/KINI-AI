@@ -1521,6 +1521,11 @@ def serve_image(filename: str):
 # ============================================================
 # 5.0B. THẨM ĐỊNH LINK FACEBOOK BÁO CÁO ĐOÀN
 # ============================================================
+@app.get("/api/ping")
+def ping_keepalive():
+    return {"status": "ok", "service": "KINI AI", "timestamp": datetime.now().isoformat()}
+
+
 @app.get("/fb-checker")
 def serve_fb_checker_page():
     return FileResponse(os.path.join(STATIC_DIR, "fb_checker.html"))
