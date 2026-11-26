@@ -4217,7 +4217,8 @@ let voiceLiveLastSentTime = 0;
 function isVoiceStopCommand(text) {
     const low = (text || "").normalize("NFC").toLowerCase().trim();
     const stopPhrases = [
-        "tắt cuộc hội thoại", "tắt hội thoại", "kết thúc đàm thoại", "kết thúc cuộc hội thoại",
+        "tắt cuộc hội thoại", "tắt hội thoại", "tắt cuộc gọi", "kết thúc cuộc gọi", "ngắt cuộc gọi",
+        "kết thúc đàm thoại", "kết thúc cuộc hội thoại",
         "dừng voice", "tắt voice", "tắt mic", "dừng lại", "ngừng nói", "thôi nhé", "tạm biệt",
         "tắt đi", "đóng lại", "nghỉ nhé", "stop voice", "bye", "goodbye"
     ];
@@ -4294,6 +4295,11 @@ async function processVoiceLiveTurn(userSpokenText) {
         setVoiceLiveOrbState("speaking", wantsToStopVoice ? "Đang tắt cuộc hội thoại..." : "KINI AI đang trả lời...");
 
         let audioPlayed = false;
+        if (wantsToStopVoice) {
+            setTimeout(() => {
+                if (voiceLiveActive) stopVoiceLiveSession();
+            }, 3200);
+        }
 
         const resumeListening = () => {
             if (wantsToStopVoice) {
@@ -4636,6 +4642,7 @@ function initOnboardingWelcomeModal() {
                     modal.style.display = "none";
                     showToast(`🎉 Chào mừng ${userCall} ${name} đến với KINI AI!`);
                     await loadDeviceIdentity();
+                    if (typeof syncClientVaultToBrowser === "function") await syncClientVaultToBrowser();
 
                     // Tự động chào đón người dùng mới
                     appendAssistantMessage(
@@ -5329,6 +5336,9 @@ async function restoreClientVaultFromBrowserIfNeeded() {
         const data = await res.json();
         const r = data.restored || {};
         if ((r.settings || 0) > 0 || (r.memories || 0) > 0 || (r.rag_docs || 0) > 0) {
+            const obModal = document.getElementById("modal-onboarding-welcome");
+            if (obModal) obModal.style.display = "none";
+            if (typeof loadDeviceIdentity === "function") loadDeviceIdentity();
             if (typeof loadSettings === "function") loadSettings();
             if (typeof updateMemoryCountBadge === "function") updateMemoryCountBadge();
             if (typeof showToast === "function") {
