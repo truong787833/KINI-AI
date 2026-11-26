@@ -2413,9 +2413,11 @@ window.openKiniCanvas = function(code, title = "✨ Interactive Canvas", lang = 
 
     if (isJs) {
         canvasFrame.removeAttribute("src");
+        canvasFrame.setAttribute("sandbox", "allow-scripts allow-forms");
         canvasFrame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:12px;background:#0d1117;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:95vh;}canvas{background:#000;border:1px solid #334155;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:block;max-width:100%;}</style></head><body><canvas id="canvas" width="600" height="400"></canvas><script>${code}<\/script></body></html>`;
     } else {
         canvasFrame.removeAttribute("src");
+        canvasFrame.setAttribute("sandbox", "allow-scripts allow-forms");
         canvasFrame.srcdoc = code;
     }
 
@@ -2425,6 +2427,11 @@ window.openKiniCanvas = function(code, title = "✨ Interactive Canvas", lang = 
 
 window.closeKiniCanvas = function() {
     const canvasPanel = document.getElementById("kini-canvas-panel");
+    const canvasFrame = document.getElementById("kini-canvas-frame");
+    if (canvasFrame) {
+        canvasFrame.srcdoc = "";
+        canvasFrame.removeAttribute("src");
+    }
     if (canvasPanel) {
         canvasPanel.style.display = "none";
         canvasPanel.classList.remove("fullscreen");

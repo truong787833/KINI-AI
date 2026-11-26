@@ -77,7 +77,9 @@ AGENT_KEYWORDS = [
 APPROVAL_PHRASES = [
     "chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay",
     "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn",
-    "có", "ok", "ừ", "yes", "tạo đi", "tạo ngay", "viết đi", "làm luôn", "tạo luôn"
+    "có", "ok", "ừ", "yes", "tạo đi", "tạo ngay", "viết đi", "làm luôn", "tạo luôn",
+    "tạo cho anh luôn", "làm cho anh luôn", "tạo giúp anh", "làm giúp anh", "em tự tạo", "em tạo cho anh",
+    "không muốn tự làm", "không muốn tự mình làm"
 ]
 
 def is_agent_intent(msg: str) -> bool:
@@ -615,7 +617,7 @@ async def chat_with_kini(
         active_agent_mode = "safe"
 
     # Kiểm tra xem người dùng có đang gõ câu xác nhận phê duyệt tác vụ vừa đề xuất không
-    is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in APPROVAL_PHRASES)
+    is_chat_approval = any(msg_low == ap or ap in msg_low for ap in APPROVAL_PHRASES if len(ap) >= 4) or (msg_low in ["có", "ok", "ừ", "yes"])
     pending_task_from_history = ""
     if is_chat_approval:
         past_check = database.get_conversation_messages(conv_id)[-6:]
@@ -1087,7 +1089,7 @@ async def chat_with_kini_stream(
     if active_agent_mode not in ["safe", "turbo"]:
         active_agent_mode = "safe"
 
-    is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in APPROVAL_PHRASES)
+    is_chat_approval = any(msg_low == ap or ap in msg_low for ap in APPROVAL_PHRASES if len(ap) >= 4) or (msg_low in ["có", "ok", "ừ", "yes"])
     is_followup_path = bool(re.match(r'^[a-zA-Z0-9_\-\\/\.\:\s]{2,80}$', message.strip())) and ("\\" in message or "/" in message or len(message.strip().split()) <= 3)
     pending_task_from_history = ""
     if is_chat_approval or is_followup_path:
