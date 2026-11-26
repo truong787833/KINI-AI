@@ -172,8 +172,8 @@ def _render_admin_header(doc, left_lines: List[str], right_lines: List[str]) -> 
     _set_table_borderless(table)
 
     left_cell, right_cell = table.rows[0].cells
-    left_cell.width = Mm(75)
-    right_cell.width = Mm(90)
+    left_cell.width = Mm(68)
+    right_cell.width = Mm(97)
 
     # Cột trái: Cơ quan chủ quản, đơn vị, số văn bản
     left_cell.text = ""
