@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thẩm Định Link Facebook - Báo Cáo Tiêu Chí Đoàn | KINI AI</title>
+    <style>
+        :root {
+            --bg: #070b14;
+            --card: rgba(17, 24, 39, 0.85);
+            --border: rgba(148, 163, 184, 0.16);
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent2: #8b5cf6;
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at 15% 15%, rgba(59,130,246,0.16), transparent 45%),
+                        radial-gradient(circle at 85% 20%, rgba(139,92,246,0.14), transparent 45%),
+                        var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .container { max-width: 1360px; margin: 0 auto; }
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            display: flex; align-items: center; justify-content: center; font-size: 22px;
+            box-shadow: 0 8px 20px rgba(37,99,235,0.35);
+        }
+        .brand h1 { font-size: 1.35rem; font-weight: 700; }
+        .brand p { font-size: 0.86rem; color: var(--muted); margin-top: 2px; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border);
+            background: rgba(30, 41, 59, 0.85); color: var(--text);
+            font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none;
+            transition: all 0.18s ease;
+        }
+        .btn:hover { transform: translateY(-1px); border-color: rgba(96,165,250,0.45); }
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb, #4f46e5); border: none;
+            box-shadow: 0 6px 18px rgba(37,99,235,0.35);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #16a34a, #15803d); border: none;
+        }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+        .grid-top {
+            display: grid; grid-template-columns: 1.25fr 1fr; gap: 18px; margin-bottom: 18px;
+        }
+        @media (max-width: 960px) { .grid-top { grid-template-columns: 1fr; } }
+        .card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 18px; backdrop-filter: blur(12px);
+        }
+        .card-title {
+            font-size: 0.95rem; font-weight: 700; margin-bottom: 12px;
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        }
+        textarea, input[type="text"], input[type="date"], select {
+            width: 100%; background: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--border); border-radius: 10px;
+            color: var(--text); padding: 10px 12px; font-size: 0.9rem;
+            outline: none; font-family: inherit;
+        }
+        textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+        textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .field label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 5px; }
+        .check-row {
+            display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.88rem;
+            cursor: pointer; user-select: none;
+        }
+        .actions-bar {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+            gap: 12px; margin-top: 14px;
+        }
+        .progress-wrap {
+            margin-bottom: 16px; display: none;
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px;
+        }
+        .progress-bar-bg {
+            height: 8px; background: rgba(148,163,184,0.16); border-radius: 99px; overflow: hidden; margin-top: 8px;
+        }
+        .progress-bar-fill {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transition: width 0.25s ease;
+        }
+        .stats-bar {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+            gap: 12px; margin-bottom: 14px;
+        }
+        .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+        .pill {
+            padding: 7px 14px; border-radius: 99px; border: 1px solid var(--border);
+            background: rgba(15,23,42,0.7); color: var(--muted); font-size: 0.84rem;
+            font-weight: 600; cursor: pointer;
+        }
+        .pill.active { background: rgba(59,130,246,0.2); border-color: var(--accent); color: #fff; }
+        .table-wrap {
+            overflow-x: auto; border-radius: 14px; border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.72);
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 960px; }
+        th, td {
+            padding: 12px 14px; text-align: left; vertical-align: top;
+            border-bottom: 1px solid rgba(148,163,184,0.1); font-size: 0.87rem;
+        }
+        th {
+            background: rgba(30, 41, 59, 0.9); color: #cbd5e1; font-weight: 700;
+            position: sticky; top: 0; z-index: 1;
+        }
+        tr:hover td { background: rgba(30, 41, 59, 0.45); }
+        .badge {
+            display: inline-block; padding: 4px 10px; border-radius: 99px;
+            font-size: 0.78rem; font-weight: 700; white-space: nowrap;
+        }
+        .badge-green { background: rgba(34,197,94,0.18); color: #4ade80; border: 1px solid rgba(34,197,94,0.35); }
+        .badge-red { background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
+        .badge-amber { background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid rgba(245,158,11,0.35); }
+        .link-cell { max-width: 220px; word-break: break-all; }
+        .link-cell a { color: #60a5fa; text-decoration: none; }
+        .link-cell a:hover { text-decoration: underline; }
+        .content-cell { max-width: 340px; line-height: 1.45; color: #e2e8f0; }
+        .empty-state { text-align: center; padding: 44px 20px; color: var(--muted); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="brand">
+            <div class="brand-icon">📘</div>
+            <div>
+                <h1>Thẩm Định Link Facebook — Bộ Tiêu Chí Báo Cáo Đoàn</h1>
+                <p>Tự động kiểm tra Chủ tài khoản • Chế độ công khai • Thời gian • Nội dung • Xuất Excel (.xlsx)</p>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="/" class="btn" id="btn-back-kini">← Quay lại KINI AI</a>
+        </div>
+    </div>
+
+    <div class="grid-top">
+        <div class="card">
+            <div class="card-title">
+                <span>1. Danh sách Link Facebook cần kiểm tra (mỗi dòng 1 link)</span>
+                <div style="display:flex; gap:8px;">
+                    <label class="btn" style="padding:5px 10px; font-size:0.78rem;">
+                        📂 Nạp file TXT/CSV
+                        <input type="file" id="file-import" accept=".txt,.csv" style="display:none;">
+                    </label>
+                    <button class="btn" style="padding:5px 10px; font-size:0.78rem;" onclick="fillSampleLink()">✨ Dán mẫu</button>
+                </div>
+            </div>
+            <textarea id="links-input" placeholder="Dán 1 hoặc nhiều đường link Facebook vào đây (mỗi dòng 1 link)...&#10;Ví dụ: https://www.facebook.com/story.php?story_fbid=...&id=..."></textarea>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>2. Bộ Tiêu Chí Thẩm Định Hợp Lệ</span></div>
+            <div class="field">
+                <label>Từ khóa bắt buộc trong nội dung (phân tách bằng dấu phẩy, để trống nếu chỉ kiểm tra công khai)</label>
+                <input type="text" id="keywords-input" placeholder="Ví dụ: Bình dân học vụ số, Đoàn UBND, tập huấn">
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>Cách khớp từ khóa</label>
+                    <select id="keyword-mode">
+                        <option value="any">Khớp ít nhất 1 từ khóa</option>
+                        <option value="all">Phải khớp TẤT CẢ từ khóa</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Giãn nhịp mỗi link (ms)</label>
+                    <input type="text" id="delay-ms" value="500">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>Từ ngày (tùy chọn, nếu bài có ghi ngày)</label>
+                    <input type="date" id="date-from">
+                </div>
+                <div class="field">
+                    <label>Đến ngày (tùy chọn)</label>
+                    <input type="date" id="date-to">
+                </div>
+            </div>
+            <label class="check-row">
+                <input type="checkbox" id="require-public" checked>
+                <span>Bắt buộc bài viết phải mở ở chế độ <b>Công khai (Public)</b></span>
+            </label>
+            <div class="actions-bar">
+                <button class="btn btn-primary" id="btn-run" onclick="runCheck()">🚀 Bắt Đầu Kiểm Tra</button>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn" onclick="copyTableText()">📋 Copy Bảng</button>
+                    <button class="btn btn-success" id="btn-export" onclick="exportExcel()" disabled>📊 Xuất Excel (.xlsx)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="progress-wrap" id="progress-wrap">
+        <div style="display:flex; justify-content:space-between; font-size:0.88rem;">
+            <span id="progress-text">Đang chuẩn bị...</span>
+            <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="pills">
+            <button class="pill active" onclick="setFilter('all', this)">Tất cả (<span id="cnt-all">0</span>)</button>
+            <button class="pill" onclick="setFilter('valid', this)">✅ Hợp lệ (<span id="cnt-valid">0</span>)</button>
+            <button class="pill" onclick="setFilter('invalid', this)">❌ Không hợp lệ (<span id="cnt-invalid">0</span>)</button>
+        </div>
+        <input type="text" id="search-box" placeholder="🔍 Lọc nhanh theo tên tài khoản hoặc nội dung..." style="max-width:320px;" oninput="renderTable()">
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:52px;">STT</th>
+                    <th>Link Facebook</th>
+                    <th>Chủ tài khoản FB</th>
+                    <th>Trạng thái hiển thị</th>
+                    <th>Thời gian</th>
+                    <th>Nội dung bài đăng</th>
+                    <th>Kết luận</th>
+                    <th>Lý do / Ghi chú</th>
+                </tr>
+            </thead>
+            <tbody id="results-tbody">
+                <tr><td colspan="8" class="empty-state">Chưa có dữ liệu. Hãy dán link Facebook ở trên và bấm <b>Bắt Đầu Kiểm Tra</b>.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+let allResults = [];
+let currentFilter = "all";
+
+function fillSampleLink() {
+    document.getElementById("links-input").value = "https://www.facebook.com/story.php?story_fbid=122144316771191106&id=61585733191960&hpir=1#";
+    document.getElementById("keywords-input").value = "Bình dân học vụ số, Đoàn UBND";
+}
+
+document.getElementById("file-import").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const urls = text.match(/https?:\/\/[^\s,;'"<>]+/g) || text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    document.getElementById("links-input").value = urls.join("\n");
+    e.target.value = "";
+});
+
+function setFilter(mode, btn) {
+    currentFilter = mode;
+    document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    renderTable();
+}
+
+function esc(str) {
+    return String(str || "").replace(/[&<>"']/g, s => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[s]));
+}
+
+function updateCounts() {
+    const validCnt = allResults.filter(r => r.is_valid).length;
+    document.getElementById("cnt-all").textContent = allResults.length;
+    document.getElementById("cnt-valid").textContent = validCnt;
+    document.getElementById("cnt-invalid").textContent = allResults.length - validCnt;
+    document.getElementById("btn-export").disabled = allResults.length === 0;
+}
+
+function renderTable() {
+    const tbody = document.getElementById("results-tbody");
+    const q = document.getElementById("search-box").value.trim().toLowerCase();
+    const filtered = allResults.filter(r => {
+        if (currentFilter === "valid" && !r.is_valid) return false;
+        if (currentFilter === "invalid" && r.is_valid) return false;
+        if (q) {
+            const hay = `${r.url} ${r.account_name} ${r.account_id} ${r.content} ${r.reason}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Không có dòng nào phù hợp bộ lọc hiện tại.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((r, i) => {
+        const visBadge = r.visibility === "Công khai"
+            ? `<span class="badge badge-green">Công khai</span>`
+            : `<span class="badge badge-amber">${esc(r.visibility)}</span>`;
+        const statusBadge = r.is_valid
+            ? `<span class="badge badge-green">Hợp lệ</span>`
+            : `<span class="badge badge-red">Không hợp lệ</span>`;
+        return `
+            <tr>
+                <td>${i + 1}</td>
+                <td class="link-cell"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a></td>
+                <td><b>${esc(r.account_name)}</b>${r.account_id ? `<div style="font-size:0.78rem;color:#94a3b8;margin-top:3px;">ID: ${esc(r.account_id)}</div>` : ""}</td>
+                <td>${visBadge}</td>
+                <td>${esc(r.post_date)}</td>
+                <td class="content-cell">${esc(r.content)}</td>
+                <td>${statusBadge}</td>
+                <td style="max-width:240px;color:${r.is_valid ? '#86efac' : '#fca5a5'};">${esc(r.reason)}</td>
+            </tr>
+        `;
+    }).join("");
+}
+
+async function runCheck() {
+    const raw = document.getElementById("links-input").value;
+    const links = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    if (links.length === 0) {
+        alert("Vui lòng dán ít nhất 1 đường link Facebook!");
+        return;
+    }
+
+    allResults = [];
+    updateCounts();
+    renderTable();
+
+    const btn = document.getElementById("btn-run");
+    btn.disabled = true;
+    const progWrap = document.getElementById("progress-wrap");
+    progWrap.style.display = "block";
+    document.getElementById("progress-text").textContent = `Đang khởi chạy kiểm tra ${links.length} link...`;
+    document.getElementById("progress-pct").textContent = "0%";
+    document.getElementById("progress-fill").style.width = "0%";
+
+    const payload = {
+        links,
+        required_keywords: document.getElementById("keywords-input").value.split(",").map(s => s.trim()).filter(Boolean),
+        keyword_mode: document.getElementById("keyword-mode").value,
+        require_public: document.getElementById("require-public").checked,
+        date_from: document.getElementById("date-from").value,
+        date_to: document.getElementById("date-to").value,
+        delay_ms: parseInt(document.getElementById("delay-ms").value || "500", 10)
+    };
+
+    try {
+        const res = await fetch("/api/fb-check/stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+            for (const line of lines) {
+                const t = line.trim();
+                if (!t.startsWith("data: ")) continue;
+                const evt = JSON.parse(t.slice(6));
+                if (evt.type === "item") {
+                    allResults.push(evt.data);
+                    const pct = Math.round((evt.index / evt.total) * 100);
+                    document.getElementById("progress-text").textContent = `Đã kiểm tra ${evt.index}/${evt.total}: ${evt.data.account_name || evt.data.url}`;
+                    document.getElementById("progress-pct").textContent = `${pct}%`;
+                    document.getElementById("progress-fill").style.width = `${pct}%`;
+                    updateCounts();
+                    renderTable();
+                } else if (evt.type === "done") {
+                    document.getElementById("progress-text").textContent = `✅ Hoàn tất kiểm tra ${allResults.length} liên kết!`;
+                    document.getElementById("progress-pct").textContent = "100%";
+                    document.getElementById("progress-fill").style.width = "100%";
+                }
+            }
+        }
+    } catch (err) {
+        alert("Lỗi khi kiểm tra: " + err.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function exportExcel() {
+    if (allResults.length === 0) return;
+    const kw = document.getElementById("keywords-input").value.trim();
+    const res = await fetch("/api/fb-check/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            rows: allResults,
+            criteria_note: kw ? `Từ khóa: ${kw}` : "Kiểm tra công khai"
+        })
+    });
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `Bao_Cao_Tham_Dinh_Link_FB_${new Date().toISOString().slice(0,10)}.xlsx`;
+    a.click();
+}
+
+function copyTableText() {
+    if (allResults.length === 0) return;
+    const header = ["STT", "Link", "Chủ tài khoản", "ID", "Trạng thái", "Thời gian", "Nội dung", "Kết luận", "Lý do"].join("\t");
+    const lines = allResults.map((r, i) => [
+        i + 1, r.url, r.account_name, r.account_id, r.visibility, r.post_date,
+        (r.content || "").replace(/\s+/g, " "), r.status_label, r.reason
+    ].join("\t"));
+    navigator.clipboard.writeText([header, ...lines].join("\n"));
+    alert("Đã sao chép toàn bộ bảng (dán trực tiếp vào Excel/Google Sheets được ngay)!");
+}
+</script>
+</body>
+</html>
