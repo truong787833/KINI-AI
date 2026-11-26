@@ -4,7 +4,7 @@ import re
 import uuid
 import time
 import docx
-from docx.shared import Pt, RGBColor, Inches
+from docx.shared import Pt, RGBColor, Inches, Mm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -15,71 +15,61 @@ os.makedirs(EXPORTS_DIR, exist_ok=True)
 
 def export_text_to_docx(content: str, title: str = "Tài Liệu KINI AI") -> str:
     """
-    Xuất nội dung văn bản thành file Word (.docx) chuyên nghiệp chuẩn thể thức.
+    Xuất nội dung văn bản thành file Word (.docx) chuẩn khổ A4 & thể thức Nghị định 30/2020/NĐ-CP:
+    - Khổ giấy A4: 210mm x 297mm
+    - Lề: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm
+    - Font: Times New Roman, cỡ chữ 14pt (nội dung), màu đen chuẩn mực
     """
     doc = docx.Document()
-    
-    # Cấu hình lề chuẩn văn bản
+
+    # Cấu hình khổ giấy A4 & lề chuẩn Nghị định 30/2020/NĐ-CP
     for section in doc.sections:
-        section.top_margin = Inches(1)
-        section.bottom_margin = Inches(1)
-        section.left_margin = Inches(1.1)
-        section.right_margin = Inches(0.9)
+        section.page_width = Mm(210)
+        section.page_height = Mm(297)
+        section.top_margin = Mm(20)
+        section.bottom_margin = Mm(20)
+        section.left_margin = Mm(30)
+        section.right_margin = Mm(15)
 
-    # Tiêu đề
-    title_p = doc.add_paragraph()
-    title_run = title_p.add_run(title.upper())
-    title_run.font.name = "Times New Roman"
-    title_run.font.size = Pt(15)
-    title_run.font.bold = True
-    title_run.font.color.rgb = RGBColor(30, 58, 138)
-    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    # Thời gian tạo
-    time_p = doc.add_paragraph()
-    time_run = time_p.add_run(f"Được tạo bởi KINI AI vào lúc: {time.strftime('%H:%M:%S ngày %d/%m/%Y')}")
-    time_run.font.name = "Times New Roman"
-    time_run.font.size = Pt(10)
-    time_run.font.italic = True
-    time_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph("─" * 45).alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    # Xử lý nội dung văn bản từng dòng
+    # Xử lý nội dung văn bản từng dòng, dọn sạch ký tự markdown ** thừa
     lines = content.split("\n")
     for line in lines:
         stripped = line.strip()
-        if not stripped:
+        if not stripped or stripped.startswith("```"):
             continue
-            
-        p = doc.add_paragraph()
-        p.paragraph_format.line_spacing = 1.25
-        p.paragraph_format.space_after = Pt(4)
 
-        # Tiêu đề lớn
-        if stripped.startswith("### "):
-            run = p.add_run(stripped[4:])
-            run.font.bold = True
-            run.font.size = Pt(13)
-            run.font.color.rgb = RGBColor(15, 23, 42)
-        elif stripped.startswith("## "):
-            run = p.add_run(stripped[3:])
+        clean_line = re.sub(r"\*\*(.+?)\*\*", r"\1", stripped)
+        p = doc.add_paragraph()
+        p.paragraph_format.line_spacing = 1.2
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after = Pt(6)
+
+        if clean_line.startswith("### "):
+            run = p.add_run(clean_line[4:].strip())
             run.font.bold = True
             run.font.size = Pt(14)
-            run.font.color.rgb = RGBColor(30, 58, 138)
-        elif stripped.startswith("# "):
-            run = p.add_run(stripped[2:])
+        elif clean_line.startswith("## "):
+            run = p.add_run(clean_line[3:].strip())
             run.font.bold = True
-            run.font.size = Pt(15)
-            run.font.color.rgb = RGBColor(14, 116, 144)
-        elif stripped.startswith("- ") or stripped.startswith("* "):
-            p.paragraph_format.left_indent = Inches(0.25)
-            run = p.add_run("• " + stripped[2:])
-            run.font.size = Pt(12)
+            run.font.size = Pt(14)
+        elif clean_line.startswith("# "):
+            run = p.add_run(clean_line[2:].strip().upper())
+            run.font.bold = True
+            run.font.size = Pt(14)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        elif clean_line.startswith("- ") or clean_line.startswith("* "):
+            p.paragraph_format.left_indent = Mm(10)
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            run = p.add_run("- " + clean_line[2:].strip())
+            run.font.size = Pt(14)
         else:
-            run = p.add_run(stripped)
-            run.font.size = Pt(12)
-            
+            p.paragraph_format.first_line_indent = Mm(12.7)
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            run = p.add_run(clean_line)
+            run.font.size = Pt(14)
+
         run.font.name = "Times New Roman"
+        run.font.color.rgb = RGBColor(0, 0, 0)
 
     filename = f"kini_doc_{int(time.time())}_{uuid.uuid4().hex[:6]}.docx"
     file_path = os.path.join(EXPORTS_DIR, filename)
