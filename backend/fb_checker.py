@@ -1,6 +1,5 @@
 import io
 import re
-import time
 import urllib.parse
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -19,6 +18,24 @@ def is_facebook_url(url: str) -> bool:
         return any(host == d or host.endswith("." + d) for d in FB_DOMAINS)
     except Exception:
         return False
+
+
+def detect_platform(url: str) -> str:
+    try:
+        host = (urllib.parse.urlparse(url.strip()).netloc or "").lower()
+        if any(host == d or host.endswith("." + d) for d in FB_DOMAINS):
+            return "Facebook"
+        if "youtube.com" in host or "youtu.be" in host:
+            return "YouTube"
+        if "tiktok.com" in host:
+            return "TikTok"
+        if "instagram.com" in host:
+            return "Instagram"
+        if "zalo.me" in host:
+            return "Zalo"
+        return host.replace("www.", "") or "Website"
+    except Exception:
+        return "Website"
 
 
 def extract_account_id(url: str, canonical_url: str = "") -> str:
@@ -72,10 +89,12 @@ def check_single_fb_link(
     date_from: str = "",
     date_to: str = "",
 ) -> Dict[str, Any]:
+    """Kiểm tra & thẩm định bất kỳ đường link nào (Facebook, YouTube, TikTok, Báo chí, Cổng thông tin, Web...)."""
     raw_url = (url or "").strip()
     if not raw_url:
         return {
             "url": raw_url,
+            "platform": "",
             "canonical_url": "",
             "account_name": "",
             "account_id": "",
@@ -91,26 +110,38 @@ def check_single_fb_link(
     if not raw_url.startswith(("http://", "https://")):
         raw_url = "https://" + raw_url
 
-    if not is_facebook_url(raw_url):
+    parsed_u = urllib.parse.urlparse(raw_url)
+    if not parsed_u.netloc or "." not in parsed_u.netloc:
         return {
             "url": raw_url,
+            "platform": "Không xác định",
             "canonical_url": "",
             "account_name": "",
             "account_id": "",
-            "visibility": "Không phải Facebook",
+            "visibility": "Link sai định dạng",
             "post_date": "",
             "content": "",
             "image": "",
             "is_valid": False,
             "status_label": "Không hợp lệ",
-            "reason": "Không phải đường dẫn Facebook hợp lệ",
+            "reason": "Đường dẫn URL không hợp lệ",
         }
 
-    user_agents = [
-        "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
-        "Twitterbot/1.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    ]
+    is_fb = is_facebook_url(raw_url)
+    platform = detect_platform(raw_url)
+
+    user_agents = (
+        [
+            "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+            "Twitterbot/1.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        ]
+        if is_fb
+        else [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        ]
+    )
 
     res = None
     last_err = ""
@@ -136,9 +167,10 @@ def check_single_fb_link(
     if res is None:
         return {
             "url": raw_url,
+            "platform": platform,
             "canonical_url": "",
             "account_name": "",
-            "account_id": extract_account_id(raw_url),
+            "account_id": extract_account_id(raw_url) if is_fb else parsed_u.netloc,
             "visibility": "Link lỗi / Không truy cập được",
             "post_date": "",
             "content": "",
@@ -156,29 +188,54 @@ def check_single_fb_link(
 
     og_title = _meta("og:title")
     og_desc = _meta("og:description") or _meta("description")
+    og_site = _meta("og:site_name") or _meta("author")
     og_url = _meta("og:url") or res.url
     og_image = _meta("og:image")
+    pub_time = _meta("article:published_time") or _meta("og:updated_time") or _meta("date")
     page_title = soup.title.string.strip() if (soup.title and soup.title.string) else ""
 
-    account_name = og_title or page_title
+    if is_fb:
+        account_name = og_title or page_title
+        content_text = og_desc
+        account_id = extract_account_id(raw_url, og_url)
+    else:
+        account_name = og_site or parsed_u.netloc.replace("www.", "")
+        # Với báo chí / website thường: ghép tiêu đề + mô tả + đoạn đầu bài viết nếu mô tả ngắn
+        extra_paras = []
+        if len(og_desc) < 120:
+            for p in soup.find_all("p"):
+                pt = p.get_text(" ", strip=True)
+                if len(pt) > 40:
+                    extra_paras.append(pt)
+                if len(" ".join(extra_paras)) > 350:
+                    break
+        title_part = og_title or page_title
+        body_part = og_desc or " ".join(extra_paras)
+        content_text = f"{title_part}\n{body_part}".strip() if title_part and title_part not in body_part else (body_part or title_part)
+        content_text = content_text[:600]
+        account_id = platform
+
     final_url_low = (res.url or "").lower()
-    login_blocked = (
+    login_blocked = is_fb and (
         "/login" in final_url_low
         or "checkpoint" in final_url_low
         or account_name.lower() in ("", "facebook", "log in or sign up", "đăng nhập hoặc đăng ký", "log into facebook")
-        and not og_desc
+        and not content_text
     )
 
     if login_blocked:
         visibility = "Riêng tư / Yêu cầu đăng nhập"
         account_name = "" if account_name.lower() in ("facebook", "log into facebook", "log in or sign up") else account_name
-    elif og_desc or (account_name and account_name.lower() != "facebook"):
+    elif content_text or (account_name and account_name.lower() != "facebook"):
         visibility = "Công khai"
     else:
         visibility = "Không đọc được nội dung"
 
-    account_id = extract_account_id(raw_url, og_url)
-    dates_found = extract_post_dates(og_desc)
+    dates_found = extract_post_dates(f"{pub_time} {content_text}")
+    if not dates_found and pub_time:
+        m_iso = re.match(r"^(20\d{2})-(\d{2})-(\d{2})", pub_time.strip())
+        if m_iso:
+            dates_found = [f"{m_iso.group(3)}/{m_iso.group(2)}/{m_iso.group(1)}"]
     post_date = dates_found[0] if dates_found else ""
 
     reasons: List[str] = []
@@ -187,7 +244,7 @@ def check_single_fb_link(
 
     clean_kws = [k.strip().lower() for k in (required_keywords or []) if k.strip()]
     if clean_kws:
-        haystack = f"{account_name} {og_desc}".lower()
+        haystack = f"{account_name} {content_text}".lower()
         matched = [k for k in clean_kws if k in haystack]
         if keyword_mode == "all":
             missing = [k for k in clean_kws if k not in haystack]
@@ -210,17 +267,21 @@ def check_single_fb_link(
     is_valid = len(reasons) == 0
     return {
         "url": raw_url,
+        "platform": platform,
         "canonical_url": og_url,
         "account_name": account_name or "(Không xác định)",
         "account_id": account_id,
         "visibility": visibility,
         "post_date": post_date or "(Không ghi trong đoạn đầu)",
-        "content": og_desc or "(Không có nội dung hiển thị công khai)",
+        "content": content_text or "(Không có nội dung hiển thị công khai)",
         "image": og_image,
         "is_valid": is_valid,
         "status_label": "Hợp lệ" if is_valid else "Không hợp lệ",
         "reason": "Đạt đủ tiêu chí kiểm tra" if is_valid else "; ".join(reasons),
     }
+
+
+check_single_link = check_single_fb_link
 
 
 def export_results_to_excel(rows: List[Dict[str, Any]], criteria_note: str = "") -> bytes:
@@ -229,13 +290,13 @@ def export_results_to_excel(rows: List[Dict[str, Any]], criteria_note: str = "")
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "ThamDinhLinkFB"
+    ws.title = "ThamDinhLink"
 
     thin = Side(border_style="thin", color="CBD5E1")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     ws.merge_cells("A1:I1")
-    ws["A1"] = "BÁO CÁO KIỂM TRA & THẨM ĐỊNH LINK MINH CHỨNG FACEBOOK"
+    ws["A1"] = "BÁO CÁO KIỂM TRA & THẨM ĐỊNH LINK ĐA NỀN TẢNG (KINI LINKGUARD)"
     ws["A1"].font = Font(name="Calibri", size=14, bold=True, color="FFFFFF")
     ws["A1"].fill = PatternFill("solid", fgColor="1E3A8A")
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
@@ -253,12 +314,12 @@ def export_results_to_excel(rows: List[Dict[str, Any]], criteria_note: str = "")
 
     headers = [
         "STT",
-        "Link Facebook gốc",
-        "Chủ tài khoản Facebook",
-        "ID Tài khoản",
+        "Đường dẫn (Link gốc)",
+        "Chủ tài khoản / Nguồn trang",
+        "Nền tảng / ID",
         "Trạng thái hiển thị",
         "Thời gian ghi nhận",
-        "Nội dung bài đăng",
+        "Nội dung bài đăng / Bài viết",
         "Kết luận",
         "Lý do / Ghi chú",
     ]
@@ -280,11 +341,12 @@ def export_results_to_excel(rows: List[Dict[str, Any]], criteria_note: str = "")
 
     for idx, r in enumerate(rows, start=1):
         row_num = header_row + idx
+        plat_id = f"{r.get('platform', '')} ({r.get('account_id', '')})".strip(" ()")
         vals = [
             idx,
             r.get("url", ""),
             r.get("account_name", ""),
-            r.get("account_id", ""),
+            plat_id or r.get("account_id", ""),
             r.get("visibility", ""),
             r.get("post_date", ""),
             r.get("content", ""),
@@ -308,7 +370,7 @@ def export_results_to_excel(rows: List[Dict[str, Any]], criteria_note: str = "")
                     c.fill = red_fill
                     c.font = red_font
 
-    widths = [6, 38, 24, 18, 22, 18, 52, 16, 34]
+    widths = [6, 38, 24, 20, 22, 18, 52, 16, 34]
     for col_idx, w in enumerate(widths, start=1):
         col_letter = openpyxl.utils.get_column_letter(col_idx)
         ws.column_dimensions[col_letter].width = w
