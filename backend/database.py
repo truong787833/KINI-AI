@@ -104,9 +104,20 @@ def init_db():
         model_name TEXT NOT NULL,
         prompt_tokens INTEGER DEFAULT 0,
         candidates_tokens INTEGER DEFAULT 0,
-        total_tokens INTEGER DEFAULT 0
+        total_tokens INTEGER DEFAULT 0,
+        client_id TEXT DEFAULT 'master'
     )
     """)
+
+    cur.execute("PRAGMA table_info(gallery)")
+    existing_gal_cols = [row[1] for row in cur.fetchall()]
+    if "client_id" not in existing_gal_cols:
+        cur.execute("ALTER TABLE gallery ADD COLUMN client_id TEXT DEFAULT 'master'")
+
+    cur.execute("PRAGMA table_info(api_usage)")
+    existing_usage_cols = [row[1] for row in cur.fetchall()]
+    if "client_id" not in existing_usage_cols:
+        cur.execute("ALTER TABLE api_usage ADD COLUMN client_id TEXT DEFAULT 'master'")
 
     # Tự động đồng bộ các đoạn chat cũ từ tin nhắn nếu chưa có trong bảng conversations
     cur.execute("""
@@ -236,23 +247,23 @@ def delete_conversation(conv_id: str):
     conn.close()
 
 # --- QUẢN LÝ THƯ VIỆN ẢNH KINI STUDIO ---
-def add_gallery_item(prompt: str, style: str, image_url: str, image_path: str, width: int = 1024, height: int = 1024) -> int:
+def add_gallery_item(prompt: str, style: str, image_url: str, image_path: str, width: int = 1024, height: int = 1024, client_id: str = "master") -> int:
     now = datetime.now().isoformat()
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-    INSERT INTO gallery (prompt, style, image_url, image_path, width, height, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (prompt, style, image_url, image_path, width, height, now))
+    INSERT INTO gallery (prompt, style, image_url, image_path, width, height, created_at, client_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (prompt, style, image_url, image_path, width, height, now, client_id))
     item_id = cur.lastrowid
     conn.commit()
     conn.close()
     return item_id
 
-def get_gallery_items(limit: int = 50) -> List[Dict[str, Any]]:
+def get_gallery_items(limit: int = 50, client_id: str = "master") -> List[Dict[str, Any]]:
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM gallery ORDER BY id DESC LIMIT ?", (limit,))
+    cur.execute("SELECT * FROM gallery WHERE client_id = ? ORDER BY id DESC LIMIT ?", (client_id, limit))
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -394,22 +405,22 @@ def clear_memories():
 # ============================================================
 # QUẢN LÝ & GIÁM SÁT HẠN MỨC QUOTA VÀ TOKEN (CHUẨN ANTIGRAVITY)
 # ============================================================
-def record_api_usage(model_name: str, prompt_tokens: int, candidates_tokens: int, total_tokens: int):
-    """Ghi nhận chi tiết từng lượt gọi và lượng token chính xác từng đơn vị"""
+def record_api_usage(model_name: str, prompt_tokens: int, candidates_tokens: int, total_tokens: int, client_id: str = "master"):
+    """Ghi nhận chi tiết từng lượt gọi và lượng token chính xác từng đơn vị theo client_id"""
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
     ts = now.timestamp()
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-    INSERT INTO api_usage (date, timestamp, model_name, prompt_tokens, candidates_tokens, total_tokens)
-    VALUES (?, ?, ?, ?, ?, ?)
-    """, (today_str, ts, model_name, prompt_tokens, candidates_tokens, total_tokens))
+    INSERT INTO api_usage (date, timestamp, model_name, prompt_tokens, candidates_tokens, total_tokens, client_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (today_str, ts, model_name, prompt_tokens, candidates_tokens, total_tokens, client_id))
     conn.commit()
     conn.close()
 
-def get_usage_statistics() -> Dict[str, Any]:
-    """Tính toán chính xác % hạn mức quota và lượng token đã sử dụng"""
+def get_usage_statistics(client_id: str = "master") -> Dict[str, Any]:
+    """Tính toán chính xác % hạn mức quota và lượng token đã sử dụng riêng của client_id"""
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
     one_minute_ago = now.timestamp() - 60
@@ -424,8 +435,8 @@ def get_usage_statistics() -> Dict[str, Any]:
            coalesce(sum(candidates_tokens), 0), 
            coalesce(sum(total_tokens), 0)
     FROM api_usage
-    WHERE date = ?
-    """, (today_str,))
+    WHERE date = ? AND client_id = ?
+    """, (today_str, client_id))
     today_stats = cur.fetchone()
     requests_today = today_stats[0]
     prompt_tokens_today = today_stats[1]
@@ -434,8 +445,8 @@ def get_usage_statistics() -> Dict[str, Any]:
     
     # 2. Số lượt gửi trong 1 phút gần nhất (RPM)
     cur.execute("""
-    SELECT count(*) FROM api_usage WHERE timestamp >= ?
-    """, (one_minute_ago,))
+    SELECT count(*) FROM api_usage WHERE timestamp >= ? AND client_id = ?
+    """, (one_minute_ago, client_id))
     requests_last_minute = cur.fetchone()[0]
     
     conn.close()

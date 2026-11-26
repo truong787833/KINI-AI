@@ -65,9 +65,13 @@ document.addEventListener("DOMContentLoaded", () => {
 function initApp() {
     // Phân tách Giao diện Web 24/7 và Desktop EXE
     if (!isDesktopApp) {
-        // Trên bản Web 24/7: Ẩn Antigravity Studio Workspace và nút Studio
+        // Trên bản Web 24/7: Ẩn các tính năng Desktop/Agent hệ điều hành (Studio, Bảng điều khiển phần cứng, Safe/Turbo)
         const btnStudio = document.getElementById("btn-sidebar-studio-btn");
         if (btnStudio) btnStudio.style.display = "none";
+        const btnControlCenter = document.getElementById("btn-open-control-center");
+        if (btnControlCenter) btnControlCenter.style.display = "none";
+        const btnAgentMode = document.getElementById("btn-agent-mode");
+        if (btnAgentMode) btnAgentMode.style.display = "none";
         const studioPane = document.getElementById("antigravity-studio-pane");
         if (studioPane) studioPane.style.display = "none";
         const btnTopExitIde = document.getElementById("btn-top-exit-ide");
@@ -1130,8 +1134,15 @@ function appendAssistantMessage(content, imageUrl = "", isImageGen = false, mode
         `;
     }
 
-    // Nhận diện nếu có sản phẩm do KINI Agent tạo ra trong workspace
+    // Nhận diện nếu có sản phẩm do KINI Agent tạo ra trong workspace hoặc thông báo thiếu API Key
     let agentActionsHtml = "";
+    if (content && content.includes("Chưa cấu hình Google Gemini API Key")) {
+        agentActionsHtml += `
+            <button class="btn-msg-action" onclick="openModal('modal-settings'); if(typeof loadSettings==='function') loadSettings();" style="border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; background: rgba(56, 189, 248, 0.12); font-weight: 600;" title="Mở nhanh bảng dán API Key miễn phí">
+                <span class="action-icon">🔑</span> Nhập API Key Ngay
+            </button>
+        `;
+    }
     const matchPath = content.match(/workspace[\\/]([a-zA-Z0-9_\-\.]+)/i);
     const matchHtml = content.match(/workspace[\\/]([a-zA-Z0-9_\-\.\/]+\.html)/i);
 

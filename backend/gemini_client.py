@@ -417,7 +417,7 @@ def ask_gemini(
                     p_tok = usage.get("promptTokenCount", 0)
                     c_tok = usage.get("candidatesTokenCount", 0)
                     t_tok = usage.get("totalTokenCount", 0)
-                    database.record_api_usage(model_name, p_tok, c_tok, t_tok)
+                    database.record_api_usage(model_name, p_tok, c_tok, t_tok, client_id=client_id)
                 except Exception:
                     pass
 

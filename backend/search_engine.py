@@ -608,6 +608,20 @@ def fetch_webpage_content(url: str, max_chars: int = 4000) -> Optional[Dict[str,
                 continue
 
         if not res:
+            # Lớp đọc dự phòng cho các trang web chạy JS phức tạp / SPA (Jina Reader)
+            try:
+                jr = requests.get(f"https://r.jina.ai/{url}", headers={"Accept": "text/plain"}, timeout=10)
+                if jr.status_code == 200 and len(jr.text.strip()) > 80:
+                    j_txt = jr.text.strip()[:max_chars]
+                    return {
+                        "title": url,
+                        "description": "",
+                        "url": url,
+                        "content": j_txt,
+                        "images": []
+                    }
+            except Exception:
+                pass
             return None
 
         soup = BeautifulSoup(res.content, "html.parser")
@@ -697,6 +711,15 @@ def fetch_webpage_content(url: str, max_chars: int = 4000) -> Optional[Dict[str,
             combined_content += clean_text
         if extra_context:
             combined_content += f"\n{extra_context}"
+
+        if len(combined_content.strip()) < 120 and not is_social:
+            # Nếu trang web dùng JavaScript (SPA) nên HTML thô ít chữ -> thử Jina Reader
+            try:
+                jr = requests.get(f"https://r.jina.ai/{url}", headers={"Accept": "text/plain"}, timeout=10)
+                if jr.status_code == 200 and len(jr.text.strip()) > len(combined_content.strip()) + 100:
+                    combined_content = jr.text.strip()
+            except Exception:
+                pass
 
         if len(combined_content) > max_chars:
             combined_content = combined_content[:max_chars] + "\n...(Nội dung còn tiếp)"

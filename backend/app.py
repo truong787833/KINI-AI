@@ -465,7 +465,8 @@ async def chat_with_kini(
                 image_url=generated_img_url,
                 image_path=edit_res["file_path"],
                 width=edit_res.get("width", 2048),
-                height=edit_res.get("height", 2048)
+                height=edit_res.get("height", 2048),
+                client_id=cid
             )
             if cid == "master":
                 assistant_reply = (
@@ -532,7 +533,8 @@ async def chat_with_kini(
                 image_url=generated_img_url,
                 image_path=img_result["file_path"],
                 width=img_result.get("width", 1024),
-                height=img_result.get("height", 1024)
+                height=img_result.get("height", 1024),
+                client_id=cid
             )
             if cid == "master":
                 assistant_reply = (
@@ -830,7 +832,8 @@ async def chat_with_kini(
                 image_url=generated_img_url,
                 image_path=img_result["file_path"],
                 width=img_result.get("width", 1024),
-                height=img_result.get("height", 1024)
+                height=img_result.get("height", 1024),
+                client_id=cid
             )
             if cid == "master":
                 assistant_reply = (
@@ -1015,7 +1018,8 @@ async def chat_with_kini_stream(
                 image_url=gen_url,
                 image_path=img_result["file_path"],
                 width=img_result.get("width", 1024),
-                height=img_result.get("height", 1024)
+                height=img_result.get("height", 1024),
+                client_id=cid
             )
             if cid == "master":
                 reply = (
@@ -1428,7 +1432,8 @@ def create_image(data: dict, request: Request):
             image_url=result["image_url"],
             image_path=result["file_path"],
             width=result["width"],
-            height=result["height"]
+            height=result["height"],
+            client_id=cid
         )
         result["gallery_id"] = item_id
         if conv_id and conv_id != "default":
@@ -1442,8 +1447,9 @@ def create_image(data: dict, request: Request):
         raise HTTPException(status_code=500, detail=result.get("error", "Không thể tạo ảnh"))
 
 @app.get("/api/gallery")
-def get_gallery():
-    items = database.get_gallery_items(limit=60)
+def get_gallery(request: Request):
+    cid = get_request_client_id(request)
+    items = database.get_gallery_items(limit=60, client_id=cid)
     return {"gallery": items}
 
 @app.get("/api/images/{filename}")
@@ -1702,7 +1708,7 @@ def get_quota_usage(request: Request):
             "candidates_tokens_today": 0
         }
 
-    stats = database.get_usage_statistics()
+    stats = database.get_usage_statistics(client_id=cid)
     stats["has_api_key"] = True
     return stats
 
