@@ -4056,6 +4056,30 @@ function initVoiceLive() {
         });
     }
 
+    const btnInterrupt = document.getElementById("btn-voice-interrupt");
+    const orbEl = document.getElementById("voice-live-orb");
+    const interruptVoiceLiveAndListen = () => {
+        if (!voiceLiveActive || voiceLiveState !== "speaking") return;
+        if (voiceLiveAudio) {
+            try { voiceLiveAudio.onended = null; voiceLiveAudio.onerror = null; voiceLiveAudio.pause(); } catch(e) {}
+            voiceLiveAudio = null;
+        }
+        if ("speechSynthesis" in window) {
+            try { window.speechSynthesis.cancel(); } catch(e) {}
+        }
+        if (btnInterrupt) btnInterrupt.style.display = "none";
+        voiceLiveIsProcessing = false;
+        voiceLiveState = "listening";
+        voiceLiveMicEnabled = true;
+        if (btnToggleMic) btnToggleMic.textContent = "🎤 Mic: Bật";
+        setVoiceLiveOrbState("listening", "🎤 Đã dừng AI — Mời anh hỏi câu tiếp theo...");
+        setTimeout(() => {
+            if (voiceLiveActive && voiceLiveState === "listening") startVoiceLiveListening();
+        }, 180);
+    };
+    if (btnInterrupt) btnInterrupt.addEventListener("click", interruptVoiceLiveAndListen);
+    if (orbEl) orbEl.addEventListener("click", interruptVoiceLiveAndListen);
+
     // Toggle Deep Research
     document.getElementById("btn-deep-research")?.addEventListener("click", () => {
         isDeepResearchMode = !isDeepResearchMode;
@@ -4128,6 +4152,8 @@ function stopVoiceLiveSession() {
     }
     const overlay = document.getElementById("voice-live-overlay");
     if (overlay) overlay.style.display = "none";
+    const btnInt = document.getElementById("btn-voice-interrupt");
+    if (btnInt) btnInt.style.display = "none";
     setVoiceLiveOrbState("idle", "Đã kết thúc đàm thoại.");
 }
 
@@ -4290,9 +4316,11 @@ async function processVoiceLiveTurn(userSpokenText) {
         
         appendVoiceLiveTranscript("assistant", reply);
 
-        // Gọi TTS để đọc câu trả lời với cơ chế đa tầng (Không bao giờ bị câm hoặc chậm trễ)
+        // Gọi TTS để đọc câu trả lời với cơ chế đa tầng (Chỉ mở mic lại SAU KHI nói hết câu hoặc khi bấm Dừng & Hỏi ngay)
         voiceLiveState = "speaking";
-        setVoiceLiveOrbState("speaking", wantsToStopVoice ? "Đang tắt cuộc hội thoại..." : "KINI AI đang trả lời...");
+        const btnInterrupt = document.getElementById("btn-voice-interrupt");
+        if (btnInterrupt && !wantsToStopVoice) btnInterrupt.style.display = "inline-flex";
+        setVoiceLiveOrbState("speaking", wantsToStopVoice ? "Đang tắt cuộc hội thoại..." : "KINI AI đang trả lời... (bấm ✋ Dừng để hỏi ngay)");
 
         let audioPlayed = false;
         if (wantsToStopVoice) {
@@ -4302,16 +4330,19 @@ async function processVoiceLiveTurn(userSpokenText) {
         }
 
         const resumeListening = () => {
+            if (btnInterrupt) btnInterrupt.style.display = "none";
             if (wantsToStopVoice) {
                 stopVoiceLiveSession();
                 return;
             }
-            if (voiceLiveActive) {
-                setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
+            if (voiceLiveActive && voiceLiveState === "speaking") {
+                setVoiceLiveOrbState("listening", "✅ Đã trả lời xong — Mời anh hỏi tiếp...");
                 setTimeout(() => {
-                    voiceLiveIsProcessing = false;
-                    voiceLiveState = "listening";
-                    startVoiceLiveListening();
+                    if (voiceLiveActive && voiceLiveState === "speaking") {
+                        voiceLiveIsProcessing = false;
+                        voiceLiveState = "listening";
+                        startVoiceLiveListening();
+                    }
                 }, 350);
             }
         };
