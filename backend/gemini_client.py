@@ -21,6 +21,7 @@ DEFAULT_SYSTEM_PROMPT = """[SYSTEM IDENTITY: KINI AI - TRỢ LÝ TRÍ TUỆ NHÂ
    - Khi biết chắc chắn 100%: Trả lời rõ ràng, sắc bén, đi thẳng vào bản chất và giải pháp thực tế.
    - Khi KHÔNG chắc chắn hoặc thiếu thông tin: BẮT BUỘC phải nói thật: "Thưa anh Trường, phần này em chưa có đủ dữ liệu / chưa kiểm chứng chắc chắn 100%. Để đảm bảo an toàn, em cần anh xác nhận..." hoặc "Theo phân tích sơ bộ của em...". TUYỆT ĐỐI KHÔNG BỊA ĐẶT, KHÔNG ĐOÁN MÒ RỒI KHẲNG ĐỊNH NHƯ ĐÚNG RỒI.
    - XÓA BỎ HOÀN TOÀN TƯ DUY "Không bao giờ nói không biết": Thừa nhận giới hạn để cùng anh Trường giải quyết mới là trí tuệ thực thụ.
+   - CẤM TUYỆT ĐỐI ĐOÁN MÒ NỘI BỘ HỆ THỐNG: Khi anh Trường hỏi về mã nguồn nội bộ của KINI AI (tên file, cấu hình `config.py`, dòng code, nguyên nhân lỗi kỹ thuật bên trong) mà trong cuộc trò chuyện KHÔNG có file code/log đó được gửi kèm: BẮT BUỘC phải trả lời thẳng: "Thưa anh Trường, trong cuộc trò chuyện này em không nhìn thấy trực tiếp mã nguồn hay log của file đó nên em chưa biết nguyên nhân chính xác. Anh gửi đoạn mã hoặc thông báo lỗi cụ thể để em kiểm tra giúp anh nhé!" — TUYỆT ĐỐI KHÔNG tự bịa tên file hay đoán mò nguyên nhân kỹ thuật!
 
 2. NGUYÊN TẮC "LÀM THẬT MỚI ĐƯỢC NÓI THẬT" (ANTI-HALLUCINATORY EXECUTION):
    - Trong luồng trò chuyện thông thường: Nếu chưa thực sự chạy công cụ Agent ghi file (`write_file`) vào đĩa cứng, TUYỆT ĐỐI KHÔNG ĐƯỢC NÓI DỐI là:
@@ -557,34 +558,38 @@ def ask_gemini(
             "parts": [{"text": sys_inst}]
         }
 
-    # Lựa chọn danh sách mô hình dựa trên model_mode
+    # Lựa chọn danh sách mô hình dựa trên model_mode (đã loại bỏ các model 404 và ưu tiên bản phản hồi nhanh, ổn định)
     if model_mode in ["flash-3.5", "gemini-3.5-flash"]:
         models_to_try = [
+            "gemini-3-flash-preview",
             "gemini-3.5-flash",
+            "gemini-3.5-flash-lite",
             "gemini-3.1-flash-lite",
             "gemini-flash-lite-latest"
         ]
     elif model_mode in ["flash-3.8", "gemini-3.8-flash"]:
         models_to_try = [
-            "gemini-3.8-flash",         # Mô hình 3.8 Flash thế hệ mới nhất
-            "gemini-3.5-flash",         # Fallback 1: Siêu thông minh 3.5
-            "gemini-3.1-flash-lite",    # Fallback 2: Siêu tốc 100% ổn định
+            "gemini-3.8-flash",
+            "gemini-3-flash-preview",
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite",
             "gemini-flash-lite-latest"
         ]
     elif model_mode == "pro":
         models_to_try = [
-            "gemini-2.5-pro",           # Bản Pro ổn định nhất
-            "gemini-3.1-pro-preview",   # Bản 3.1 Pro mới
-            "gemini-3.5-flash",         # Fallback thông minh cao cấp nếu hết quota Pro
+            "gemini-3.1-pro-preview",
+            "gemini-3-flash-preview",
+            "gemini-3.5-flash",
             "gemini-3.1-flash-lite",
             "gemini-flash-lite-latest"
         ]
     else:
-        # Flash Lite mode: siêu tốc < 1.0s, cực kỳ ổn định, chính xác cao
+        # Flash Lite mode: siêu tốc ~1.5s, cực kỳ ổn định, chính xác cao
         models_to_try = [
-            "gemini-3.1-flash-lite",    # Siêu tốc ~0.8s, hoạt động 100%
-            "gemini-3.5-flash",         # Thông minh cao cấp
-            "gemini-flash-lite-latest"  # Fallback chuẩn
+            "gemini-3.1-flash-lite",
+            "gemini-3-flash-preview",
+            "gemini-3.5-flash-lite",
+            "gemini-flash-lite-latest"
         ]
     
     last_error = ""
@@ -720,15 +725,15 @@ def ask_gemini_stream(
             "parts": [{"text": sys_inst}]
         }
 
-    # Chọn danh sách mô hình
+    # Chọn danh sách mô hình (đã loại bỏ model 404, ưu tiên bản nhanh & ổn định)
     if model_mode in ["flash-3.5", "gemini-3.5-flash"]:
-        models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
+        models_to_try = ["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
     elif model_mode in ["flash-3.8", "gemini-3.8-flash"]:
-        models_to_try = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
+        models_to_try = ["gemini-3.8-flash", "gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
     elif model_mode == "pro":
-        models_to_try = ["gemini-2.5-pro", "gemini-3.1-pro-preview", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
+        models_to_try = ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
     else:
-        models_to_try = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-lite-latest"]
+        models_to_try = ["gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
 
     for model_name in models_to_try:
         for active_key in key_pool:
