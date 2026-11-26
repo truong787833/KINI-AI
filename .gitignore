@@ -13,7 +13,8 @@ active_online_url.txt
 workspace/.sandbox/
 generated_audio/*
 *.mp3
-dist_ota/
+dist_ota/*
+!dist_ota/latest_ota_package.zip
 build_temp/
 *.exe
 !static/app_icon.ico

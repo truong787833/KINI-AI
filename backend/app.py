@@ -172,7 +172,7 @@ def check_for_updates(data: dict = {}):
 @app.post("/api/system/apply-update")
 @app.post("/api/system/apply-ota")
 def apply_system_update(data: dict = {}):
-    # Tìm file zip OTA cục bộ nếu có
+    # 1. Tìm file zip OTA cục bộ nếu có
     target_zip = data.get("zip_path")
     if not target_zip:
         default_ota_path = os.path.join(BASE_DIR, "latest_ota_package.zip")
@@ -190,6 +190,37 @@ def apply_system_update(data: dict = {}):
             "new_version": new_info.get("version"),
             "build_number": new_info.get("build_number")
         }
+
+    # 2. Tải gói OTA trực tiếp từ GitHub (download_url) về thư mục tạm rồi cài đặt & tự dọn rác
+    local_info = ota_updater.get_local_version()
+    dl_url = (data.get("download_url") or local_info.get("download_url") or "").strip()
+    if dl_url.startswith("http"):
+        import requests as _req
+        os.makedirs(ota_updater.OTA_TEMP_DIR, exist_ok=True)
+        temp_dl_zip = os.path.join(ota_updater.OTA_TEMP_DIR, f"ota_temp_{uuid.uuid4().hex[:8]}.zip")
+        try:
+            r = _req.get(dl_url, timeout=45, stream=True)
+            if r.status_code == 200:
+                with open(temp_dl_zip, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=65536):
+                        if chunk:
+                            f.write(chunk)
+                if os.path.getsize(temp_dl_zip) > 10000:
+                    success, message, new_info = ota_updater.apply_ota_zip(temp_dl_zip)
+                    return {
+                        "success": success,
+                        "message": message,
+                        "new_version": new_info.get("version"),
+                        "build_number": new_info.get("build_number")
+                    }
+        except Exception as e:
+            print(f"[OTA] Lỗi tải gói cập nhật từ GitHub: {e}")
+        finally:
+            if os.path.exists(temp_dl_zip):
+                try:
+                    os.remove(temp_dl_zip)
+                except Exception:
+                    pass
     
     # Fallback cập nhật cấu hình nếu không có file zip
     info = ota_updater.get_local_version()
