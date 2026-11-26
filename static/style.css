@@ -1143,11 +1143,57 @@ body::before {
     z-index: 20;
 }
 
-/* Attachment Chip Bar */
+/* Attachment Chip & Thumbnail Bar (Chuẩn Gemini Multi-Image Preview) */
 .attachment-preview-bar {
     width: 100%;
     display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
     justify-content: flex-start;
+    align-items: center;
+    padding: 6px 8px 4px;
+}
+
+.attach-thumb-item {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: #0f172a;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.attach-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.attach-thumb-remove {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(15, 23, 42, 0.82);
+    color: #f8fafc;
+    font-size: 11px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.attach-thumb-remove:hover {
+    background: #ef4444;
 }
 
 .attach-chip {

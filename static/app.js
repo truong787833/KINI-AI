@@ -456,38 +456,70 @@ function closeModal(id) {
     if (m) m.style.display = "none";
 }
 
+function renderAttachmentPreviews() {
+    const bar = document.getElementById("attachment-preview-bar");
+    if (!bar) return;
+    if (!selectedFiles || selectedFiles.length === 0) {
+        bar.innerHTML = "";
+        bar.style.display = "none";
+        return;
+    }
+
+    bar.innerHTML = "";
+    selectedFiles.forEach((file, idx) => {
+        const ext = (file.name.split('.').pop() || "").toLowerCase();
+        const isImg = ["jpg", "jpeg", "png", "webp", "gif"].includes(ext) || (file.type && file.type.startsWith("image/"));
+        if (isImg) {
+            const thumb = document.createElement("div");
+            thumb.className = "attach-thumb-item";
+            const img = document.createElement("img");
+            img.className = "attach-thumb-img";
+            img.alt = file.name;
+            img.src = URL.createObjectURL(file);
+            img.onload = () => URL.revokeObjectURL(img.src);
+            const btnRm = document.createElement("button");
+            btnRm.type = "button";
+            btnRm.className = "attach-thumb-remove";
+            btnRm.title = "Gỡ ảnh";
+            btnRm.textContent = "✕";
+            btnRm.onclick = () => removeAttachedFileAt(idx);
+            thumb.appendChild(img);
+            thumb.appendChild(btnRm);
+            bar.appendChild(thumb);
+        } else {
+            const chip = document.createElement("div");
+            chip.className = "attach-chip";
+            let icon = "📄";
+            if (ext === "pdf") icon = "📕";
+            else if (["docx", "doc"].includes(ext)) icon = "📘";
+            else if (["xlsx", "xls", "csv"].includes(ext)) icon = "📊";
+            chip.innerHTML = `<span class="attach-icon">${icon}</span><span class="attach-name">${escapeHtml(file.name)}</span>`;
+            const btnRm = document.createElement("button");
+            btnRm.type = "button";
+            btnRm.className = "btn-remove-attach";
+            btnRm.title = "Gỡ tệp";
+            btnRm.textContent = "✕";
+            btnRm.onclick = () => removeAttachedFileAt(idx);
+            chip.appendChild(btnRm);
+            bar.appendChild(chip);
+        }
+    });
+    bar.style.display = "flex";
+}
+
+function removeAttachedFileAt(idx) {
+    selectedFiles.splice(idx, 1);
+    selectedFile = selectedFiles[0] || null;
+    renderAttachmentPreviews();
+}
+
 function handleFilesSelected(files) {
     if (!files || files.length === 0) return;
     const incoming = Array.from(files);
     const merged = [...(Array.isArray(selectedFiles) ? selectedFiles : []), ...incoming];
     selectedFiles = merged.slice(0, 10);
     selectedFile = selectedFiles[0];
-    files = selectedFiles;
-
-    const bar = document.getElementById("attachment-preview-bar");
-    const nameSpan = document.getElementById("attach-name");
-    const iconSpan = document.getElementById("attach-icon");
-
-    if (files.length === 1) {
-        const file = files[0];
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
-            iconSpan.textContent = "🖼️";
-        } else if (["pdf"].includes(ext)) {
-            iconSpan.textContent = "📕";
-        } else if (["docx", "doc"].includes(ext)) {
-            iconSpan.textContent = "📘";
-        } else if (["xlsx", "xls", "csv"].includes(ext)) {
-            iconSpan.textContent = "📊";
-        } else {
-            iconSpan.textContent = "📄";
-        }
-        nameSpan.textContent = file.name;
-    } else {
-        iconSpan.textContent = "📁";
-        nameSpan.textContent = `${files.length} tệp đã chọn (${files[0].name}, ...)`;
-    }
-    bar.style.display = "flex";
+    renderAttachmentPreviews();
 }
 
 function handleFileSelected(file) {
