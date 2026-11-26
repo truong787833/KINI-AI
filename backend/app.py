@@ -1309,6 +1309,13 @@ async def chat_with_kini_stream(
             "BẮT BUỘC phải thực hiện phép tính cẩn thận từng bước (Double-Check), diễn giải rõ ràng phép cộng/trừ từng số hạng, "
             "tuyệt đối không được tính nhẩm sai hoặc làm tròn sai số."
         )
+    if not extracted_doc_text and re.search(r'(config\.py|app\.py|gemini_client\.py|mã nguồn|trong code|file hệ thống|trong thư mục h:\\kini_ai)', full_user_content.lower()):
+        current_content += (
+            "\n\n[CẢNH BÁO HỆ THỐNG BẮT BUỘC - CHỐNG BỊA ĐẶT MÃ NGUỒN]: "
+            "Trong phiên chat văn bản này KHÔNG có công cụ đọc file ổ đĩa nào được chạy và KHÔNG có file code nào được đính kèm. "
+            "BẮT BUỘC trả lời thật: 'Thưa anh Trường, trong luồng chat này em không thể tự đọc trực tiếp file mã nguồn hay cấu hình trên ổ đĩa nên em chưa biết chính xác nội dung bên trong. Anh vui lòng gửi đoạn code hoặc ảnh chụp lỗi lên để em kiểm tra chuẩn xác giúp anh nhé!' "
+            "TUYỆT ĐỐI CẤM tự bịa ra đoạn code mẫu hay khẳng định đã kiểm tra file!"
+        )
     formatted_history.append({"role": "user", "content": current_content})
 
     async def chat_sse_streamer():
