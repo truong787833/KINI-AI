@@ -1385,6 +1385,22 @@ async def chat_with_kini_stream(
                 # BỘ LỌC HẬU KIỂM: Loại bỏ triệt để mục Nguồn Dẫn Chứng & Tham Khảo nếu người dùng không yêu cầu
                 final_text = search_engine.clean_unwanted_citations(final_text, message)
 
+                # BỘ LỌC CHỐNG BỊA ĐẶT GHI FILE DESKTOP TRONG CHAT THƯỜNG
+                low_ft = final_text.lower()
+                if any(p in low_ft for p in [
+                    "tự động sinh ra file",
+                    "tự động tạo một tập lệnh python chạy ngầm",
+                    "kiểm tra ngay trên màn hình desktop",
+                    "đã tạo file trên desktop",
+                    "đã lưu file vào desktop",
+                ]):
+                    final_text = re.sub(
+                        r"(?im)^.*(?:tự động sinh ra file|tự động tạo một tập lệnh python chạy ngầm|kiểm tra ngay trên màn hình desktop|đã tạo file trên desktop|đã lưu file vào desktop).*$",
+                        "",
+                        final_text,
+                    ).strip()
+                    final_text += "\n\n---\n💡 **Hướng dẫn tải file thật:** Ở chế độ chat thường, em chưa tự ghi file ra Desktop. Anh bấm nút **📄 Xuất Word** ngay bên dưới để tải file `.docx` chuẩn A4 về máy, hoặc gõ **`/agent ...`** nếu muốn em tự động tạo file trực tiếp ngoài Desktop nhé!"
+
                 # Lưu vào DB
                 database.add_message(conv_id, "assistant", final_text, client_id=cid)
                 threading.Thread(
