@@ -12,18 +12,40 @@ logger = logging.getLogger("AgentEngine")
 WORKSPACE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "workspace")
 os.makedirs(WORKSPACE_DIR, exist_ok=True)
 
+def get_windows_desktop_dir() -> str:
+    """Lấy đường dẫn Desktop thực tế trên Windows (hỗ trợ cả Desktop thường và OneDrive Desktop)"""
+    home = os.path.expanduser("~")
+    d1 = os.path.join(home, "Desktop")
+    if os.path.exists(d1):
+        return d1
+    d2 = os.path.join(home, "OneDrive", "Desktop")
+    if os.path.exists(d2):
+        return d2
+    return d1
+
+def resolve_agent_path(rel_path: str) -> str:
+    """Chuẩn hóa đường dẫn thực tế: hỗ trợ C:\\..., Desktop\\..., ~/Desktop/... và workspace"""
+    clean = rel_path.strip().strip('"\'')
+    # 1. Đường dẫn tuyệt đối (C:\..., H:\...)
+    if re.match(r'^[a-zA-Z]:[\\/]', clean):
+        return os.path.abspath(clean)
+    # 2. Đường dẫn bắt đầu bằng Desktop/ hoặc ~/Desktop/
+    norm_slash = clean.replace("\\", "/")
+    if re.match(r'^(~/)?desktop(/|$)', norm_slash, re.IGNORECASE):
+        sub = re.sub(r'^(~/)?desktop/?', '', norm_slash, flags=re.IGNORECASE).lstrip("/")
+        desktop_dir = get_windows_desktop_dir()
+        return os.path.join(desktop_dir, os.path.normpath(sub)) if sub else desktop_dir
+    # 3. Mặc định trong workspace
+    clean_path = os.path.normpath(clean).lstrip("\\/.")
+    return os.path.join(WORKSPACE_DIR, clean_path)
+
 # ============================================================
 # CÁC CÔNG CỤ CỤC BỘ DÀNH CHO KINI AI AGENT
 # ============================================================
 def tool_write_file(rel_path: str, content: str) -> Dict[str, Any]:
-    """Tạo hoặc ghi đè file trên máy tính (trong workspace hoặc đường dẫn cụ thể)"""
+    """Tạo hoặc ghi đè file trên máy tính (trong workspace, Desktop hoặc đường dẫn cụ thể)"""
     try:
-        clean = rel_path.strip().strip('"\'')
-        if re.match(r'^[a-zA-Z]:[\\/]', clean):
-            full_path = os.path.abspath(clean)
-        else:
-            clean_path = os.path.normpath(clean).lstrip("\\/.")
-            full_path = os.path.join(WORKSPACE_DIR, clean_path)
+        full_path = resolve_agent_path(rel_path)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, "w", encoding="utf-8") as f:
             f.write(content)
@@ -110,14 +132,9 @@ def tool_run_command(command: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 def tool_create_folder(rel_path: str) -> Dict[str, Any]:
-    """Tạo thư mục mới trên máy tính (trong workspace hoặc đường dẫn cụ thể)"""
+    """Tạo thư mục mới trên máy tính (trong workspace, Desktop hoặc đường dẫn cụ thể)"""
     try:
-        clean = rel_path.strip().strip('"\'')
-        if re.match(r'^[a-zA-Z]:[\\/]', clean):
-            full_path = os.path.abspath(clean)
-        else:
-            clean_path = os.path.normpath(clean).lstrip("\\/.")
-            full_path = os.path.join(WORKSPACE_DIR, clean_path)
+        full_path = resolve_agent_path(rel_path)
         os.makedirs(full_path, exist_ok=True)
         display_path = os.path.relpath(full_path, WORKSPACE_DIR) if full_path.startswith(WORKSPACE_DIR) else full_path
         return {"success": True, "path": display_path.replace("\\", "/"), "full_path": full_path}
@@ -188,8 +205,10 @@ def tool_search_in_files(keyword: str) -> Dict[str, Any]:
 # ============================================================
 # SYSTEM PROMPT VÀ AGENT RUNNER LOOP CHUẨN ANTIGRAVITY
 # ============================================================
-AGENT_SYSTEM_PROMPT = """Bạn là KINI AI Autonomous Agent - Kỹ sư AI Tự Hành Tối Thượng của anh Hải Trường (chuẩn kiến trúc Antigravity).
-Nhiệm vụ của bạn là: Khi anh Trường giao một bài toán (ví dụ: làm game 2D, viết script tự động hóa, tạo website, phân tích dữ liệu), bạn KHÔNG CHỈ TRẢ LỜI BẰNG LỜI NÓI mà BẠN PHẢI TỰ ĐỘNG THỰC THI TOÀN BỘ CÔNG VIỆC VÀO Ổ ĐĨA `H:\\KINI_AI\\workspace\\`.
+AGENT_SYSTEM_PROMPT = """Bạn là KINI AI Autonomous Agent - Kỹ sư AI Tự Hành Tối Thượng (chuẩn kiến trúc Antigravity).
+Nhiệm vụ của bạn là: Khi người dùng giao việc tạo thư mục, tạo file, viết script, làm game, báo cáo..., bạn KHÔNG CHỈ TRẢ LỜI BẰNG LỜI NÓI mà PHẢI GỌI TOOL JSON ĐỂ THỰC THI THẬT LÊN Ổ ĐĨA!
+- Nếu người dùng yêu cầu tạo trên **màn hình / Desktop**: BẮT BUỘC đặt `path` bắt đầu bằng `Desktop/` (ví dụ `"Desktop/HaiTruong/CongViec"`). Hệ thống sẽ tự động ghi trực tiếp ra màn hình Desktop thực tế của Windows!
+- Nếu là dự án lập trình bình thường: đặt `path` trong workspace (ví dụ `"ten_du_an/main.py"`).
 
 BẠN CÓ CÁC CÔNG CỤ SAU (Gọi bằng định dạng JSON):
 1. Ghi file mã nguồn / tài liệu:

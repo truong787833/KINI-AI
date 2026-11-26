@@ -9,6 +9,7 @@ import time
 import sys
 import subprocess
 import urllib.parse
+import unicodedata
 from typing import Optional, List
 from datetime import datetime
 
@@ -266,6 +267,7 @@ async def chat_with_kini(
     files: Optional[List[UploadFile]] = File(None),
     is_voice_live: Optional[str] = Form("0")
 ):
+    message = unicodedata.normalize("NFC", message or "")
     cid = get_request_client_id(request)
     client_host = request.client.host if request.client else ""
     is_local = client_host in ["127.0.0.1", "localhost", "::1"]
@@ -622,7 +624,7 @@ async def chat_with_kini(
                     pending_task_from_history = m_task.group(1).strip()
                     break
 
-    is_confirmed_execution = (confirm_agent == "yes") or bool(pending_task_from_history)
+    is_confirmed_execution = is_desktop and ((confirm_agent == "yes") or bool(pending_task_from_history))
     task_to_run = task_prompt.strip() or pending_task_from_history or re.sub(r'^/agent\s*', '', message, flags=re.IGNORECASE).strip()
 
     # TRƯỜNG HỢP A: THỰC THI NGAY (Khi người dùng đã duyệt HOẶC đang ở chế độ Turbo)
@@ -898,6 +900,7 @@ async def chat_with_kini_stream(
     files: Optional[List[UploadFile]] = File(None),
     is_voice_live: Optional[str] = Form("0")
 ):
+    message = unicodedata.normalize("NFC", message or "")
     cid = get_request_client_id(request)
     client_host = request.client.host if request.client else ""
     is_local = client_host in ["127.0.0.1", "localhost", "::1"]
@@ -1090,15 +1093,20 @@ async def chat_with_kini_stream(
 
     approval_phrases = ["chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay", "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn"]
     is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in approval_phrases)
+    is_followup_path = bool(re.match(r'^[a-zA-Z0-9_\-\\/\.\:\s]{2,80}$', message.strip())) and ("\\" in message or "/" in message or len(message.strip().split()) <= 3)
     pending_task_from_history = ""
-    if is_chat_approval:
+    if is_chat_approval or is_followup_path:
         past_check = database.get_conversation_messages(conv_id)[-4:]
         for pm in reversed(past_check):
-            if pm.get("role") == "user" and any(k in pm.get("content", "").lower() for k in agent_keywords):
-                pending_task_from_history = pm.get("content", "").strip()
+            pm_nfc = unicodedata.normalize("NFC", pm.get("content", "")).lower()
+            if pm.get("role") == "user" and any(k in pm_nfc for k in agent_keywords):
+                if is_followup_path and not is_chat_approval:
+                    pending_task_from_history = f"{pm.get('content', '').strip()} với tên/đường dẫn: {message.strip()}"
+                else:
+                    pending_task_from_history = pm.get("content", "").strip()
                 break
 
-    is_confirmed_execution = (confirm_agent == "yes") or bool(pending_task_from_history)
+    is_confirmed_execution = is_desktop and ((confirm_agent == "yes") or bool(pending_task_from_history))
     task_to_run = task_prompt.strip() or pending_task_from_history or re.sub(r'^/agent\s*', '', message, flags=re.IGNORECASE).strip()
 
     if (is_agent_cmd and active_agent_mode == "turbo") or (is_confirmed_execution and task_to_run):
