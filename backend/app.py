@@ -1642,6 +1642,92 @@ def remove_rag_document(doc_id: int, request: Request):
     ok = rag_engine.delete_document(doc_id, client_id=cid)
     return {"success": ok}
 
+
+# ============================================================
+# 5.0D. KÉT SẮT ĐỒNG BỘ VĨNH VIỄN TRÊN WEB (PERSISTENT WEB VAULT)
+# ============================================================
+@app.get("/api/client/vault")
+def export_client_vault(request: Request):
+    cid = get_request_client_id(request)
+    keys_to_save = [
+        "gemini_api_key", "gemini_api_keys_pool", "custom_persona",
+        "ollama_enabled", "ollama_model", "user_call_name", "ai_call_name",
+        "user_name", "user_email", "is_owner",
+    ]
+    settings_snap = {}
+    for k in keys_to_save:
+        val = database.get_setting(k, "", client_id=cid)
+        if val:
+            settings_snap[k] = val
+
+    mems = database.get_all_memories(limit=100, client_id=cid)
+    memories_snap = [{"fact": m.get("fact", ""), "category": m.get("category", "auto")} for m in mems if m.get("fact")]
+
+    rag_snap = []
+    try:
+        rag_engine.init_rag_tables()
+        conn = database.get_connection()
+        docs = rag_engine.list_documents(client_id=cid)
+        total_chars = 0
+        for d in docs[:10]:
+            rows = conn.execute(
+                "SELECT content FROM rag_chunks WHERE doc_id = ? AND client_id = ? ORDER BY chunk_index ASC",
+                (d["id"], cid),
+            ).fetchall()
+            full_txt = "\n\n".join(r["content"] for r in rows)
+            if total_chars + len(full_txt) <= 350000:
+                rag_snap.append({"filename": d["filename"], "text": full_txt})
+                total_chars += len(full_txt)
+        conn.close()
+    except Exception:
+        pass
+
+    return {
+        "client_id": cid,
+        "settings": settings_snap,
+        "memories": memories_snap,
+        "rag_docs": rag_snap,
+    }
+
+
+@app.post("/api/client/restore-vault")
+def restore_client_vault(payload: dict, request: Request):
+    cid = get_request_client_id(request)
+    restored = {"settings": 0, "memories": 0, "rag_docs": 0}
+
+    settings_snap = payload.get("settings") or {}
+    allowed_keys = {
+        "gemini_api_key", "gemini_api_keys_pool", "custom_persona",
+        "ollama_enabled", "ollama_model", "user_call_name", "ai_call_name",
+        "user_name", "user_email", "is_owner",
+    }
+    for k, v in settings_snap.items():
+        if k in allowed_keys and isinstance(v, str) and v.strip():
+            existing = database.get_setting(k, "", client_id=cid)
+            if not existing:
+                database.set_setting(k, v.strip(), client_id=cid)
+                restored["settings"] += 1
+
+    memories_snap = payload.get("memories") or []
+    if memories_snap and not database.get_all_memories(limit=1, client_id=cid):
+        for m in memories_snap[:100]:
+            fact = str(m.get("fact") or "").strip()
+            cat = str(m.get("category") or "auto").strip()
+            if fact:
+                database.add_memory(fact, category=cat, client_id=cid)
+                restored["memories"] += 1
+
+    rag_snap = payload.get("rag_docs") or []
+    if rag_snap and not rag_engine.list_documents(client_id=cid):
+        for doc in rag_snap[:10]:
+            fname = str(doc.get("filename") or "").strip()
+            txt = str(doc.get("text") or "").strip()
+            if fname and txt:
+                rag_engine.index_document(fname, txt, client_id=cid)
+                restored["rag_docs"] += 1
+
+    return {"success": True, "restored": restored}
+
 # ============================================================
 # 5.1. KINI AI AGENT TỰ HÀNH (AUTONOMOUS AGENT CHUẨN ANTIGRAVITY)
 # ============================================================

@@ -91,6 +91,7 @@ function initApp() {
     try { initMemories(); } catch(e) { console.error("initMemories:", e); }
     try { updateMemoryCountBadge(); } catch(e) { console.error("updateMemoryCountBadge:", e); }
     try { initSettings(); } catch(e) { console.error("initSettings:", e); }
+    try { restoreClientVaultFromBrowserIfNeeded(); } catch(e) { console.error("restoreVault:", e); }
     try { initKeyboardShortcuts(); } catch(e) { console.error("initKeyboardShortcuts:", e); }
     try { initAntigravityIDE(); } catch(e) { console.error("initAntigravityIDE:", e); }
     try { loadConversations(true); } catch(e) { console.error("loadConversations:", e); }
@@ -1655,6 +1656,7 @@ async function updateMemoryCountBadge() {
         const data = await res.json();
         const badge = document.getElementById("memory-badge-count");
         if (badge && data.memories) badge.textContent = data.memories.length;
+        if (typeof scheduleVaultSync === "function") scheduleVaultSync();
     } catch (e) {}
 }
 
@@ -1834,6 +1836,7 @@ function initSettings() {
                 })
             });
             updateAgentModeUI(agentModeVal);
+            if (typeof syncClientVaultToBrowser === "function") syncClientVaultToBrowser();
             alert("Đã lưu cài đặt KINI AI thành công!");
             closeModal("modal-settings");
         } catch (e) {
@@ -5196,6 +5199,7 @@ async function loadRagDocuments() {
 async function deleteRagDocument(docId) {
     await fetch(`/api/rag/documents/${docId}`, { method: "DELETE" });
     loadRagDocuments();
+    if (typeof scheduleVaultSync === "function") scheduleVaultSync();
 }
 
 document.getElementById("rag-file-input")?.addEventListener("change", async (e) => {
@@ -5252,4 +5256,52 @@ function kiniConfirm(title = "Xác nhận xóa", message = "Bạn có chắc ch�
             if (e.target === modal) cleanup(false);
         };
     });
+}
+
+
+// ============================================================
+// KÉT SẮT ĐỒNG BỘ VĨNH VIỄN TRÊN WEB (PERSISTENT WEB VAULT)
+// ============================================================
+let _vaultSyncTimer = null;
+function scheduleVaultSync() {
+    if (_vaultSyncTimer) clearTimeout(_vaultSyncTimer);
+    _vaultSyncTimer = setTimeout(() => {
+        if (typeof syncClientVaultToBrowser === "function") syncClientVaultToBrowser();
+    }, 2500);
+}
+
+async function syncClientVaultToBrowser() {
+    try {
+        const res = await fetch("/api/client/vault");
+        if (!res.ok) return;
+        const vault = await res.json();
+        localStorage.setItem("kini_vault_" + kiniClientId, JSON.stringify(vault));
+    } catch (e) {}
+}
+
+async function restoreClientVaultFromBrowserIfNeeded() {
+    try {
+        const raw = localStorage.getItem("kini_vault_" + kiniClientId);
+        if (!raw) {
+            await syncClientVaultToBrowser();
+            return;
+        }
+        const vault = JSON.parse(raw);
+        const res = await fetch("/api/client/restore-vault", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(vault),
+        });
+        const data = await res.json();
+        const r = data.restored || {};
+        if ((r.settings || 0) > 0 || (r.memories || 0) > 0 || (r.rag_docs || 0) > 0) {
+            if (typeof loadSettings === "function") loadSettings();
+            if (typeof updateMemoryCountBadge === "function") updateMemoryCountBadge();
+            if (typeof showToast === "function") {
+                showToast("🛡️ Đã tự động khôi phục API Key, Ký ức & Tài liệu của bạn!");
+            }
+        } else {
+            await syncClientVaultToBrowser();
+        }
+    } catch (e) {}
 }
