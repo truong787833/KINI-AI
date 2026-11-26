@@ -458,8 +458,11 @@ function closeModal(id) {
 
 function handleFilesSelected(files) {
     if (!files || files.length === 0) return;
-    selectedFiles = files;
-    selectedFile = files[0];
+    const incoming = Array.from(files);
+    const merged = [...(Array.isArray(selectedFiles) ? selectedFiles : []), ...incoming];
+    selectedFiles = merged.slice(0, 10);
+    selectedFile = selectedFiles[0];
+    files = selectedFiles;
 
     const bar = document.getElementById("attachment-preview-bar");
     const nameSpan = document.getElementById("attach-name");
@@ -4605,8 +4608,9 @@ async function loadDeviceIdentity() {
             currentDeviceIdentity = data;
             renderDeviceIdentityUI(data);
 
-            // Nếu thiết bị mới hoàn toàn chưa từng cấu hình danh tính
-            if (!data.has_configured) {
+            // Nếu thiết bị mới hoàn toàn chưa từng cấu hình danh tính (và chưa có Web Vault trên trình duyệt)
+            const hasLocalVault = localStorage.getItem("kini_onboarded_" + kiniClientId) === "1" || !!localStorage.getItem("kini_vault_" + kiniClientId);
+            if (!data.has_configured && !hasLocalVault) {
                 const modalOnboarding = document.getElementById("modal-onboarding-welcome");
                 if (modalOnboarding) modalOnboarding.style.display = "flex";
             }
@@ -4670,6 +4674,7 @@ function initOnboardingWelcomeModal() {
                 });
 
                 if (res.ok) {
+                    localStorage.setItem("kini_onboarded_" + kiniClientId, "1");
                     modal.style.display = "none";
                     showToast(`🎉 Chào mừng ${userCall} ${name} đến với KINI AI!`);
                     await loadDeviceIdentity();

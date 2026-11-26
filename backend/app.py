@@ -363,6 +363,7 @@ async def chat_with_kini(
     file_display_name = ""
     image_base64 = None
     image_mime = "image/jpeg"
+    extra_images = []
     extracted_doc_text = ""
 
     # 1. Xử lý tệp đính kèm (Đơn lẻ, Hàng loạt hoặc Thư mục tải lên)
@@ -381,9 +382,13 @@ async def chat_with_kini(
         
         # Nếu là file ảnh
         if ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+            b64_img = base64.b64encode(content_bytes).decode("utf-8")
+            mime_img = item.content_type or "image/jpeg"
             if not image_base64:
-                image_base64 = base64.b64encode(content_bytes).decode("utf-8")
-                image_mime = item.content_type or "image/jpeg"
+                image_base64 = b64_img
+                image_mime = mime_img
+            else:
+                extra_images.append({"base64": b64_img, "mime": mime_img})
             save_name = f"upload_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"
             save_path = os.path.join(IMAGES_DIR, save_name)
             with open(save_path, "wb") as f:
@@ -841,7 +846,8 @@ async def chat_with_kini(
         image_base64=image_base64,
         image_mime=image_mime,
         model_mode=model_mode,
-        client_id=cid
+        client_id=cid,
+        extra_images=extra_images
     )
 
     assistant_reply = res.get("reply", "Xin lỗi, đã xảy ra lỗi trong quá trình xử lý.")
@@ -1007,6 +1013,7 @@ async def chat_with_kini_stream(
     file_display_name = ""
     image_base64 = None
     image_mime = "image/jpeg"
+    extra_images = []
     extracted_doc_text = ""
 
     upload_list = []
@@ -1021,9 +1028,13 @@ async def chat_with_kini_stream(
         content_bytes = await item.read()
         ext = os.path.splitext(item.filename)[1].lower()
         if ext in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+            b64_img = base64.b64encode(content_bytes).decode("utf-8")
+            mime_img = item.content_type or "image/jpeg"
             if not image_base64:
-                image_base64 = base64.b64encode(content_bytes).decode("utf-8")
-                image_mime = item.content_type or "image/jpeg"
+                image_base64 = b64_img
+                image_mime = mime_img
+            else:
+                extra_images.append({"base64": b64_img, "mime": mime_img})
             save_name = f"upload_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}{ext}"
             save_path = os.path.join(IMAGES_DIR, save_name)
             with open(save_path, "wb") as f:
@@ -1309,7 +1320,8 @@ async def chat_with_kini_stream(
             image_base64=image_base64,
             image_mime=image_mime,
             model_mode=model_mode,
-            client_id=cid
+            client_id=cid,
+            extra_images=extra_images
         ):
             if item.get("error"):
                 err_text = f"⚠️ {item['error']}"

@@ -491,7 +491,8 @@ def ask_gemini(
     image_base64: Optional[str] = None,
     image_mime: str = "image/jpeg",
     model_mode: str = "flash",
-    client_id: str = "master"
+    client_id: str = "master",
+    extra_images: Optional[List[Dict[str, str]]] = None
 ) -> Dict[str, Any]:
     """
     Gửi câu hỏi / hội thoại tới Google Gemini API với nhiệt độ thấp (0.15) để đảm bảo độ chuẩn xác tối đa.
@@ -517,14 +518,23 @@ def ask_gemini(
             "parts": [{"text": msg["content"]}]
         })
 
-    # Nếu có ảnh đính kèm (Vision)
-    if image_base64 and contents:
-        contents[-1]["parts"].append({
-            "inline_data": {
-                "mime_type": image_mime,
-                "data": image_base64
-            }
-        })
+    # Nếu có ảnh đính kèm (Vision - hỗ trợ đơn lẻ và nhiều ảnh cùng lúc)
+    if (image_base64 or extra_images) and contents:
+        if image_base64:
+            contents[-1]["parts"].append({
+                "inline_data": {
+                    "mime_type": image_mime,
+                    "data": image_base64
+                }
+            })
+        for img in (extra_images or []):
+            if img.get("base64"):
+                contents[-1]["parts"].append({
+                    "inline_data": {
+                        "mime_type": img.get("mime", "image/jpeg"),
+                        "data": img["base64"]
+                    }
+                })
 
     # Cấu hình nhiệt độ thấp (0.15) để loại bỏ ảo giác, đảm bảo tính chuẩn xác và trung thực tuyệt đối
     payload = {
@@ -641,7 +651,8 @@ def ask_gemini_stream(
     image_mime: str = "image/jpeg",
     system_instruction: Optional[str] = None,
     model_mode: str = "flash",
-    client_id: str = "master"
+    client_id: str = "master",
+    extra_images: Optional[List[Dict[str, str]]] = None
 ):
     """
     Phát trực tuyến (Streaming SSE) câu trả lời từ Google Gemini từng từ thời gian thực.
@@ -667,19 +678,28 @@ def ask_gemini_stream(
         parts = [{"text": msg["content"]}]
         contents.append({"role": role, "parts": parts})
 
-    if image_base64 and contents:
+    if (image_base64 or extra_images) and contents:
         last_user_idx = -1
         for i in range(len(contents) - 1, -1, -1):
             if contents[i]["role"] == "user":
                 last_user_idx = i
                 break
         if last_user_idx != -1:
-            contents[last_user_idx]["parts"].append({
-                "inlineData": {
-                    "mimeType": image_mime,
-                    "data": image_base64
-                }
-            })
+            if image_base64:
+                contents[last_user_idx]["parts"].append({
+                    "inlineData": {
+                        "mimeType": image_mime,
+                        "data": image_base64
+                    }
+                })
+            for img in (extra_images or []):
+                if img.get("base64"):
+                    contents[last_user_idx]["parts"].append({
+                        "inlineData": {
+                            "mimeType": img.get("mime", "image/jpeg"),
+                            "data": img["base64"]
+                        }
+                    })
 
     payload = {
         "contents": contents,
@@ -769,7 +789,8 @@ def ask_gemini_stream(
         image_mime=image_mime,
         system_instruction=sys_inst,
         model_mode=model_mode,
-        client_id=client_id
+        client_id=client_id,
+        extra_images=extra_images
     )
     if fallback_res.get("success"):
         yield {
