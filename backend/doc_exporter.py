@@ -449,17 +449,18 @@ def export_text_to_docx(content: str, title: str = "Tài Liệu KINI AI") -> str
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             else:
                 p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                p.paragraph_format.first_line_indent = Mm(10)
                 p.paragraph_format.space_before = Pt(6)
             _add_formatted_runs(p, level_text, font_size=14, default_bold=True)
         elif re.match(r"^[IVX]+\.\s+", plain_check):
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            p.paragraph_format.first_line_indent = Mm(12.7)
+            p.paragraph_format.first_line_indent = Mm(10)
             p.paragraph_format.space_before = Pt(6)
             p.paragraph_format.space_after = Pt(4)
             _add_formatted_runs(p, stripped, font_size=14, default_bold=True)
         elif re.match(r"^\d+\.\s+[^:]{2,80}:", plain_check):
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            p.paragraph_format.first_line_indent = Mm(12.7)
+            p.paragraph_format.first_line_indent = Mm(10)
             colon_pos = stripped.find(":")
             head_part = stripped[:colon_pos + 1].replace("**", "")
             tail_part = stripped[colon_pos + 1:].lstrip()
@@ -469,11 +470,11 @@ def export_text_to_docx(content: str, title: str = "Tài Liệu KINI AI") -> str
             if tail_part:
                 _add_formatted_runs(p, " " + tail_part, font_size=14, default_bold=False)
         elif stripped.startswith("- ") or (stripped.startswith("* ") and not stripped.endswith("*")):
-            p.paragraph_format.left_indent = Mm(12.7)
+            p.paragraph_format.first_line_indent = Mm(10)
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
             _add_formatted_runs(p, "- " + stripped[2:].strip(), font_size=14)
         else:
-            p.paragraph_format.first_line_indent = Mm(12.7)
+            p.paragraph_format.first_line_indent = Mm(10)
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
             _add_formatted_runs(p, stripped, font_size=14)
 
