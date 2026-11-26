@@ -4337,12 +4337,19 @@ async function processVoiceLiveTurn(userSpokenText) {
             formData.append("platform", isDesktopApp ? "desktop" : "web");
 
             let res;
+            const chatCtrl = new AbortController();
+            const chatTmr = setTimeout(() => chatCtrl.abort(), 16000);
             try {
-                res = await fetch("/api/chat", { method: "POST", body: formData });
+                res = await fetch("/api/chat", { method: "POST", body: formData, signal: chatCtrl.signal });
+                clearTimeout(chatTmr);
                 if (!res.ok) throw new Error("HTTP " + res.status);
             } catch (_netErr) {
+                clearTimeout(chatTmr);
                 await new Promise(r => setTimeout(r, 600));
-                res = await fetch("/api/chat", { method: "POST", body: formData });
+                const retryCtrl = new AbortController();
+                const retryTmr = setTimeout(() => retryCtrl.abort(), 16000);
+                res = await fetch("/api/chat", { method: "POST", body: formData, signal: retryCtrl.signal });
+                clearTimeout(retryTmr);
                 if (!res.ok) throw new Error("HTTP " + res.status);
             }
             const data = await res.json();
@@ -4424,13 +4431,21 @@ async function processVoiceLiveTurn(userSpokenText) {
 
     } catch(err) {
         console.warn("Lỗi xử lý Voice Live:", err);
+        const btnInterrupt = document.getElementById("btn-voice-interrupt");
+        if (btnInterrupt) btnInterrupt.style.display = "none";
         if (voiceLiveActive) {
-            setVoiceLiveOrbState("listening", "Đã có lỗi kết nối. Hãy thử nói lại...");
-            setTimeout(() => {
-                voiceLiveIsProcessing = false;
-                voiceLiveState = "listening";
-                startVoiceLiveListening();
-            }, 1000);
+            const errMsg = "Mạng vừa chập chờn tạm thời, anh nói lại giúp em nhé!";
+            appendVoiceLiveTranscript("assistant", "⚠️ " + errMsg);
+            voiceLiveState = "speaking";
+            setVoiceLiveOrbState("speaking", "⚠️ Mạng chập chờn — đang báo lại...");
+            speakWithBrowserSpeech(errMsg, () => {
+                if (voiceLiveActive) {
+                    voiceLiveIsProcessing = false;
+                    voiceLiveState = "listening";
+                    setVoiceLiveOrbState("listening", "Đang lắng nghe lại...");
+                    startVoiceLiveListening();
+                }
+            });
         }
     }
 }

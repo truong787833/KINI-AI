@@ -852,8 +852,8 @@ async def chat_with_kini(
 
     assistant_reply = res.get("reply", "Xin lỗi, đã xảy ra lỗi trong quá trình xử lý.")
 
-    # Bước 2 (Tự phản biện cho câu hỏi khó)
-    if res.get("success") and gemini_client.is_hard_question(message, model_mode=model_mode):
+    # Bước 2 (Tự phản biện cho câu hỏi khó - bỏ qua khi đang Voice Live để phản hồi tức thì)
+    if res.get("success") and is_voice_live != "1" and gemini_client.is_hard_question(message, model_mode=model_mode):
         try:
             verified = gemini_client.verify_and_refine_answer(
                 user_query=message,
