@@ -39,30 +39,38 @@ def clean_image_watermark(image_path: str):
 
 def optimize_prompt_with_gemini(prompt: str, style: str = "realistic", api_key: str = "") -> str:
     """
-    Sử dụng Gemini AI để dịch và tối ưu hóa mô tả tiếng Việt thành Prompt tiếng Anh đỉnh cao.
-    Đặc biệt thấu hiểu sâu sắc ngữ cảnh văn hóa Việt:
-    - Nhận biết 'Mây và Gạo' là bộ đôi em bé/nhân vật 3D đáng yêu của anh Trường (không dịch nhầm thành gạo trắng và đám mây).
-    - Tự động kiến tạo bố cục 3D Pixar, Badge Logo viền vàng bóng bẩy chuẩn 8K.
+    Sử dụng Gemini AI để dịch và tối ưu hóa mô tả tiếng Việt thành Prompt tiếng Anh đỉnh cao,
+    chuẩn xác đúng nội dung người dùng yêu cầu và am hiểu văn hóa Việt Nam.
     """
     try:
         from . import gemini_client
+        p_low = prompt.lower()
+        extra_rules = ""
+        if any(k in p_low for k in ["mây", "gạo", "chip chip", "chipchip"]):
+            extra_rules += (
+                "- SPECIAL CONTEXT: 'Mây' and 'Gạo' are the cute names of two lovely Vietnamese toddler children. "
+                "NEVER translate to literal rice grains or sky clouds.\n"
+            )
+        if any(k in p_low for k in ["cờ tổ quốc", "quốc kỳ", "cờ việt nam", "cờ đỏ sao vàng", "lá cờ việt"]):
+            extra_rules += (
+                "- VIETNAMESE NATIONAL FLAG (CRITICAL): 'cờ tổ quốc' / 'quốc kỳ' ALWAYS means the **National Flag of Vietnam**! "
+                "Describe it explicitly as: 'a vibrant crimson red flag with a single large sharp five-pointed golden yellow star centered cleanly in the middle (National Flag of Vietnam), waving heroically in golden sunlight'. "
+                "STRICTLY FORBIDDEN to generate the US flag or any other country's flag.\n"
+            )
+
         sys_prompt = (
-            "You are a world-class AI Image Prompt Engineer specializing in Midjourney v6, FLUX.1, and DALL-E 3.\n"
-            "Convert the Vietnamese request into ONE ultra-detailed, artistic English prompt paragraph for image generation.\n\n"
-            "CRITICAL CONTEXT & RULES:\n"
-            "1. POSTER / CANDY / PRODUCT / CHILDREN (keywords: kẹo dẻo, chip chip, poster, mây, gạo, trẻ em, bánh kẹo):\n"
-            "   - 'Mây' and 'Gạo' are the cute names of two lovely toddler children or adorable 3D mascot characters! NEVER translate to literal rice grains or sky clouds!\n"
-            "   - Output a stunning commercial 3D circular poster badge in Disney Pixar animation aesthetic.\n"
-            "   - Featuring two extremely cute chubby Asian toddlers (a boy and a girl, named Mây & Gạo) with big sparkling expressive eyes and joyful rosy smiles, eating and holding colorful glossy fruit gummy bears and translucent jelly candies.\n"
-            "   - Front 3D glossy candy jelly typography reads 'ChipChip Mây & Gạo', surrounded by swirling splashes of vibrant fruit juices, floating gummy candies, glossy golden circular frame, festive bright studio lighting, Octane 3D render, 8K resolution, masterpiece, clean colorful background.\n"
-            "2. ROBOT / KINI AI / LOGO BADGE (keywords: robot, kini, logo kini, mascot, biểu tượng):\n"
-            "   - A magnificent 3D circular emblem badge featuring a cute friendly metallic AI robot mascot with big glowing cyan neon eyes, pink ball antenna, waving hands, bold 3D glossy gradient typography 'KINI AI' and golden ribbon banner 'ULTIMATE AI OS', circular metallic gold ring frame, floating sparkles and energy circuits, 8K resolution, Disney Pixar 3D aesthetic.\n"
-            "3. GENERAL 3D & ANIMATION: 'Adorable 3D Pixar character/scene, [description], vibrant saturated colors, subsurface scattering, dramatic soft studio lighting, Octane render, 8K, cinematic composition'.\n"
-            "4. REALISTIC PHOTOGRAPHY: 'Hyper-realistic 8K photograph, [description], studio lighting, master quality, shallow depth of field'.\n\n"
-            "Output ONLY the final English prompt. No explanations, no markdown, no quotes."
+            "You are a world-class AI Image Prompt Engineer specializing in FLUX.1, Midjourney v6, and DALL-E 3.\n"
+            "Convert the user's request faithfully into ONE ultra-detailed, artistic English prompt paragraph.\n\n"
+            "STRICT RULES:\n"
+            "1. FAITHFULNESS: Follow ONLY what the user actually asked for! NEVER invent random children, babies, or unrelated characters unless the user explicitly asked for them.\n"
+            "2. VIETNAMESE CULTURAL ACCURACY: Understand Vietnamese terms accurately (e.g., 'cờ tổ quốc' = National Flag of Vietnam: red background with one large 5-pointed yellow star in the center; 'áo dài' = traditional Vietnamese dress; 'chùa Một Cột', 'Hồ Gươm', etc.).\n"
+            f"{extra_rules}"
+            "3. 3D LOGO / BADGE (if requested): Design a sleek, clean, luxury 3D metallic & glass circular emblem badge with crisp lighting, Octane 3D render, Pixar-grade material quality, 8K, centered composition, NO distorted faces.\n"
+            "4. REALISTIC PHOTOGRAPHY (if requested): Hyper-realistic 8K DSLR photograph, natural lighting, sharp focus, dramatic composition, no AI artifacts.\n"
+            "5. Output ONLY the final English prompt. No explanations, no markdown, no quotes."
         )
         res = gemini_client.ask_gemini(
-            messages=[{"role": "user", "content": f"Tạo prompt FLUX.1 cho: '{prompt}' - Phong cách: {style}"}],
+            messages=[{"role": "user", "content": f"Create a faithful, ultra-high quality FLUX.1 English prompt for: '{prompt}' (Art style: {style})"}],
             api_key=api_key,
             system_instruction=sys_prompt
         )
