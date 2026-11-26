@@ -81,15 +81,17 @@ body {
     display: flex;
 }
 
-/* Background Ambient Lighting Effect */
+/* Background Ambient Lighting Effect - Seamless Full-Viewport Aurora */
 body::before {
     content: '';
     position: fixed;
-    top: -20%;
-    left: 20%;
-    width: 60vw;
-    height: 60vh;
-    background: radial-gradient(circle, rgba(78, 128, 238, 0.08) 0%, rgba(168, 85, 247, 0.05) 50%, transparent 70%);
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(ellipse 65% 45% at 60% 0%, rgba(56, 189, 248, 0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 45% at 25% 10%, rgba(139, 92, 246, 0.06) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 75% 95%, rgba(14, 165, 233, 0.05) 0%, transparent 70%);
     pointer-events: none;
     z-index: 0;
 }
@@ -927,14 +929,16 @@ body::before {
 }
 
 .message-row.user .message-bubble {
-    background: linear-gradient(135deg, #2b396b, #1f2747);
-    border: 1px solid rgba(78, 128, 238, 0.3);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.34), rgba(124, 58, 237, 0.28));
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(56, 189, 248, 0.35);
     border-radius: 18px 18px 4px 18px;
     padding: 12px 18px;
-    color: #fff;
+    color: #f8fafc;
     font-size: 0.96rem;
     line-height: 1.5;
     word-break: break-word;
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.16);
 }
 
 .message-row.assistant .message-bubble {
@@ -2165,7 +2169,12 @@ body::before {
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 18px !important;
+    padding: 10px 18px !important;
+    background: rgba(15, 23, 42, 0.65) !important;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
 }
 
 .thinking-dots {
