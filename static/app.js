@@ -1310,10 +1310,15 @@ async function confirmAndRunAgent(taskPrompt) {
         formData.append("agent_mode", currentAgentMode);
         formData.append("platform", isDesktopApp ? "desktop" : "web");
 
-        const res = await fetch("/api/chat", {
-            method: "POST",
-            body: formData
-        });
+        let res;
+        try {
+            res = await fetch("/api/chat", { method: "POST", body: formData });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+        } catch (_netErr) {
+            await new Promise(r => setTimeout(r, 600));
+            res = await fetch("/api/chat", { method: "POST", body: formData });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+        }
         const data = await res.json();
         removeLoadingMessage(loadingId);
         if (data.reply) {
@@ -4180,7 +4185,7 @@ function startVoiceLiveListening() {
                     voiceLiveLastTranscript = "";
                     processVoiceLiveTurn(toSend);
                 }
-            }, 1100);
+            }, 750);
         }
     };
 
@@ -4254,10 +4259,15 @@ async function processVoiceLiveTurn(userSpokenText) {
         formData.append("is_voice_live", "1");
         formData.append("platform", isDesktopApp ? "desktop" : "web");
 
-        const res = await fetch("/api/chat", {
-            method: "POST",
-            body: formData
-        });
+        let res;
+        try {
+            res = await fetch("/api/chat", { method: "POST", body: formData });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+        } catch (_netErr) {
+            await new Promise(r => setTimeout(r, 600));
+            res = await fetch("/api/chat", { method: "POST", body: formData });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+        }
         const data = await res.json();
         const reply = data.reply || "Dạ, em nghe rõ rồi ạ.";
         
@@ -4281,7 +4291,7 @@ async function processVoiceLiveTurn(userSpokenText) {
         };
 
         const ttsController = new AbortController();
-        const ttsTimeoutId = setTimeout(() => ttsController.abort(), 2600);
+        const ttsTimeoutId = setTimeout(() => ttsController.abort(), 1300);
 
         try {
             const ttsRes = await fetch("/api/tts", {
