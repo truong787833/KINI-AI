@@ -4214,6 +4214,16 @@ function startVoiceLiveListening() {
 let voiceLiveLastSentText = "";
 let voiceLiveLastSentTime = 0;
 
+function isVoiceStopCommand(text) {
+    const low = (text || "").normalize("NFC").toLowerCase().trim();
+    const stopPhrases = [
+        "tắt cuộc hội thoại", "tắt hội thoại", "kết thúc đàm thoại", "kết thúc cuộc hội thoại",
+        "dừng voice", "tắt voice", "tắt mic", "dừng lại", "ngừng nói", "thôi nhé", "tạm biệt",
+        "tắt đi", "đóng lại", "nghỉ nhé", "stop voice", "bye", "goodbye"
+    ];
+    return stopPhrases.some(p => low.includes(p));
+}
+
 async function processVoiceLiveTurn(userSpokenText) {
     // Chặn tuyệt đối lặp lượt / race condition
     if (!voiceLiveActive || voiceLiveIsProcessing) return;
@@ -4251,35 +4261,45 @@ async function processVoiceLiveTurn(userSpokenText) {
     appendVoiceLiveTranscript("user", userSpokenText);
 
     try {
-        const formData = new FormData();
-        formData.append("conv_id", currentConvId);
-        formData.append("message", userSpokenText);
-        formData.append("model_mode", "flash");
-        formData.append("agent_mode", currentAgentMode);
-        formData.append("is_voice_live", "1");
-        formData.append("platform", isDesktopApp ? "desktop" : "web");
+        const wantsToStopVoice = isVoiceStopCommand(cleanSpoken);
+        let reply = "";
+        if (wantsToStopVoice) {
+            reply = "Dạ, em tắt cuộc hội thoại ngay đây ạ. Tạm biệt anh, khi nào cần anh gọi em nhé!";
+        } else {
+            const formData = new FormData();
+            formData.append("conv_id", currentConvId);
+            formData.append("message", userSpokenText);
+            formData.append("model_mode", "flash");
+            formData.append("agent_mode", currentAgentMode);
+            formData.append("is_voice_live", "1");
+            formData.append("platform", isDesktopApp ? "desktop" : "web");
 
-        let res;
-        try {
-            res = await fetch("/api/chat", { method: "POST", body: formData });
-            if (!res.ok) throw new Error("HTTP " + res.status);
-        } catch (_netErr) {
-            await new Promise(r => setTimeout(r, 600));
-            res = await fetch("/api/chat", { method: "POST", body: formData });
-            if (!res.ok) throw new Error("HTTP " + res.status);
+            let res;
+            try {
+                res = await fetch("/api/chat", { method: "POST", body: formData });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+            } catch (_netErr) {
+                await new Promise(r => setTimeout(r, 600));
+                res = await fetch("/api/chat", { method: "POST", body: formData });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+            }
+            const data = await res.json();
+            reply = data.reply || "Dạ, em nghe rõ rồi ạ.";
         }
-        const data = await res.json();
-        const reply = data.reply || "Dạ, em nghe rõ rồi ạ.";
         
         appendVoiceLiveTranscript("assistant", reply);
 
         // Gọi TTS để đọc câu trả lời với cơ chế đa tầng (Không bao giờ bị câm hoặc chậm trễ)
         voiceLiveState = "speaking";
-        setVoiceLiveOrbState("speaking", "KINI AI đang trả lời...");
+        setVoiceLiveOrbState("speaking", wantsToStopVoice ? "Đang tắt cuộc hội thoại..." : "KINI AI đang trả lời...");
 
         let audioPlayed = false;
 
         const resumeListening = () => {
+            if (wantsToStopVoice) {
+                stopVoiceLiveSession();
+                return;
+            }
             if (voiceLiveActive) {
                 setVoiceLiveOrbState("listening", "Đang lắng nghe lượt tiếp theo...");
                 setTimeout(() => {
