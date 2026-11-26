@@ -63,6 +63,31 @@ def get_index():
 # ============================================================
 # 1. HỘI THOẠI & CHAT CHUẨN GEMINI (HỖ TRỢ ĐA NGƯỜI DÙNG / THIẾT BỊ ĐỘC LẬP)
 # ============================================================
+AGENT_KEYWORDS = [
+    "tạo thư mục", "tạo folder", "lập thư mục", "tạo cho tôi thư mục", "tạo tệp", "tạo file", 
+    "viết file", "tạo dự án", "lập trình dự án", "tạo game", "làm game", "viết code game", 
+    "viết script", "tạo script", "chạy lệnh", "agent hãy", "tự động làm", "tạo luôn cho tôi", 
+    "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm",
+    "tạo file docx", "tạo file word", "tạo file excel", "tạo file trên desktop", "tạo trên desktop",
+    "tạo file báo cáo", "làm bài báo cáo", "làm 1 bài báo cáo", "làm kế hoạch", "tạo file kế hoạch",
+    "tạo trên màn hình desktop", "tạo web app", "tạo webapp", "tạo ứng dụng", "làm ứng dụng",
+    "tạo trang web", "làm trang web", "tạo website", "làm website", "tạo phần mềm", "làm phần mềm"
+]
+
+APPROVAL_PHRASES = [
+    "chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay",
+    "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn",
+    "có", "ok", "ừ", "yes", "tạo đi", "tạo ngay", "viết đi", "làm luôn", "tạo luôn"
+]
+
+def is_agent_intent(msg: str) -> bool:
+    m = unicodedata.normalize("NFC", msg or "").lower().strip()
+    if m.startswith("/agent") or any(k in m for k in AGENT_KEYWORDS):
+        return True
+    if re.search(r'(tạo|làm|viết|xây\s*dựng|lập\s*trình)\s+(cho\s+)?(anh|em|tôi|mình|bạn)?\s*(1|một|cái)?\s*(ứng\s*dụng|web\s*app|webapp|trang\s*web|website|game|trò\s*chơi|tool|công\s*cụ|phần\s*mềm|chương\s*trình|app|thư\s*mục|folder|file|tệp|script)', m):
+        return True
+    return False
+
 def get_request_client_id(request: Request) -> str:
     cid = request.headers.get("x-client-id", "").strip()
     if not cid:
@@ -559,22 +584,7 @@ async def chat_with_kini(
 
     # 3. KIỂM TRA Ý ĐỊNH AGENT TỰ HÀNH CHUẨN ANTIGRAVITY (Hỏi trước hoặc Tự hành Turbo)
     msg_low = message.lower().strip()
-    agent_keywords = [
-        "tạo thư mục", "tạo folder", "lập thư mục", "tạo cho tôi thư mục", "tạo tệp", "tạo file", 
-        "viết file", "tạo dự án", "lập trình dự án", "tạo game", "làm game", "viết code game", 
-        "viết script", "tạo script", "chạy lệnh", "agent hãy", "tự động làm", "tạo luôn cho tôi", 
-        "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm",
-        "tự làm hết", "em tự làm", "tự động tạo", "làm luôn cho anh", "làm luôn", "tạo thành ứng dụng",
-        "tạo ứng dụng", "làm ứng dụng", "bấm cái là vào xem", "bấm vào xem ngay", "xây dựng ứng dụng",
-        "lập trình cho anh", "viết cho anh một web", "dựng cho anh một trang", "tạo web", "làm web",
-        "viết trang web", "tạo giao diện web", "tạo file docx", "tạo file word", "tạo file excel",
-        "tạo file trên desktop", "tạo trên desktop", "tạo file báo cáo", "làm bài báo cáo",
-        "làm 1 bài báo cáo", "làm kế hoạch", "tạo file kế hoạch", "tạo trên màn hình desktop"
-    ]
-    is_agent_cmd = (
-        msg_low.startswith("/agent") or 
-        any(k in msg_low for k in agent_keywords)
-    )
+    is_agent_cmd = is_agent_intent(message)
 
     # Kiểm tra nền tảng yêu cầu: desktop (Bản EXE cài đặt) hay web (Bản Web 24/7)
     x_plat = request.headers.get("x-platform", "").strip().lower()
@@ -605,17 +615,12 @@ async def chat_with_kini(
         active_agent_mode = "safe"
 
     # Kiểm tra xem người dùng có đang gõ câu xác nhận phê duyệt tác vụ vừa đề xuất không
-    approval_phrases = [
-        "chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay", "làm ngay",
-        "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn",
-        "làm luôn", "ok làm ngay", "triển khai ngay", "làm giúp anh ngay"
-    ]
-    is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in approval_phrases)
+    is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in APPROVAL_PHRASES)
     pending_task_from_history = ""
     if is_chat_approval:
         past_check = database.get_conversation_messages(conv_id)[-6:]
         for pm in reversed(past_check):
-            if pm.get("role") == "user" and any(k in pm.get("content", "").lower() for k in agent_keywords):
+            if pm.get("role") == "user" and is_agent_intent(pm.get("content", "")):
                 pending_task_from_history = pm.get("content", "").strip()
                 break
             elif pm.get("role") == "assistant" and "KINI Agent Đề Xuất Kế Hoạch" in pm.get("content", ""):
@@ -1055,16 +1060,7 @@ async def chat_with_kini_stream(
 
     # 3. KIỂM TRA AGENT / TURBO
     msg_low = message.lower().strip()
-    agent_keywords = [
-        "tạo thư mục", "tạo folder", "lập thư mục", "tạo cho tôi thư mục", "tạo tệp", "tạo file", 
-        "viết file", "tạo dự án", "lập trình dự án", "tạo game", "làm game", "viết code game", 
-        "viết script", "tạo script", "chạy lệnh", "agent hãy", "tự động làm", "tạo luôn cho tôi", 
-        "tạo thư mục cho máy tính", "tạo folder cho máy tính", "tạo app", "làm app", "viết phần mềm",
-        "tạo file docx", "tạo file word", "tạo file excel", "tạo file trên desktop", "tạo trên desktop",
-        "tạo file báo cáo", "làm bài báo cáo", "làm 1 bài báo cáo", "làm kế hoạch", "tạo file kế hoạch",
-        "tạo trên màn hình desktop"
-    ]
-    is_agent_cmd = (msg_low.startswith("/agent") or any(k in msg_low for k in agent_keywords))
+    is_agent_cmd = is_agent_intent(message)
     # Kiểm tra nền tảng yêu cầu: desktop (Bản EXE cài đặt) hay web (Bản Web 24/7)
     x_plat = request.headers.get("x-platform", "").strip().lower()
     req_platform = (platform or x_plat or "web").strip().lower()
@@ -1091,20 +1087,32 @@ async def chat_with_kini_stream(
     if active_agent_mode not in ["safe", "turbo"]:
         active_agent_mode = "safe"
 
-    approval_phrases = ["chấp nhận", "đồng ý", "làm đi", "chạy đi", "tiến hành", "chạy ngay", "ok làm đi", "ok tạo đi", "làm luôn đi", "triển khai đi", "ok triển khai", "chạy luôn"]
-    is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in approval_phrases)
+    is_chat_approval = any(msg_low == ap or msg_low.startswith(ap + " ") or msg_low.endswith(" " + ap) for ap in APPROVAL_PHRASES)
     is_followup_path = bool(re.match(r'^[a-zA-Z0-9_\-\\/\.\:\s]{2,80}$', message.strip())) and ("\\" in message or "/" in message or len(message.strip().split()) <= 3)
     pending_task_from_history = ""
     if is_chat_approval or is_followup_path:
-        past_check = database.get_conversation_messages(conv_id)[-4:]
-        for pm in reversed(past_check):
+        past_check = database.get_conversation_messages(conv_id)[-6:]
+        for idx_p in range(len(past_check) - 1, -1, -1):
+            pm = past_check[idx_p]
             pm_nfc = unicodedata.normalize("NFC", pm.get("content", "")).lower()
-            if pm.get("role") == "user" and any(k in pm_nfc for k in agent_keywords):
+            if pm.get("role") == "user" and is_agent_intent(pm_nfc):
                 if is_followup_path and not is_chat_approval:
                     pending_task_from_history = f"{pm.get('content', '').strip()} với tên/đường dẫn: {message.strip()}"
                 else:
                     pending_task_from_history = pm.get("content", "").strip()
                 break
+            elif is_chat_approval and pm.get("role") == "assistant" and any(k in pm_nfc for k in ["tạo file", "tạo thư mục", "ghi file", ".html", "desktop"]):
+                # Lấy câu hỏi user ngay trước câu đề xuất của assistant
+                for j in range(idx_p - 1, -1, -1):
+                    if past_check[j].get("role") == "user" and len(past_check[j].get("content", "").strip()) > 3:
+                        u_prev = past_check[j].get("content", "").strip()
+                        # Kèm tên file nếu assistant có đề cập
+                        m_fn = re.search(r'([a-zA-Z0-9_\-]+\.(?:html|py|txt|docx|xlsx))', pm.get("content", ""))
+                        fn_hint = f" (tạo file {m_fn.group(1)} trên Desktop hoặc workspace)" if m_fn else ""
+                        pending_task_from_history = f"{u_prev}{fn_hint}"
+                        break
+                if pending_task_from_history:
+                    break
 
     is_confirmed_execution = is_desktop and ((confirm_agent == "yes") or bool(pending_task_from_history))
     task_to_run = task_prompt.strip() or pending_task_from_history or re.sub(r'^/agent\s*', '', message, flags=re.IGNORECASE).strip()
@@ -1117,7 +1125,10 @@ async def chat_with_kini_stream(
             summary_lines = ["\n\n🛠️ **Nhật ký KINI Agent đã tự động thực thi trên máy tính:**"]
             for a in actions:
                 if a["tool"] == "write_file":
-                    summary_lines.append(f"- 📝 Đã tạo file: `{a.get('path')}`")
+                    p_file = a.get('path', '')
+                    summary_lines.append(f"- 📝 Đã tạo file: `{p_file}`")
+                    if p_file.lower().endswith(('.html', '.htm')) and not re.match(r'^[a-zA-Z]:[\\/]', p_file):
+                        summary_lines.append(f"  👉 [🌐 Bấm Vào Đây Để Mở Web Trực Tiếp](/api/workspace/raw?path={urllib.parse.quote(p_file)})")
                 elif a["tool"] == "create_folder":
                     summary_lines.append(f"- 📁 Đã tạo thư mục: `{a.get('path')}`")
                 elif a["tool"] == "run_command":
