@@ -6225,3 +6225,23 @@ body::before {
     font-size: 1.12rem !important;
     font-weight: 700 !important;
 }
+
+/* Studio Splitter Smooth Dragging */
+body.is-resizing,
+body.is-resizing * {
+    user-select: none !important;
+}
+body.is-resizing iframe,
+body.is-resizing .CodeMirror {
+    pointer-events: none !important;
+}
+.ide-splitter-handle.horizontal {
+    width: 10px !important;
+    cursor: col-resize !important;
+    background: rgba(148, 163, 184, 0.08);
+    transition: background 0.15s ease;
+}
+.ide-splitter-handle.horizontal:hover,
+.ide-splitter-handle.horizontal.dragging {
+    background: rgba(59, 130, 246, 0.55) !important;
+}

@@ -1669,7 +1669,7 @@ async function loadMemories() {
 }
 
 async function editMemory(id, oldText, category) {
-    const newText = prompt("✏️ Chỉnh sửa nội dung ký ức:", oldText);
+    const newText = await kiniPrompt("Chỉnh sửa ký ức", "Nhập nội dung ký ức mới:", oldText, "Lưu lại");
     if (!newText || newText.trim() === oldText) return;
     try {
         const res = await fetch(`/api/memories/${id}`, {
@@ -2192,7 +2192,7 @@ async function loadConversations(autoRestore = false) {
         // Sự kiện bấm nút "📁＋ Mục mới"
         projHeader.querySelector("#btn-add-project-folder")?.addEventListener("click", async (e) => {
             e.stopPropagation();
-            const newCat = prompt("Nhập tên mục / dự án mới (ví dụ: Bán Hàng, Luật Pháp, Lập Trình...):");
+            const newCat = await kiniPrompt("Tạo mục / dự án mới", "Nhập tên mục hoặc dự án mới (ví dụ: Bán Hàng, Luật Pháp, Lập Trình...):", "", "Tạo mục");
             if (!newCat || !newCat.trim()) return;
             const catName = newCat.trim();
             try {
@@ -2381,7 +2381,7 @@ async function togglePinConversation(convId) {
 }
 
 async function renameConversationPrompt(convId, oldTitle) {
-    const newTitle = prompt("✏️ Nhập tên mới cho đoạn hội thoại:", oldTitle);
+    const newTitle = await kiniPrompt("Đổi tên đoạn hội thoại", "Nhập tên mới cho cuộc trò chuyện:", oldTitle, "Lưu tên");
     if (!newTitle || newTitle.trim() === oldTitle) return;
     try {
         const res = await fetch(`/api/conversations/${convId}/rename`, {
@@ -3145,9 +3145,12 @@ async function loadIdeFileTree() {
             );
             renderHierarchicalTree(ideRawTreeNodes);
 
-            // Mở file mặc định nếu chưa chọn
+            // Mở file người dùng vừa mở gần nhất (hoặc file đầu tiên ngoài .sandbox), không ép cứng snake_game/main.py
             if (!ideActiveFilePath) {
-                const defaultFile = ideRawTreeNodes.find(n => n.path === "snake_game/main.py") || ideRawTreeNodes.find(n => !n.is_dir);
+                const lastPath = localStorage.getItem("kini_ide_last_file");
+                const defaultFile = (lastPath && ideRawTreeNodes.find(n => n.path === lastPath && !n.is_dir))
+                    || ideRawTreeNodes.find(n => !n.is_dir && !n.path.startsWith(".sandbox"))
+                    || ideRawTreeNodes.find(n => !n.is_dir);
                 if (defaultFile) openIdeFile(defaultFile.path);
             }
         } else {
@@ -3307,6 +3310,7 @@ function getFileIcon(ext) {
 
 async function openIdeFile(relPath) {
     ideActiveFilePath = relPath;
+    if (relPath) localStorage.setItem("kini_ide_last_file", relPath);
     const tabName = document.getElementById("ide-tab-name");
     const tabIcon = document.getElementById("ide-tab-icon");
     const dirtyDot = document.getElementById("ide-tab-dirty");
@@ -3520,7 +3524,7 @@ function switchIdeEditorTab(mode) {
 // CÁC THAO TÁC QUẢN LÝ TỆP & THƯ MỤC TRỰC TIẾP TRÊN WEB
 // ------------------------------------------------------------
 async function createIdeNewFile() {
-    const fileName = prompt("📄 Nhập tên/đường dẫn file mới trong workspace (ví dụ: my_script.py hoặc app/index.html):");
+    const fileName = await kiniPrompt("Tạo file mới", "Nhập tên hoặc đường dẫn file mới trong workspace (ví dụ: my_script.py hoặc app/index.html):", "", "Tạo file");
     if (!fileName || !fileName.trim()) return;
     try {
         let res = await fetch("/api/workspace/create-file", {
@@ -3549,7 +3553,7 @@ async function createIdeNewFile() {
 }
 
 async function createIdeNewFolder() {
-    const folderName = prompt("📁 Nhập tên thư mục mới trong workspace (ví dụ: my_project hoặc games/flappy_bird):");
+    const folderName = await kiniPrompt("Tạo thư mục mới", "Nhập tên thư mục mới trong workspace (ví dụ: my_project hoặc games/flappy_bird):", "", "Tạo thư mục");
     if (!folderName || !folderName.trim()) return;
     try {
         let res = await fetch("/api/workspace/create-folder", {
@@ -3578,8 +3582,8 @@ async function createIdeNewFolder() {
 
 async function deleteIdePath(relPath) {
     const isMaster = kiniClientId === "master";
-    const msg = isMaster ? `⚠️ Anh Trường có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?` : `⚠️ Bạn có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?`;
-    if (!confirm(msg)) return;
+    const msg = isMaster ? `Anh Trường có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?` : `Bạn có chắc chắn muốn XÓA [${relPath}] vĩnh viễn không?`;
+    if (!(await kiniConfirm("Xóa tệp / thư mục", msg))) return;
     try {
         let res = await fetch("/api/workspace/delete", {
             method: "POST",
@@ -3610,7 +3614,7 @@ async function deleteIdePath(relPath) {
 }
 
 async function renameIdePath(oldPath) {
-    const newPath = prompt(`✏️ Đổi tên cho [${oldPath}]:`, oldPath);
+    const newPath = await kiniPrompt("Đổi tên tệp / thư mục", `Nhập tên mới cho [${oldPath}]:`, oldPath, "Đổi tên");
     if (!newPath || newPath.trim() === oldPath) return;
     try {
         let res = await fetch("/api/workspace/rename", {
@@ -3641,8 +3645,8 @@ async function renameIdePath(oldPath) {
     }
 }
 
-function ideSearchPrompt() {
-    const kw = prompt("🔍 Nhập từ khóa cần tìm trong file:");
+async function ideSearchPrompt() {
+    const kw = await kiniPrompt("Tìm kiếm trong file", "Nhập từ khóa cần tìm:", "", "Tìm kiếm");
     if (!kw) return;
     if (ideCodeMirror) {
         const text = ideCodeMirror.getValue();
@@ -3911,12 +3915,13 @@ function setupIdeEventListeners() {
         }
     });
 
-    // 5. Kéo giãn thanh Chat (resizer-chat)
+    // 5. Kéo giãn thanh Chat (resizer-chat) - đặt flex: 0 0 để không bị flex: 1 đè lại
     initSplitterDrag("resizer-chat", (deltaX) => {
         const chatPane = document.getElementById("chat-main-pane");
         if (chatPane && !chatPane.classList.contains("collapsed")) {
             const currentW = chatPane.getBoundingClientRect().width;
-            const newW = Math.min(800, Math.max(240, currentW - deltaX));
+            const newW = Math.min(900, Math.max(260, currentW - deltaX));
+            chatPane.style.flex = `0 0 ${newW}px`;
             chatPane.style.width = newW + "px";
             if (ideCodeMirror) ideCodeMirror.refresh();
         }
@@ -3939,6 +3944,7 @@ function initSplitterDrag(resizerId, onDragX, onDragY) {
     }
     function onMouseUp() {
         handle.classList.remove("dragging");
+        document.body.classList.remove("is-resizing");
         document.getElementById("sidebar")?.classList.remove("dragging");
         document.body.style.cursor = "default";
         document.removeEventListener("mousemove", onMouseMove);
@@ -3950,6 +3956,7 @@ function initSplitterDrag(resizerId, onDragX, onDragY) {
         startX = e.clientX;
         startY = e.clientY;
         handle.classList.add("dragging");
+        document.body.classList.add("is-resizing");
         document.body.style.cursor = handle.classList.contains("vertical") ? "row-resize" : "col-resize";
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);
@@ -4528,7 +4535,7 @@ async function initDeviceIdentity() {
     // Đăng xuất khỏi thiết bị
     const handleLogoutAction = async (e) => {
         if (e) e.stopPropagation();
-        if (confirm("Anh có chắc muốn đăng xuất tài khoản khỏi thiết bị này không?")) {
+        if (await kiniConfirm("Đăng xuất tài khoản", "Anh có chắc muốn đăng xuất tài khoản khỏi thiết bị này không?", "Đăng xuất")) {
             try {
                 const res = await fetch("/api/auth/logout", { method: "POST" });
                 if (res.ok) {
@@ -5349,22 +5356,27 @@ document.getElementById("rag-file-input")?.addEventListener("change", async (e) 
 
 
 // ============================================================
-// MODAL XÁC NHẬN HIỆN ĐẠI (KINI PRO CONFIRM)
+// MODAL XÁC NHẬN & NHẬP LIỆU HIỆN ĐẠI (KINI PRO CONFIRM / PROMPT)
 // ============================================================
 function kiniConfirm(title = "Xác nhận xóa", message = "Bạn có chắc chắn muốn thực hiện thao tác này?", confirmLabel = "Xóa vĩnh viễn") {
     return new Promise((resolve) => {
         const modal = document.getElementById("modal-kini-confirm");
+        const iconEl = document.getElementById("kini-confirm-icon");
         const titleEl = document.getElementById("kini-confirm-title");
         const msgEl = document.getElementById("kini-confirm-msg");
+        const inputEl = document.getElementById("kini-confirm-input");
         const btnOk = document.getElementById("kini-confirm-ok");
         const btnCancel = document.getElementById("kini-confirm-cancel");
         if (!modal || !btnOk || !btnCancel) {
             resolve(window.confirm(message));
             return;
         }
+        if (iconEl) iconEl.textContent = "🗑️";
         if (titleEl) titleEl.textContent = title;
         if (msgEl) msgEl.textContent = message;
+        if (inputEl) inputEl.style.display = "none";
         btnOk.textContent = confirmLabel;
+        btnOk.className = "btn kini-btn-danger";
         modal.style.display = "flex";
 
         const cleanup = (result) => {
@@ -5378,6 +5390,50 @@ function kiniConfirm(title = "Xác nhận xóa", message = "Bạn có chắc ch�
         btnCancel.onclick = () => cleanup(false);
         modal.onclick = (e) => {
             if (e.target === modal) cleanup(false);
+        };
+    });
+}
+
+function kiniPrompt(title = "Nhập thông tin", message = "", defaultValue = "", confirmLabel = "Xác nhận") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById("modal-kini-confirm");
+        const iconEl = document.getElementById("kini-confirm-icon");
+        const titleEl = document.getElementById("kini-confirm-title");
+        const msgEl = document.getElementById("kini-confirm-msg");
+        const inputEl = document.getElementById("kini-confirm-input");
+        const btnOk = document.getElementById("kini-confirm-ok");
+        const btnCancel = document.getElementById("kini-confirm-cancel");
+        if (!modal || !btnOk || !btnCancel || !inputEl) {
+            resolve(window.prompt(message, defaultValue));
+            return;
+        }
+        if (iconEl) iconEl.textContent = "✏️";
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) msgEl.textContent = message;
+        inputEl.style.display = "block";
+        inputEl.value = defaultValue || "";
+        btnOk.textContent = confirmLabel;
+        btnOk.className = "btn btn-primary";
+        modal.style.display = "flex";
+        setTimeout(() => { inputEl.focus(); inputEl.select(); }, 50);
+
+        const cleanup = (result) => {
+            modal.style.display = "none";
+            inputEl.style.display = "none";
+            btnOk.onclick = null;
+            btnCancel.onclick = null;
+            inputEl.onkeydown = null;
+            modal.onclick = null;
+            resolve(result);
+        };
+        btnOk.onclick = () => cleanup(inputEl.value);
+        btnCancel.onclick = () => cleanup(null);
+        inputEl.onkeydown = (e) => {
+            if (e.key === "Enter") { e.preventDefault(); cleanup(inputEl.value); }
+            else if (e.key === "Escape") { e.preventDefault(); cleanup(null); }
+        };
+        modal.onclick = (e) => {
+            if (e.target === modal) cleanup(null);
         };
     });
 }
