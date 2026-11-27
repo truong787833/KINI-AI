@@ -133,7 +133,14 @@ def fetch_facebook_via_embed(raw_url: str) -> Optional[Dict[str, Any]]:
             if not author:
                 for a in soup.find_all("a"):
                     t = a.get_text(strip=True)
-                    if t and len(t) > 2 and t.lower() not in ["facebook", "help", "trợ giúp", "xem thêm", "chia sẻ", "go back"]:
+                    low_t = t.lower()
+                    if (
+                        t
+                        and len(t) > 2
+                        and low_t not in ["facebook", "help", "trợ giúp", "xem thêm", "chia sẻ", "go back", "thích", "bình luận"]
+                        and not any(tm in low_t for tm in ["trước", "ago", "hôm qua", "hôm nay", "vừa xong", "tháng ", "ngày "])
+                        and not re.match(r"^\d", t)
+                    ):
                         author = t
                         break
 
@@ -347,9 +354,30 @@ def check_single_fb_link(
         except Exception:
             pass
 
+    # NẾU BỊ ĐIỀU HƯỚNG VỀ /login/?next=...: giải mã URL gốc từ tham số next= để lấy đúng permalink & ID
+    decoded_next_url = ""
+    for candidate_u in (og_url, res.url if res else ""):
+        if candidate_u and "/login" in candidate_u.lower() and "next=" in candidate_u:
+            try:
+                qs = urllib.parse.parse_qs(urllib.parse.urlparse(candidate_u).query)
+                nxt = (qs.get("next") or [""])[0]
+                if nxt:
+                    decoded_next_url = urllib.parse.unquote(nxt)
+                    break
+            except Exception:
+                pass
+    if decoded_next_url and is_fb:
+        og_url = decoded_next_url
+        if not account_id:
+            account_id = extract_account_id(raw_url, decoded_next_url)
+
     # NẾU BỊ ĐIỀU HƯỚNG VỀ LOGIN HOẶC THIẾU NỘI DUNG: DÙNG EMBED META FALLBACK (ưu tiên URL đã giải mã redirect)
     if is_fb and (login_blocked or not content_text):
-        embed_target = og_url if (og_url and "/share/" not in og_url.lower() and "/login" not in og_url.lower()) else raw_url
+        embed_target = (
+            og_url
+            if (og_url and "/share/" not in og_url.lower() and "/login" not in og_url.lower())
+            else raw_url
+        )
         embed_data = fetch_facebook_via_embed(embed_target)
         if embed_data:
             if embed_data.get("visibility") == "Công khai" and embed_data.get("content") and not _is_fb_unavailable_text(embed_data.get("content", "")):
