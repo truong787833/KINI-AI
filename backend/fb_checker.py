@@ -23,6 +23,9 @@ def _is_fb_unavailable_text(txt: str) -> bool:
             "content isn't available right now",
             "liên kết bạn đã theo dõi có thể bị hỏng",
             "the link you followed may be broken",
+            "video không khả dụng",
+            "video này có thể không tồn tại",
+            "this video isn't available",
         ]
     )
 
@@ -99,93 +102,94 @@ def _parse_vn_date(date_str: str) -> Optional[datetime]:
 
 
 def fetch_facebook_via_embed(raw_url: str) -> Optional[Dict[str, Any]]:
-    clean_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    headers = {
-        "User-Agent": clean_ua,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
-    }
+    ua_list = [
+        "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    ]
     endpoints = [
         f"https://www.facebook.com/plugins/post.php?href={urllib.parse.quote(raw_url, safe='')}",
         f"https://www.facebook.com/plugins/video.php?href={urllib.parse.quote(raw_url, safe='')}",
     ]
     for ep in endpoints:
-        try:
-            r = requests.get(ep, headers=headers, timeout=10)
-            if r.status_code != 200 or len(r.text) < 500:
-                continue
-            soup = BeautifulSoup(r.text, "html.parser")
-            full_text = soup.get_text(" ", strip=True)
-            if any(k in full_text.lower() for k in [
-                "nội dung này hiện không khả dụng",
-                "this content isn't available",
-                "liên kết bạn đã theo dõi có thể bị hỏng",
-                "trang này không tồn tại",
-                "rất tiếc, đã xảy ra lỗi",
-                "sorry, something went wrong",
-            ]):
-                return {"visibility": "Riêng tư / Yêu cầu đăng nhập", "content": "", "author": "", "image": ""}
+        for clean_ua in ua_list:
+            headers = {
+                "User-Agent": clean_ua,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
+            }
+            try:
+                r = requests.get(ep, headers=headers, timeout=10)
+                if r.status_code != 200 or len(r.text) < 500:
+                    continue
+                soup = BeautifulSoup(r.text, "html.parser")
+                full_text = soup.get_text(" ", strip=True)
+                if _is_fb_unavailable_text(full_text) or any(k in full_text.lower() for k in [
+                    "trang này không tồn tại",
+                    "rất tiếc, đã xảy ra lỗi",
+                    "sorry, something went wrong",
+                ]):
+                    continue
 
-            paragraphs = [p.get_text(" ", strip=True) for p in soup.find_all("p") if p.get_text(" ", strip=True)]
+                paragraphs = [p.get_text(" ", strip=True) for p in soup.find_all("p") if p.get_text(" ", strip=True)]
 
-            embed_post_date = ""
-            utime_el = soup.find(attrs={"data-utime": True})
-            if utime_el:
-                try:
-                    ts_val = int(str(utime_el.get("data-utime") or "").strip())
-                    if ts_val > 0:
-                        embed_post_date = datetime.fromtimestamp(ts_val, timezone(timedelta(hours=7))).strftime("%d/%m/%Y %H:%M")
-                except Exception:
-                    pass
-            if not embed_post_date and utime_el and utime_el.get_text(strip=True):
-                embed_post_date = utime_el.get_text(strip=True)
+                embed_post_date = ""
+                utime_el = soup.find(attrs={"data-utime": True})
+                if utime_el:
+                    try:
+                        ts_val = int(str(utime_el.get("data-utime") or "").strip())
+                        if ts_val > 0:
+                            embed_post_date = datetime.fromtimestamp(ts_val, timezone(timedelta(hours=7))).strftime("%d/%m/%Y %H:%M")
+                    except Exception:
+                        pass
+                if not embed_post_date and utime_el and utime_el.get_text(strip=True):
+                    embed_post_date = utime_el.get_text(strip=True)
 
-            author = ""
-            raw_lines = [ln.strip() for ln in soup.get_text("\n", strip=True).split("\n") if ln.strip()]
-            if len(raw_lines) >= 2 and raw_lines[0].lower() == "facebook":
-                cand = raw_lines[1]
-                if len(cand) > 2 and not any(tm in cand.lower() for tm in ["trước", "ago", "hôm qua", "hôm nay", "vừa xong"]):
-                    author = cand
-            if not author:
-                m_author = re.search(r"Facebook\s+([^\n·•]+?)(?:\s+vào|\s+đã|\s+chia sẻ|\s+·|\s+\d+\s+người)", full_text)
-                if m_author:
-                    author = m_author.group(1).strip()
-            if not author:
-                for a in soup.find_all("a"):
-                    t = a.get_text(strip=True)
-                    low_t = t.lower()
-                    if (
-                        t
-                        and len(t) > 2
-                        and low_t not in ["facebook", "help", "trợ giúp", "xem thêm", "chia sẻ", "go back", "thích", "bình luận"]
-                        and not any(tm in low_t for tm in ["trước", "ago", "hôm qua", "hôm nay", "vừa xong", "tháng ", "ngày "])
-                        and not re.match(r"^\d", t)
-                    ):
-                        author = t
+                author = ""
+                raw_lines = [ln.strip() for ln in soup.get_text("\n", strip=True).split("\n") if ln.strip()]
+                if len(raw_lines) >= 2 and raw_lines[0].lower() == "facebook":
+                    cand = raw_lines[1]
+                    if len(cand) > 2 and not any(tm in cand.lower() for tm in ["trước", "ago", "hôm qua", "hôm nay", "vừa xong"]):
+                        author = cand
+                if not author:
+                    m_author = re.search(r"Facebook\s+([^\n·•]+?)(?:\s+vào|\s+đã|\s+chia sẻ|\s+·|\s+\d+\s+người)", full_text)
+                    if m_author:
+                        author = m_author.group(1).strip()
+                if not author:
+                    for a in soup.find_all("a"):
+                        t = a.get_text(strip=True)
+                        low_t = t.lower()
+                        if (
+                            t
+                            and len(t) > 2
+                            and low_t not in ["facebook", "help", "trợ giúp", "xem thêm", "chia sẻ", "go back", "thích", "bình luận"]
+                            and not any(tm in low_t for tm in ["trước", "ago", "hôm qua", "hôm nay", "vừa xong", "tháng ", "ngày "])
+                            and not re.match(r"^\d", t)
+                        ):
+                            author = t
+                            break
+
+                img_src = ""
+                for img in soup.find_all("img"):
+                    src = img.get("src", "")
+                    if src and ("fbcdn" in src or "fbsbx" in src) and not any(k in src.lower() for k in ["emoji", "static", "rsrc.php"]):
+                        img_src = src
                         break
 
-            img_src = ""
-            for img in soup.find_all("img"):
-                src = img.get("src", "")
-                if src and ("fbcdn" in src or "fbsbx" in src) and not any(k in src.lower() for k in ["emoji", "static", "rsrc.php"]):
-                    img_src = src
-                    break
+                content = "\n\n".join(paragraphs) if paragraphs else ""
+                if not content:
+                    clean_lines = [l.strip() for l in soup.get_text("\n", strip=True).split("\n") if len(l.strip()) > 30 and "facebook" not in l.lower()]
+                    content = "\n\n".join(clean_lines[:6])
 
-            content = "\n\n".join(paragraphs) if paragraphs else ""
-            if not content:
-                clean_lines = [l.strip() for l in soup.get_text("\n", strip=True).split("\n") if len(l.strip()) > 30 and "facebook" not in l.lower()]
-                content = "\n\n".join(clean_lines[:6])
-
-            if content:
-                return {
-                    "visibility": "Công khai",
-                    "account_name": author,
-                    "content": content,
-                    "image": img_src,
-                    "post_date": embed_post_date,
-                }
-        except Exception:
-            pass
+                if content and not _is_fb_unavailable_text(content):
+                    return {
+                        "visibility": "Công khai",
+                        "account_name": author,
+                        "content": content,
+                        "image": img_src,
+                        "post_date": embed_post_date,
+                    }
+            except Exception:
+                pass
     return None
 
 
