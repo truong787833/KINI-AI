@@ -1,4 +1,5 @@
 import io
+import os
 import re
 import urllib.parse
 from datetime import datetime
@@ -9,6 +10,21 @@ from bs4 import BeautifulSoup
 
 
 FB_DOMAINS = ("facebook.com", "fb.com", "fb.watch")
+
+
+def _is_fb_unavailable_text(txt: str) -> bool:
+    low = (txt or "").lower()
+    return any(
+        k in low
+        for k in [
+            "bài viết này trên facebook không còn nữa",
+            "nội dung này hiện không khả dụng",
+            "this content isn't available",
+            "content isn't available right now",
+            "liên kết bạn đã theo dõi có thể bị hỏng",
+            "the link you followed may be broken",
+        ]
+    )
 
 
 def is_facebook_url(url: str) -> bool:
@@ -286,19 +302,59 @@ def check_single_fb_link(
         account_id = platform
 
     final_url_low = ((res.url if res else "") or "").lower()
+    unavailable_msg = is_fb and (_is_fb_unavailable_text(content_text) or _is_fb_unavailable_text(account_name))
     login_blocked = is_fb and (
         "/login" in final_url_low
         or "checkpoint" in final_url_low
-        or account_name.lower() in ("", "facebook", "log in or sign up", "đăng nhập hoặc đăng ký", "log into facebook")
-        and not content_text
+        or unavailable_msg
+        or (
+            account_name.lower() in ("", "facebook", "log in or sign up", "đăng nhập hoặc đăng ký", "log into facebook")
+            and not content_text
+        )
     )
 
-    # NẾU BỊ ĐIỀU HƯỚNG VỀ LOGIN HOẶC THIẾU NỘI DUNG: DÙNG EMBED META FALLBACK
+    # Nếu có cấu hình FB_PROXY_URL trên server đám mây và lần đọc thẳng bị Facebook chặn -> thử lại qua Proxy dân cư
+    proxy_url = os.environ.get("FB_PROXY_URL", "").strip()
+    if is_fb and login_blocked and proxy_url:
+        try:
+            pr = requests.get(
+                raw_url,
+                headers={
+                    "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
+                },
+                proxies={"http": proxy_url, "https": proxy_url},
+                timeout=12,
+                allow_redirects=True,
+            )
+            if pr.status_code == 200 and len(pr.content) > 200 and "/login" not in (pr.url or "").lower():
+                psoup = BeautifulSoup(pr.content, "html.parser")
+                def _pmeta(pn: str) -> str:
+                    tg = psoup.find("meta", attrs={"property": pn}) or psoup.find("meta", attrs={"name": pn})
+                    return (tg.get("content") or "").strip() if tg else ""
+                p_title = _pmeta("og:title") or (psoup.title.string.strip() if (psoup.title and psoup.title.string) else "")
+                p_desc = _pmeta("og:description") or _pmeta("description")
+                p_url = _pmeta("og:url") or pr.url
+                if p_desc and not _is_fb_unavailable_text(p_desc):
+                    account_name = p_title or account_name
+                    content_text = p_desc
+                    og_url = p_url
+                    og_image = _pmeta("og:image") or og_image
+                    account_id = extract_account_id(raw_url, og_url)
+                    login_blocked = False
+                    unavailable_msg = False
+        except Exception:
+            pass
+
+    # NẾU BỊ ĐIỀU HƯỚNG VỀ LOGIN HOẶC THIẾU NỘI DUNG: DÙNG EMBED META FALLBACK (ưu tiên URL đã giải mã redirect)
     if is_fb and (login_blocked or not content_text):
-        embed_data = fetch_facebook_via_embed(raw_url)
+        embed_target = og_url if (og_url and "/share/" not in og_url.lower() and "/login" not in og_url.lower()) else raw_url
+        embed_data = fetch_facebook_via_embed(embed_target)
         if embed_data:
-            if embed_data.get("visibility") == "Công khai" and embed_data.get("content"):
+            if embed_data.get("visibility") == "Công khai" and embed_data.get("content") and not _is_fb_unavailable_text(embed_data.get("content", "")):
                 login_blocked = False
+                unavailable_msg = False
                 content_text = embed_data["content"]
                 if embed_data.get("account_name"):
                     account_name = embed_data["account_name"]
@@ -307,9 +363,13 @@ def check_single_fb_link(
             elif embed_data.get("visibility") == "Riêng tư / Yêu cầu đăng nhập":
                 login_blocked = True
 
-    if login_blocked:
+    if login_blocked or unavailable_msg:
         visibility = "Riêng tư / Yêu cầu đăng nhập"
-        account_name = "" if account_name.lower() in ("facebook", "log into facebook", "log in or sign up") else account_name
+        if unavailable_msg:
+            content_text = "(Không đọc được nội dung công khai — link cần đăng nhập hoặc IP máy chủ bị hạn chế)"
+            account_name = ""
+        else:
+            account_name = "" if account_name.lower() in ("facebook", "log into facebook", "log in or sign up") else account_name
     elif content_text or (account_name and account_name.lower() != "facebook"):
         visibility = "Công khai"
     else:
