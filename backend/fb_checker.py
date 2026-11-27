@@ -2,7 +2,7 @@ import io
 import os
 import re
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -89,9 +89,10 @@ def extract_post_dates(text: str) -> List[str]:
 
 
 def _parse_vn_date(date_str: str) -> Optional[datetime]:
+    token = (date_str or "").strip().split(" ")[0]
     for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
         try:
-            return datetime.strptime(date_str.strip(), fmt)
+            return datetime.strptime(token, fmt)
         except Exception:
             continue
     return None
@@ -126,10 +127,29 @@ def fetch_facebook_via_embed(raw_url: str) -> Optional[Dict[str, Any]]:
                 return {"visibility": "Riêng tư / Yêu cầu đăng nhập", "content": "", "author": "", "image": ""}
 
             paragraphs = [p.get_text(" ", strip=True) for p in soup.find_all("p") if p.get_text(" ", strip=True)]
+
+            embed_post_date = ""
+            utime_el = soup.find(attrs={"data-utime": True})
+            if utime_el:
+                try:
+                    ts_val = int(str(utime_el.get("data-utime") or "").strip())
+                    if ts_val > 0:
+                        embed_post_date = datetime.fromtimestamp(ts_val, timezone(timedelta(hours=7))).strftime("%d/%m/%Y %H:%M")
+                except Exception:
+                    pass
+            if not embed_post_date and utime_el and utime_el.get_text(strip=True):
+                embed_post_date = utime_el.get_text(strip=True)
+
             author = ""
-            m_author = re.search(r"Facebook\s+([^\n·•]+?)(?:\s+vào|\s+đã|\s+chia sẻ|\s+·|\s+\d+\s+người)", full_text)
-            if m_author:
-                author = m_author.group(1).strip()
+            raw_lines = [ln.strip() for ln in soup.get_text("\n", strip=True).split("\n") if ln.strip()]
+            if len(raw_lines) >= 2 and raw_lines[0].lower() == "facebook":
+                cand = raw_lines[1]
+                if len(cand) > 2 and not any(tm in cand.lower() for tm in ["trước", "ago", "hôm qua", "hôm nay", "vừa xong"]):
+                    author = cand
+            if not author:
+                m_author = re.search(r"Facebook\s+([^\n·•]+?)(?:\s+vào|\s+đã|\s+chia sẻ|\s+·|\s+\d+\s+người)", full_text)
+                if m_author:
+                    author = m_author.group(1).strip()
             if not author:
                 for a in soup.find_all("a"):
                     t = a.get_text(strip=True)
@@ -162,6 +182,7 @@ def fetch_facebook_via_embed(raw_url: str) -> Optional[Dict[str, Any]]:
                     "account_name": author,
                     "content": content,
                     "image": img_src,
+                    "post_date": embed_post_date,
                 }
         except Exception:
             pass
@@ -380,6 +401,7 @@ def check_single_fb_link(
             account_id = extract_account_id(raw_url, decoded_next_url)
 
     # NẾU BỊ ĐIỀU HƯỚNG VỀ LOGIN HOẶC THIẾU NỘI DUNG: DÙNG EMBED META FALLBACK (ưu tiên URL đã giải mã redirect)
+    embed_post_date = ""
     if is_fb and (login_blocked or not content_text):
         embed_target = (
             og_url
@@ -396,6 +418,8 @@ def check_single_fb_link(
                     account_name = embed_data["account_name"]
                 if embed_data.get("image") and not og_image:
                     og_image = embed_data["image"]
+                if embed_data.get("post_date"):
+                    embed_post_date = embed_data["post_date"]
             elif embed_data.get("visibility") == "Riêng tư / Yêu cầu đăng nhập":
                 login_blocked = True
 
@@ -416,7 +440,16 @@ def check_single_fb_link(
         m_iso = re.match(r"^(20\d{2})-(\d{2})-(\d{2})", pub_time.strip())
         if m_iso:
             dates_found = [f"{m_iso.group(3)}/{m_iso.group(2)}/{m_iso.group(1)}"]
-    post_date = dates_found[0] if dates_found else ""
+    if not embed_post_date and soup:
+        utime_main = soup.find(attrs={"data-utime": True})
+        if utime_main:
+            try:
+                ts_m = int(str(utime_main.get("data-utime") or "").strip())
+                if ts_m > 0:
+                    embed_post_date = datetime.fromtimestamp(ts_m, timezone(timedelta(hours=7))).strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                pass
+    post_date = embed_post_date or (dates_found[0] if dates_found else "")
 
     reasons: List[str] = []
     if require_public and visibility != "Công khai":
