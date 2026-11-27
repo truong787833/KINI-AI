@@ -1601,6 +1601,41 @@ def serve_fb_checker_page():
     return FileResponse(os.path.join(STATIC_DIR, "fb_checker.html"))
 
 
+@app.post("/api/fb-check")
+async def fb_check_json_endpoint(payload: dict):
+    """Endpoint JSON đồng bộ cho Google Apps Script / Webhook (trả về kết quả ngay cho 1 hoặc nhiều link)."""
+    single_url = str(payload.get("url") or "").strip()
+    links = [str(x).strip() for x in (payload.get("links") or []) if str(x).strip()]
+    if single_url and not links:
+        links = [single_url]
+
+    required_keywords = payload.get("required_keywords") or []
+    keyword_mode = payload.get("keyword_mode", "any")
+    require_public = bool(payload.get("require_public", True))
+    date_from = str(payload.get("date_from") or "").strip()
+    date_to = str(payload.get("date_to") or "").strip()
+    delay_ms = max(0, min(3000, int(payload.get("delay_ms", 250))))
+
+    results = []
+    for idx, url in enumerate(links):
+        res = await asyncio.to_thread(
+            fb_checker.check_single_fb_link,
+            url,
+            required_keywords,
+            keyword_mode,
+            require_public,
+            date_from,
+            date_to,
+        )
+        results.append(res)
+        if idx + 1 < len(links) and delay_ms > 0:
+            await asyncio.sleep(delay_ms / 1000.0)
+
+    if single_url and len(results) == 1 and not payload.get("links"):
+        return results[0]
+    return {"total": len(results), "results": results}
+
+
 @app.post("/api/fb-check/stream")
 async def fb_check_stream_endpoint(payload: dict):
     links = [str(x).strip() for x in (payload.get("links") or []) if str(x).strip()]
