@@ -3,8 +3,10 @@ import requests
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
+
+VN_TZ = timezone(timedelta(hours=7))
 
 logger = logging.getLogger("GeminiClient")
 
@@ -98,13 +100,14 @@ VISITOR_DEFAULT_PROMPT = """Bạn là KINI AI - mô hình trợ lý trí tuệ n
 """
 
 def get_current_time_context() -> str:
-    """Cung cấp thời gian hệ thống thực tế chuẩn xác từng giây từng ngày"""
-    now = datetime.now()
+    """Cung cấp thời gian thực tế tại Việt Nam (GMT+7) chuẩn xác từng giây từng ngày"""
+    now = datetime.now(VN_TZ)
     days_vn = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
     day_name = days_vn[int(now.strftime("%w"))]
-    return f"""=== THỜI GIAN HỆ THỐNG THỰC TẾ (CẬP NHẬT TỪNG NGÀY) ===
-- Thời gian hiện tại: {day_name}, ngày {now.strftime('%d/%m/%Y')}, lúc {now.strftime('%H:%M:%S')}.
+    return f"""=== THỜI GIAN HỆ THỐNG THỰC TẾ TẠI VIỆT NAM (MÚI GIỜ GMT+7 / UTC+7) ===
+- Thời gian hiện tại ở Việt Nam: {day_name}, ngày {now.strftime('%d/%m/%Y')}, lúc {now.strftime('%H:%M:%S')} (GMT+7).
 - NĂM HIỆN TẠI LÀ NĂM {now.year}. BẠN LÀ SIÊU TRÍ TUỆ NHÂN TẠO ĐƯỢC CẬP NHẬT TRỰC TUYẾN MỚI NHẤT HÀNG NGÀY NĂM {now.year}.
+- Khi người dùng hỏi "bây giờ là mấy giờ", "hôm nay ngày mấy", "thứ mấy": BẮT BUỘC trả lời đúng theo giờ Việt Nam (GMT+7) nêu trên ({now.strftime('%H:%M')} ngày {now.strftime('%d/%m/%Y')}).
 - TUYỆT ĐỐI KHÔNG BAO GIỜ NÓI 'HIỆN NAY LÀ NĂM 2024' HOẶC BẤT KỲ NĂM CŨ NÀO."""
 
 def get_precision_rules() -> str:

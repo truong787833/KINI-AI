@@ -409,6 +409,14 @@ def needs_live_search(text: str) -> bool:
     if re.fullmatch(r'[\d\s\+\-\*\/\^\(\)\.\,\=\%\?]+', t):
         return False
 
+    # 3.5. Bỏ qua câu hỏi thuần túy về giờ/ngày hiện tại (đã có đồng hồ Việt Nam GMT+7 chính xác)
+    time_only_cues = [
+        "bây giờ là mấy giờ", "mấy giờ rồi", "mấy giờ vậy", "hiện tại mấy giờ",
+        "hôm nay ngày mấy", "hôm nay là ngày mấy", "hôm nay thứ mấy", "ngày hôm nay là"
+    ]
+    if any(tc in t for tc in time_only_cues) and len(t.split()) <= 10:
+        return False
+
     # 4. Nếu câu hỏi có chứa link URL thì luồng đọc URL chuyên sâu ở app.py sẽ tự xử lý
     if re.search(r'https?://[^\s]+', t) and len(t.split()) <= 12:
         return False
@@ -447,6 +455,89 @@ def build_contextual_search_query(user_query: str, history: Optional[List[Dict[s
                     return f"{prev_clean} {q}"
     return q
 
+def fetch_lottery_results(text: str) -> Optional[str]:
+    """
+    Truy xuất trực tiếp bảng Kết Quả Xổ Số 3 miền (XSMB, XSMN, XSMT) theo ngày từ xskt.com.vn
+    để AI không bao giờ bịa số hay đọc nhầm snippet thiếu dữ liệu.
+    """
+    t = (text or "").lower()
+    if not any(k in t for k in ["xổ số", "xo so", "kqxs", "xsmb", "xsmn", "xsmt", "giải đặc biệt", "vé số"]):
+        return None
+
+    from datetime import datetime, timezone, timedelta
+    vn_now = datetime.now(timezone(timedelta(hours=7)))
+    target_dt = vn_now
+
+    m_full = re.search(r"(\d{1,2})[/-](\d{1,2})[/-](\d{4})", t)
+    m_short = re.search(r"(\d{1,2})[/-](\d{1,2})", t)
+    if m_full:
+        d, m, y = int(m_full.group(1)), int(m_full.group(2)), int(m_full.group(3))
+        try:
+            target_dt = datetime(y, m, d)
+        except ValueError:
+            pass
+    elif m_short:
+        d, m = int(m_short.group(1)), int(m_short.group(2))
+        try:
+            target_dt = datetime(vn_now.year, m, d)
+        except ValueError:
+            pass
+    elif "hôm qua" in t:
+        target_dt = vn_now - timedelta(days=1)
+
+    date_slug = target_dt.strftime("%d-%m-%Y")
+    date_disp = target_dt.strftime("%d/%m/%Y")
+    url = f"https://xskt.com.vn/ngay/{date_slug}"
+
+    try:
+        from bs4 import BeautifulSoup
+        res = requests.get(url, headers=HEADERS, timeout=8)
+        if res.status_code != 200:
+            return None
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        sections = []
+        region_map = [
+            ("MB0", "XỔ SỐ MIỀN BẮC (XSMB)", True),
+            ("MT0", "XỔ SỐ MIỀN TRUNG (XSMT)", False),
+            ("MN0", "XỔ SỐ MIỀN NAM (XSMN)", False),
+        ]
+        for tbl_id, label, is_mb in region_map:
+            tbl = soup.find("table", id=tbl_id)
+            if not tbl:
+                continue
+            rows_out = []
+            for tr in tbl.find_all("tr"):
+                cells = [c.get_text(" ", strip=True) for c in tr.find_all(["th", "td"])]
+                if not cells:
+                    continue
+                if is_mb:
+                    # Bỏ 2 cột đầu/đuôi loto bên phải để tránh nhầm số
+                    first_cell = cells[0].strip()
+                    if first_cell.isdigit() or "mã đb" in first_cell.lower():
+                        continue
+                    row_cells = [c for c in cells[:2] if c]
+                else:
+                    row_cells = [c for c in cells if c]
+                if row_cells:
+                    rows_out.append(" | ".join(row_cells))
+            if rows_out:
+                sections.append(f"### {label}\n" + "\n".join(rows_out))
+
+        if not sections:
+            return None
+
+        return (
+            f"=== KẾT QUẢ XỔ SỐ CHÍNH THỨC NGÀY {date_disp} (TRÍCH XUẤT TRỰC TIẾP TỪ {url}) ===\n\n"
+            + "\n\n".join(sections)
+            + "\n\n=== YÊU CẦU BẮT BUỘC: ĐÂY LÀ SỐ LIỆU KẾT QUẢ XỔ SỐ THẬT 100% NGÀY "
+            f"{date_disp}. CHỈ ĐƯỢC PHÉP NÊU ĐÚNG CÁC CON SỐ CÓ TRONG BẢNG TRÊN, TUYỆT ĐỐI KHÔNG TỰ BỊA HAY SUY ĐOÁN SỐ KHÁC! ==="
+        )
+    except Exception as e:
+        logger.warning(f"Lỗi truy xuất kết quả xổ số {url}: {e}")
+        return None
+
+
 def get_grounded_context(user_query: str, history: Optional[List[Dict[str, str]]] = None) -> str:
     """
     SIÊU HỆ THỐNG TRÍ TUỆ ĐA NGUỒN SONG SONG (PARALLEL MULTI-SOURCE REAL-TIME ENGINE):
@@ -462,6 +553,11 @@ def get_grounded_context(user_query: str, history: Optional[List[Dict[str, str]]
     verbatim_text = fetch_verbatim_law_article(effective_query)
     if verbatim_text:
         return verbatim_text
+
+    # 1.5. Nếu hỏi về kết quả xổ số, truy xuất trực tiếp bảng KQXS 3 miền chính xác 100%
+    lottery_text = fetch_lottery_results(effective_query)
+    if lottery_text:
+        return lottery_text
 
     t_lower = effective_query.lower()
     discovered_sources = []
