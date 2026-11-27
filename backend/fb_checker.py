@@ -363,6 +363,14 @@ def check_single_fb_link(
                 nxt = (qs.get("next") or [""])[0]
                 if nxt:
                     decoded_next_url = urllib.parse.unquote(nxt)
+                    # Bỏ tham số rdid và share_url để tránh plugins/post.php bị kẹt theo link /share/
+                    p_nxt = urllib.parse.urlparse(decoded_next_url)
+                    nxt_qs = urllib.parse.parse_qs(p_nxt.query)
+                    cleaned_qs = {k: v[0] for k, v in nxt_qs.items() if k not in ("rdid", "share_url")}
+                    if cleaned_qs:
+                        decoded_next_url = urllib.parse.urlunparse(
+                            p_nxt._replace(query=urllib.parse.urlencode(cleaned_qs))
+                        )
                     break
             except Exception:
                 pass
